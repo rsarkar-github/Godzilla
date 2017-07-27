@@ -1,4 +1,7 @@
 # Godzilla
 A Project started at Stanford to build and test Helmholtz equation solvers.
 
-# C++, Python and Matlab source codes
+# Includes the Following
+- C++ source codes
+- Python source codes
+- MATLAB source codes
