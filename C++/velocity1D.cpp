@@ -39,7 +39,7 @@ namespace Godzilla {
 		_data.shrink_to_fit();
 	}
 
-	Velocity1D::Velocity1D(const Godzilla::Geometry1D &geom1D, const Godzilla::vecd &data, const std::string &name = "") :
+	Velocity1D::Velocity1D(const Godzilla::Geometry1D &geom1D, const Godzilla::vecd &data, const std::string &name) :
 		_geom1D(geom1D), _name(name), _lock(false), _lockptr(nullptr) {
 
 		size_t n = geom1D.get_nX();
@@ -70,16 +70,16 @@ namespace Godzilla {
 		_data.shrink_to_fit();
 	}
 
-	Velocity1D::Velocity1D(const Godzilla::Geometry1D &geom1D, const Godzilla::vecxd &data, const std::string &name = "") :
+	Velocity1D::Velocity1D(const Godzilla::Geometry1D &geom1D, const Godzilla::vecxd &data, const std::string &name) :
 		_geom1D(geom1D), _name(name), _lock(false), _lockptr(nullptr) {
 
 		size_t n = geom1D.get_nX();
 		bool flag = (data.size() == n) ? true : false;
 		if (flag) {
-			const Godzilla::xd *ptr = data.data();
+			const Godzilla::xd *data_ptr = data.data();
 			double v = 0;
 			for (size_t i = 0; i < n; ++i) {
-				v = std::abs(ptr[i]);
+				v = std::abs(data_ptr[i]);
 				if ((v < Godzilla::VEL_MIN_TOL) || (v > Godzilla::VEL_MAX_TOL)) {
 					flag = false;
 					break;
@@ -143,7 +143,7 @@ namespace Godzilla {
 
 	void Velocity1D::activate_lock(waveX::LockManager<Godzilla::Velocity1D, Godzilla::vecxd> *lock) {
 		if (!_lock) {
-			if (lock->get_id() == 1) {
+			if (lock->get_id() == Godzilla::VELOCITY1D_DATA_ID) {
 				lock->_ptr = &_data;
 				_lock = true;
 				_lockptr = lock;

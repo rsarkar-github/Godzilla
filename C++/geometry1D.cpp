@@ -27,7 +27,7 @@ namespace Godzilla {
 		}
 	}
 
-	Geometry1D::Geometry1D(const double &startX, const double &endX, const size_t &ncellsX, const std::string &labelX = "") {
+	Geometry1D::Geometry1D(const double &startX, const double &endX, const size_t &ncellsX, const std::string &labelX) {
 		if ((ncellsX > 0) && (startX != endX)) {
 			_nX = ncellsX + 1;
 			_ncellsX = ncellsX;
