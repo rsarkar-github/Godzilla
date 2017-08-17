@@ -14,7 +14,7 @@ namespace Godzilla {
 			Velocity2D(const Godzilla::Geometry2D &geom2D, const Godzilla::vecxd &data, const std::string &name = "");
 			Velocity2D(const Godzilla::Velocity2D &vel2D);
 			Velocity2D(Godzilla::Velocity2D &&vel2D);
-
+			
 			// Public methods
 			Godzilla::Velocity2D& operator=(const Godzilla::Velocity2D &vel2D);
 			Godzilla::Velocity2D& operator=(Godzilla::Velocity2D &&vel2D);
@@ -23,10 +23,16 @@ namespace Godzilla {
 			std::string get_name() const { return _name; }
 			size_t get_nelem() const { return _geom2D.get_nX() * _geom2D.get_nY(); }
 
+			void set_data(const Godzilla::vecd &data);
+			void set_data(const Godzilla::vecxd &data);
+			void setmove_data(Godzilla::vecxd &data);
+			void set_name(const std::string &name);
+
 			void activate_lock(waveX::LockManager<Godzilla::Velocity2D, Godzilla::vecxd> *lock);
 			void deactivate_lock(waveX::LockManager<Godzilla::Velocity2D, Godzilla::vecxd> *lock);
 			
 			bool is_locked() const { return _lock; }
+			bool is_equal(const Godzilla::Velocity2D &vel2D, const bool &name_except = true);
 			bool is_data_equal(const Godzilla::vecxd &data) const { return _data == data; }
 			bool is_data_equal(const Godzilla::Velocity2D &vel2D) const { return _data == vel2D.get_cdata(); }
 

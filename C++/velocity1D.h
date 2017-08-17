@@ -23,10 +23,16 @@ namespace Godzilla {
 			std::string get_name() const { return _name; }
 			size_t get_nelem() const { return _geom1D.get_nX(); }
 
+			void set_data(const Godzilla::vecd &data);
+			void set_data(const Godzilla::vecxd &data);
+			void setmove_data(Godzilla::vecxd &data);
+			void set_name(const std::string &name);
+
 			void activate_lock(waveX::LockManager<Godzilla::Velocity1D, Godzilla::vecxd> *lock);
 			void deactivate_lock(waveX::LockManager<Godzilla::Velocity1D, Godzilla::vecxd> *lock);
 
 			bool is_locked() const { return _lock; }
+			bool is_equal(const Godzilla::Velocity1D &vel1D, const bool &name_except = true);
 			bool is_data_equal(const Godzilla::vecxd &data) const { return _data == data; }
 			bool is_data_equal(const Godzilla::Velocity1D &vel1D) const { return _data == vel1D.get_cdata(); }
 

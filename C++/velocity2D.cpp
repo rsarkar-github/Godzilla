@@ -140,6 +140,103 @@ namespace Godzilla {
 			return *this;
 		}
 	}
+	
+	void Velocity2D::set_data(const Godzilla::vecd &data) {
+		if (!_lock) {
+			size_t n = data.size();
+			bool flag = (this->get_nelem() == n) ? true : false;
+			if (flag) {
+				const double *data_ptr = data.data();
+				double v = 0;
+				for (size_t i = 0; i < n; ++i) {
+					v = std::abs(data_ptr[i]);
+					if ((v < Godzilla::VEL_MIN_TOL) || (v > Godzilla::VEL_MAX_TOL)) {
+						flag = false;
+						break;
+					}
+				}
+			}
+
+			if (flag) {
+				const double *data_ptr = data.data();
+				Godzilla::xd *_data_ptr = _data.data();
+				for (size_t i = 0; i < n; ++i) {
+					_data_ptr[i] = data_ptr[i];			// Assigns the reals and sets complex part to zero
+				}
+			}
+			else {
+				std::cerr << "Data size does not match or data contains values too big or too small. Velocity 2D unchanged." << std::endl;
+			}
+		}
+		else {
+			std::cerr << "Velocity2D locked. Velocity2D unchanged." << std::endl;
+		}
+	}
+
+	void Velocity2D::set_data(const Godzilla::vecxd &data) {
+		if (!_lock) {
+			size_t n = data.size();
+			bool flag = (this->get_nelem() == n) ? true : false;
+			if (flag) {
+				const Godzilla::xd *data_ptr = data.data();
+				double v = 0;
+				for (size_t i = 0; i < n; ++i) {
+					v = std::abs(data_ptr[i]);
+					if ((v < Godzilla::VEL_MIN_TOL) || (v > Godzilla::VEL_MAX_TOL)) {
+						flag = false;
+						break;
+					}
+				}
+			}
+
+			if (flag) {
+				_data = data;
+			}
+			else {
+				std::cerr << "Data size does not match or data contains values too big or too small. Velocity 2D unchanged." << std::endl;
+			}
+		}
+		else {
+			std::cerr << "Velocity2D locked. Velocity2D unchanged." << std::endl;
+		}
+	}
+
+	void Velocity2D::setmove_data(Godzilla::vecxd &data) {
+		if (!_lock) {
+			size_t n = data.size();
+			bool flag = (this->get_nelem() == n) ? true : false;
+			if (flag) {
+				const Godzilla::xd *data_ptr = data.data();
+				double v = 0;
+				for (size_t i = 0; i < n; ++i) {
+					v = std::abs(data_ptr[i]);
+					if ((v < Godzilla::VEL_MIN_TOL) || (v > Godzilla::VEL_MAX_TOL)) {
+						flag = false;
+						break;
+					}
+				}
+			}
+
+			if (flag) {
+				_data = std::move(data);
+			}
+			else {
+				std::cerr << "Data size does not match or data contains values too big or too small. Velocity 2D unchanged." << std::endl;
+			}
+		}
+		else {
+			std::cerr << "Velocity2D locked. Velocity2D unchanged." << std::endl;
+		}
+	}
+
+	void Velocity2D::set_name(const std::string &name) {
+		if (!_lock) {
+			_name = name;
+		}
+		else {
+			std::cerr << "Velocity2D locked. Velocity2D unchanged." << std::endl;
+		}
+	}
 
 	void Velocity2D::activate_lock(waveX::LockManager<Godzilla::Velocity2D, Godzilla::vecxd> *lock) {
 		if (!_lock) {
@@ -156,6 +253,15 @@ namespace Godzilla {
 			lock->_ptr = nullptr;
 			_lock = false;
 			_lockptr = nullptr;
+		}
+	}
+
+	bool Velocity2D::is_equal(const Godzilla::Velocity2D &vel2D, const bool &name_except) {
+		if (name_except) {
+			return (_geom2D.is_equal(vel2D.get_geom2D(), false) && (_data == vel2D.get_cdata())) ? true : false;
+		}
+		else {
+			return (_geom2D.is_equal(vel2D.get_geom2D(), true) && (_data == vel2D.get_cdata()) && (_name == vel2D.get_name())) ? true : false;
 		}
 	}
 }
