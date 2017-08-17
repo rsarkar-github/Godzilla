@@ -248,4 +248,26 @@ namespace Godzilla {
 					  << "&& (axis2D.get_n()[1] > 1) && (axis2D.get_d()[1] != 0.) not satisfied. No modification done" << std::endl;
 		}
 	}
+
+	bool Geometry2D::is_equal(const Godzilla::Geometry2D &geom2D, const bool &name_except) const {
+		if (name_except) {
+			if ((_nX != geom2D.get_nX()) || (_ncellsX != geom2D.get_ncellsX())) return false;
+			if ((_startX != geom2D.get_startX()) || (_endX != geom2D.get_endX())) return false;
+			if ((_lenX != geom2D.get_lenX()) || (_hX != geom2D.get_hX())) return false;
+			if ((_nY != geom2D.get_nY()) || (_ncellsY != geom2D.get_ncellsY())) return false;
+			if ((_startY != geom2D.get_startY()) || (_endY != geom2D.get_endY())) return false;
+			if ((_lenY != geom2D.get_lenY()) || (_hY != geom2D.get_hY())) return false;
+			return true;
+		}
+		else {
+			if ((_nX != geom2D.get_nX()) || (_ncellsX != geom2D.get_ncellsX())) return false;
+			if ((_startX != geom2D.get_startX()) || (_endX != geom2D.get_endX())) return false;
+			if ((_lenX != geom2D.get_lenX()) || (_hX != geom2D.get_hX()) || (_labelX != geom2D.get_labelX())) return false;
+			if ((_nY != geom2D.get_nY()) || (_ncellsY != geom2D.get_ncellsY())) return false;
+			if ((_startY != geom2D.get_startY()) || (_endY != geom2D.get_endY())) return false;
+			if ((_lenY != geom2D.get_lenY()) || (_hY != geom2D.get_hY()) || (_labelY != geom2D.get_labelY())) return false;
+			return true;
+		}
+	}
+
 }

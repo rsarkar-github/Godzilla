@@ -39,7 +39,7 @@ startbcY = startY + pmlY
 endbcY = endY - pmlY
 
 # Setup frequency parameters
-f = 5.0
+f = 0.01
 omega = 2 * pi * f
 
 """

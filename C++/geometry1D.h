@@ -28,6 +28,8 @@ namespace Godzilla {
 			void set_geometry1D(const double &startX, const double &endX, const size_t &ncellsX, const std::string &labelX = "");
 			void set_geometry1D(const waveX::Axis &axis1D);
 
+			bool is_equal(const Godzilla::Geometry1D &geom1D, const bool &name_except = true) const;
+
 		private:
 			// Private members
 			size_t _nX;             // id = 0

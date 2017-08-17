@@ -151,4 +151,19 @@ namespace Godzilla {
 		}
 	}
 
+	bool Geometry1D::is_equal(const Godzilla::Geometry1D &geom1D, const bool &name_except) const {
+		if (name_except) {
+			if ((_nX != geom1D.get_nX()) || (_ncellsX != geom1D.get_ncellsX())) return false;
+			if ((_startX != geom1D.get_startX()) || (_endX != geom1D.get_endX())) return false;
+			if ((_lenX != geom1D.get_lenX()) || (_hX != geom1D.get_hX())) return false;
+			return true;
+		}
+		else {
+			if ((_nX != geom1D.get_nX()) || (_ncellsX != geom1D.get_ncellsX())) return false;
+			if ((_startX != geom1D.get_startX()) || (_endX != geom1D.get_endX())) return false;
+			if ((_lenX != geom1D.get_lenX()) || (_hX != geom1D.get_hX()) || (_labelX != geom1D.get_labelX())) return false;
+			return true;
+		}
+	}
+
 }

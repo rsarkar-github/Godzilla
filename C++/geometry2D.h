@@ -41,6 +41,8 @@ namespace Godzilla {
 							const double &startY, const double &endY, const size_t &ncellsY, const std::string &labelX = "", const std::string &labelY = "");
 		void set_geometry2D(const waveX::Axis &axis2D);
 
+		bool is_equal(const Godzilla::Geometry2D &geom2D, const bool &name_except = true) const;
+
 	private:
 		// Private members
 		size_t _nX;             // id = 0
