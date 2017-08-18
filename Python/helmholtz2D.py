@@ -12,13 +12,13 @@ pi = math.pi
 
 # Define box extents and grid along X and Y dimensions, PML parameters
 startX = 0.
-endX = 1.
+endX = 0.5
 etaX = 0.1
-nX = 51
+nX = 25
 startY = 0.
-endY = 1.
+endY = 0.5
 etaY = 0.1
-nY = 51
+nY = 25
 
 C = 20.0
 
@@ -39,7 +39,7 @@ startbcY = startY + pmlY
 endbcY = endY - pmlY
 
 # Setup frequency parameters
-f = 0.01
+f = 5
 omega = 2 * pi * f
 
 """
@@ -333,9 +333,9 @@ def plot_eigenvalues(eigvals):
 Plot the solution
 """
 def plot(u):
-    uReal = np.reshape(np.real(u), (nX, nY))
-    uImag = np.reshape(np.imag(u), (nX, nY))
-    uAbs = np.reshape(np.abs(u), (nX, nY))
+    uReal = np.reshape(np.real(u), (nY, nX))
+    uImag = np.reshape(np.imag(u), (nY, nX))
+    uAbs = np.reshape(np.abs(u), (nY, nX))
     
     plt.figure()
     plt.subplot(121)
