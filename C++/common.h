@@ -15,4 +15,6 @@ namespace Godzilla {
 	// For lock manager
 	extern int VELOCITY1D_DATA_ID;
 	extern int VELOCITY2D_DATA_ID;
+	extern int FIELD1D_DATA_ID;
+	extern int FIELD2D_DATA_ID;
 }

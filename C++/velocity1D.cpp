@@ -4,12 +4,12 @@
 namespace Godzilla {
 	// Constructors
 	Velocity1D::Velocity1D() : _geom1D(Godzilla::Geometry1D()), _name(""), _lock(false), _lockptr(nullptr) {
-		_data.assign(_geom1D.get_nX(), (1., 0.));
+		_data.assign(_geom1D.get_nX(), 1.);
 		_data.shrink_to_fit();
 	}
 
 	Velocity1D::Velocity1D(const Godzilla::Geometry1D &geom1D, const std::string &name) : _geom1D(geom1D), _name(name), _lock(false), _lockptr(nullptr) {
-		_data.assign(geom1D.get_nX(), (1., 0.));
+		_data.assign(geom1D.get_nX(), 1.);
 		_data.shrink_to_fit();
 	}
 
@@ -18,10 +18,10 @@ namespace Godzilla {
 		
 		double v = std::abs(scalar);
 		if ((v >= Godzilla::VEL_MIN_TOL) && (v <= Godzilla::VEL_MAX_TOL)) {
-			_data.assign(geom1D.get_nX(), (scalar, 0.));
+			_data.assign(geom1D.get_nX(), scalar);
 		}
 		else {
-			_data.assign(geom1D.get_nX(), (1., 0.));
+			_data.assign(geom1D.get_nX(), 1.);
 		}
 		_data.shrink_to_fit();
 	}
@@ -34,7 +34,7 @@ namespace Godzilla {
 			_data.assign(geom1D.get_nX(), scalar);
 		}
 		else {
-			_data.assign(geom1D.get_nX(), (1., 0.));
+			_data.assign(geom1D.get_nX(), 1.);
 		}
 		_data.shrink_to_fit();
 	}
@@ -55,17 +55,13 @@ namespace Godzilla {
 				}
 			}
 		}
-
+		_data.assign(n, 1.);
 		if (flag) {
-			_data.reserve(n);
 			const double *data_ptr = data.data();
 			Godzilla::xd *_data_ptr = _data.data();
 			for (size_t i = 0; i < n; ++i) {
 				_data_ptr[i] = data_ptr[i];			// Assigns the reals and sets complex part to zero
 			}
-		}
-		else {
-			_data.assign(n, (1., 0.));
 		}
 		_data.shrink_to_fit();
 	}
@@ -86,12 +82,11 @@ namespace Godzilla {
 				}
 			}
 		}
-
 		if (flag) {
 			_data = data;
 		}
 		else {
-			_data.assign(n, (1., 0.));
+			_data.assign(n, 1.);
 		}
 		_data.shrink_to_fit();
 	}

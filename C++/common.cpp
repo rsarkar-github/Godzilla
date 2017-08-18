@@ -9,4 +9,6 @@ namespace Godzilla {
 	// For lock manager
 	int VELOCITY1D_DATA_ID = 1;
 	int VELOCITY2D_DATA_ID = 1;
+	int FIELD1D_DATA_ID = 1;
+	int FIELD2D_DATA_ID = 1;
 }
