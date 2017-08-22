@@ -32,7 +32,7 @@ namespace Godzilla {
 		void deactivate_lock(waveX::LockManager<Godzilla::Field1D, Godzilla::vecxd> *lock);
 
 		bool is_locked() const { return _lock; }
-		bool is_equal(const Godzilla::Field1D &field1D, const bool &name_except = true);
+		bool is_equal(const Godzilla::Field1D &field1D, const bool &name_except = true) const;
 		bool is_data_equal(const Godzilla::vecxd &data) const { return _data == data; }
 		bool is_data_equal(const Godzilla::Field1D &field1D) const { return _data == field1D.get_cdata(); }
 

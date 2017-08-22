@@ -249,7 +249,7 @@ namespace Godzilla {
 		}
 	}
 
-	bool Velocity2D::is_equal(const Godzilla::Velocity2D &vel2D, const bool &name_except) {
+	bool Velocity2D::is_equal(const Godzilla::Velocity2D &vel2D, const bool &name_except) const {
 		if (name_except) {
 			return (_geom2D.is_equal(vel2D.get_geom2D(), false) && (_data == vel2D.get_cdata())) ? true : false;
 		}

@@ -176,7 +176,7 @@ namespace Godzilla {
 		}
 	}
 
-	bool Field2D::is_equal(const Godzilla::Field2D &field2D, const bool &name_except) {
+	bool Field2D::is_equal(const Godzilla::Field2D &field2D, const bool &name_except) const {
 		if (name_except) {
 			return (_geom2D.is_equal(field2D.get_geom2D(), false) && (_data == field2D.get_cdata())) ? true : false;
 		}

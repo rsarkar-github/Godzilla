@@ -251,7 +251,7 @@ namespace Godzilla {
 		}
 	}
 
-	bool Velocity1D::is_equal(const Godzilla::Velocity1D &vel1D, const bool &name_except) {
+	bool Velocity1D::is_equal(const Godzilla::Velocity1D &vel1D, const bool &name_except) const {
 		if (name_except) {
 			return (_geom1D.is_equal(vel1D.get_geom1D(), false) && (_data == vel1D.get_cdata())) ? true : false;
 		}

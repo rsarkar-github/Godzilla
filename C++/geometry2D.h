@@ -35,10 +35,12 @@ namespace Godzilla {
 			void get_geometry2D(size_t *nX, size_t *ncellsX, double *startX, double *endX, double *lenX, double *hX, std::string *labelX,
 								size_t *nY, size_t *ncellsY, double *startY, double *endY, double *lenY, double *hY, std::string *labelY) const;
 
+			void set_geometry2D(const size_t &nX, const double &startX, const double &hX, const size_t &nY, const double &startY, const double &hY);
 			void set_geometry2D(const size_t &nX, const double &startX, const double &hX,
-								const size_t &nY, const double &startY, const double &hY, const std::string &labelX = "", const std::string &labelY = "");
+								const size_t &nY, const double &startY, const double &hY, const std::string &labelX, const std::string &labelY);
+			void set_geometry2D(const double &startX, const double &endX, const size_t &ncellsX, const double &startY, const double &endY, const size_t &ncellsY);
 			void set_geometry2D(const double &startX, const double &endX, const size_t &ncellsX,
-								const double &startY, const double &endY, const size_t &ncellsY, const std::string &labelX = "", const std::string &labelY = "");
+								const double &startY, const double &endY, const size_t &ncellsY, const std::string &labelX, const std::string &labelY);
 			void set_geometry2D(const waveX::Axis &axis2D);
 
 			bool is_equal(const Godzilla::Geometry2D &geom2D, const bool &name_except = true) const;
