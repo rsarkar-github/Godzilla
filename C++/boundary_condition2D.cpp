@@ -262,11 +262,11 @@ namespace Godzilla {
 		bool flag = true;
 		if (_bc_face1 == "DBC") {
 			if ((_bc_face2 == "DBC") && (data1[n2] != data2[0])) flag = false;
-			if ((_bc_face4 == "DBC") && (data1[0] != data4[n1])) flag = false;
+			if ((_bc_face4 == "DBC") && (data1[0] != data4[0])) flag = false;
 		}
 		if (_bc_face3 == "DBC") {
-			if ((_bc_face2 == "DBC") && (data3[0] != data2[n1])) flag = false;
-			if ((_bc_face4 == "DBC") && (data3[n2] != data4[0])) flag = false;
+			if ((_bc_face2 == "DBC") && (data3[n2] != data2[n1])) flag = false;
+			if ((_bc_face4 == "DBC") && (data3[0] != data4[n1])) flag = false;
 		}
 		return flag;
 	}

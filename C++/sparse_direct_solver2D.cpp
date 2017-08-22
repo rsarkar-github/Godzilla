@@ -73,7 +73,7 @@ namespace Godzilla {
 		}
 
 		Godzilla::vecxd SparseDirectSolver2D::field_simgrid_zeropad(const Godzilla::Field2D &field2D_in, const Godzilla::Geometry2D &geom2D_out,
-																	const size_t &pad1, const size_t &pad4) {
+																	const size_t &pad1, const size_t &pad4) const {
 
 			size_t nX_out = geom2D_out.get_nX();
 			size_t nY_out = geom2D_out.get_nY();
@@ -98,7 +98,7 @@ namespace Godzilla {
 		}
 		
 		Godzilla::vecxd SparseDirectSolver2D::velocity_simgrid_extrap(const Godzilla::Velocity2D &vel2D_in, const Godzilla::Geometry2D &geom2D_out,
-																	  const size_t &pad1, const size_t &pad2, const size_t &pad3, const size_t &pad4) {
+																	  const size_t &pad1, const size_t &pad2, const size_t &pad3, const size_t &pad4) const {
 
 			size_t nX_out = geom2D_out.get_nX();
 			size_t nY_out = geom2D_out.get_nY();
@@ -152,6 +152,110 @@ namespace Godzilla {
 					ptr_out[j] = ptr_in[j];
 				}
 				ptr_out += nX_out;
+			}
+
+			return out;
+		}
+
+		Godzilla::vecxd SparseDirectSolver2D::calculate_sim_bc_face1(const Godzilla::BoundaryCondition2D &bc2D, const Godzilla::Geometry2D &geom2D_out,
+			                                                         const size_t &pad4, const size_t &pad2) const {
+			
+			const Godzilla::xd *ptr_in = bc2D.get_data1().data();
+			size_t nY_in = bc2D.get_geom2D().get_nY();
+
+			Godzilla::vecxd out(geom2D_out.get_nY(), 0.);
+			Godzilla::xd *ptr_out = out.data();
+
+			for (size_t i = 0; i < pad4; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
+			}
+			for (size_t i = 0; i < nY_in; ++i) {
+				*ptr_out = ptr_in[i];
+				++ptr_out;
+			}
+			ptr_in += nY_in - 1;
+			for (size_t i = 0; i < pad2; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
+			}
+
+			return out;
+		}
+
+		Godzilla::vecxd SparseDirectSolver2D::calculate_sim_bc_face2(const Godzilla::BoundaryCondition2D &bc2D, const Godzilla::Geometry2D &geom2D_out,
+																	 const size_t &pad1, const size_t &pad3) const {
+
+			const Godzilla::xd *ptr_in = bc2D.get_data2().data();
+			size_t nX_in = bc2D.get_geom2D().get_nX();
+
+			Godzilla::vecxd out(geom2D_out.get_nX(), 0.);
+			Godzilla::xd *ptr_out = out.data();
+
+			for (size_t i = 0; i < pad1; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
+			}
+			for (size_t i = 0; i < nX_in; ++i) {
+				*ptr_out = ptr_in[i];
+				++ptr_out;
+			}
+			ptr_in += nX_in - 1;
+			for (size_t i = 0; i < pad3; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
+			}
+
+			return out;
+		}
+
+		Godzilla::vecxd SparseDirectSolver2D::calculate_sim_bc_face3(const Godzilla::BoundaryCondition2D &bc2D, const Godzilla::Geometry2D &geom2D_out,
+																	 const size_t &pad4, const size_t &pad2) const {
+
+			const Godzilla::xd *ptr_in = bc2D.get_data3().data();
+			size_t nY_in = bc2D.get_geom2D().get_nY();
+
+			Godzilla::vecxd out(geom2D_out.get_nY(), 0.);
+			Godzilla::xd *ptr_out = out.data();
+
+			for (size_t i = 0; i < pad4; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
+			}
+			for (size_t i = 0; i < nY_in; ++i) {
+				*ptr_out = ptr_in[i];
+				++ptr_out;
+			}
+			ptr_in += nY_in - 1;
+			for (size_t i = 0; i < pad2; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
+			}
+
+			return out;
+		}
+
+		Godzilla::vecxd SparseDirectSolver2D::calculate_sim_bc_face4(const Godzilla::BoundaryCondition2D &bc2D, const Godzilla::Geometry2D &geom2D_out,
+																	 const size_t &pad1, const size_t &pad3) const {
+
+			const Godzilla::xd *ptr_in = bc2D.get_data4().data();
+			size_t nX_in = bc2D.get_geom2D().get_nX();
+
+			Godzilla::vecxd out(geom2D_out.get_nX(), 0.);
+			Godzilla::xd *ptr_out = out.data();
+
+			for (size_t i = 0; i < pad1; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
+			}
+			for (size_t i = 0; i < nX_in; ++i) {
+				*ptr_out = ptr_in[i];
+				++ptr_out;
+			}
+			ptr_in += nX_in - 1;
+			for (size_t i = 0; i < pad3; ++i) {
+				*ptr_out = *ptr_in;
+				++ptr_out;
 			}
 
 			return out;
