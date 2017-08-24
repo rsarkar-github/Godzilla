@@ -11,14 +11,15 @@ namespace Godzilla {
 				// Constructors
 				SparseDirectSolver2D() = delete;
 				SparseDirectSolver2D(const Godzilla::Velocity2D &vel2D, const Godzilla::Field2D &forcing2D,
-									 const Godzilla::BoundaryCondition2D &bc2D, const double &omega);
+									 const Godzilla::BoundaryCondition2D &bc2D, const double &omega, const int &stencil_type);
 
 				// Public methods
 				void change_velocity_data(const Godzilla::Velocity2D &vel2D);
 				void change_forcing_data(const Godzilla::Field2D &forcing2D);
 				void change_boundary_conditions(const Godzilla::BoundaryCondition2D &bc2D);
 				void change_omega(const double &omega);
-				void create_sparse_matrix();
+				void change_stencil_type(const int &stencil_type);
+				void create_sparse_matrix_rhs();
 
 			private:
 				// Private members
@@ -27,6 +28,10 @@ namespace Godzilla {
 				const Godzilla::Field2D *_forcing2D;
 				const Godzilla::BoundaryCondition2D *_bc2D;
 				double _omega;
+
+				// Stencil types
+				// stencil_type = 0 : symmetric 5 point stencil (centered difference)
+				int _stencil_type;
 
 				// The rest are initialized from the user inputs
 				// If initialization was successful
@@ -57,8 +62,10 @@ namespace Godzilla {
 				Godzilla::vecxd _velocity_data_simgrid;
 				Godzilla::vecxd _forcing_data_simgrid;
 
+				//***********************************************************************************************
 				// Private methods
 				bool is_velocity_real(const Godzilla::Velocity2D &vel2D_in) const;
+				bool is_valid_stencil(const int &stencil_type) const;
 				bool is_solver_ready() const { return (_is_matrix_ready && _is_rhs_ready); }
 
 				size_t calculate_pad1(const Godzilla::BoundaryCondition2D &bc2D) const;
@@ -86,6 +93,10 @@ namespace Godzilla {
 											 const size_t &pad1, const size_t &pad3) const;
 				Godzilla::vecxd calculate_sY(const Godzilla::vecd &y, const Godzilla::Geometry2D &geom2D, const double &omega,
 											 const size_t &pad4, const size_t &pad2) const;
+
+				void append_A(std::vector<size_t> &row_A, std::vector<size_t> &col_A, Godzilla::vecxd &val_A,
+							  const size_t &row, const size_t &col, const Godzilla::xd &val) const;
+				void append_b(std::vector<size_t> &row_b, Godzilla::vecxd &val_b, const size_t &row, const Godzilla::xd &val) const;
 		};
 	}
 }
