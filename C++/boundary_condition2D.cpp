@@ -152,6 +152,10 @@ namespace Godzilla {
 	void BoundaryCondition2D::set_bc_face1(const std::string &bc_face1) {
 		if (this->is_valid_boundary_condition(bc_face1)) {
 			_bc_face1 = bc_face1;
+			if (bc_face1 == "PML") {
+				_data1.clear();
+				_data1.shrink_to_fit();
+			}
 		}
 		else {
 			std::cerr << "Not a valid boundary condition. Boundary condition not changed." << std::endl;
@@ -161,6 +165,10 @@ namespace Godzilla {
 	void BoundaryCondition2D::set_bc_face2(const std::string &bc_face2) {
 		if (this->is_valid_boundary_condition(bc_face2)) {
 			_bc_face2 = bc_face2;
+			if (bc_face2 == "PML") {
+				_data2.clear();
+				_data2.shrink_to_fit();
+			}
 		}
 		else {
 			std::cerr << "Not a valid boundary condition. Boundary condition not changed." << std::endl;
@@ -170,6 +178,10 @@ namespace Godzilla {
 	void BoundaryCondition2D::set_bc_face3(const std::string &bc_face3) {
 		if (this->is_valid_boundary_condition(bc_face3)) {
 			_bc_face3 = bc_face3;
+			if (bc_face3 == "PML") {
+				_data3.clear();
+				_data3.shrink_to_fit();
+			}
 		}
 		else {
 			std::cerr << "Not a valid boundary condition. Boundary condition not changed." << std::endl;
@@ -179,6 +191,10 @@ namespace Godzilla {
 	void BoundaryCondition2D::set_bc_face4(const std::string &bc_face4) {
 		if (this->is_valid_boundary_condition(bc_face4)) {
 			_bc_face4 = bc_face4;
+			if (bc_face4 == "PML") {
+				_data4.clear();
+				_data4.shrink_to_fit();
+			}
 		}
 		else {
 			std::cerr << "Not a valid boundary condition. Boundary condition not changed." << std::endl;
@@ -187,7 +203,7 @@ namespace Godzilla {
 
 	void BoundaryCondition2D::set_pmlcells_face1(const size_t &pmlcells_face1) {
 		if (pmlcells_face1 >= Godzilla::PML_CELLS_DEFAULT) {
-			_pmlcells_face1 = pmlcells_face1;
+			_pmlcells_face1 = (_bc_face1 == "PML") ? pmlcells_face1 : _pmlcells_face1;
 		}
 		else {
 			std::cerr << "Number of PML cells cannot be less than default. PML cells unchanged." << std::endl;
@@ -196,7 +212,7 @@ namespace Godzilla {
 
 	void BoundaryCondition2D::set_pmlcells_face2(const size_t &pmlcells_face2) {
 		if (pmlcells_face2 >= Godzilla::PML_CELLS_DEFAULT) {
-			_pmlcells_face2 = pmlcells_face2;
+			_pmlcells_face2 = (_bc_face2 == "PML") ? pmlcells_face2 : _pmlcells_face2;
 		}
 		else {
 			std::cerr << "Number of PML cells cannot be less than default. PML cells unchanged." << std::endl;
@@ -205,7 +221,7 @@ namespace Godzilla {
 
 	void BoundaryCondition2D::set_pmlcells_face3(const size_t &pmlcells_face3) {
 		if (pmlcells_face3 >= Godzilla::PML_CELLS_DEFAULT) {
-			_pmlcells_face3 = pmlcells_face3;
+			_pmlcells_face3 = (_bc_face3 == "PML") ? pmlcells_face3 : _pmlcells_face3;
 		}
 		else {
 			std::cerr << "Number of PML cells cannot be less than default. PML cells unchanged." << std::endl;
@@ -214,7 +230,7 @@ namespace Godzilla {
 
 	void BoundaryCondition2D::set_pmlcells_face4(const size_t &pmlcells_face4) {
 		if (pmlcells_face4 >= Godzilla::PML_CELLS_DEFAULT) {
-			_pmlcells_face4 = pmlcells_face4;
+			_pmlcells_face4 = (_bc_face4 == "PML") ? pmlcells_face4 : _pmlcells_face4;
 		}
 		else {
 			std::cerr << "Number of PML cells cannot be less than default. PML cells unchanged." << std::endl;

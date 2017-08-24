@@ -169,31 +169,6 @@ namespace Godzilla {
 		*labelY = _labelY;
 	}
 
-	void Geometry2D::set_geometry2D(const size_t &nX, const double &startX, const double &hX, const size_t &nY, const double &startY, const double &hY) {
-
-		if ((nX > 1) && (hX != 0.) && (nY > 1) && (hY != 0.)) {
-			_nX = nX;
-			_ncellsX = nX - 1;
-			_hX = hX;
-			const double pX = _ncellsX * hX;
-			_startX = startX;
-			_endX = startX + pX;
-			_lenX = (pX > 0) ? pX : -pX;
-
-			_nY = nY;
-			_ncellsY = nY - 1;
-			_hY = hY;
-			const double pY = _ncellsY * hY;
-			_startY = startY;
-			_endY = startY + pY;
-			_lenY = (pY > 0) ? pY : -pY;
-		}
-		else {
-			std::cout << "(nX > 1) && (hX != 0.) && (nY > 1) && (hY != 0.) not satisfied. No modification done" << std::endl;
-		}
-	}
-
-
 	void Geometry2D::set_geometry2D(const size_t &nX, const double &startX, const double &hX,
 									const size_t &nY, const double &startY, const double &hY, const std::string &labelX, const std::string &labelY) {
 
@@ -218,30 +193,6 @@ namespace Godzilla {
 		}
 		else {
 			std::cout << "(nX > 1) && (hX != 0.) && (nY > 1) && (hY != 0.) not satisfied. No modification done" << std::endl;
-		}
-	}
-
-	void Geometry2D::set_geometry2D(const double &startX, const double &endX, const size_t &ncellsX, const double &startY, const double &endY, const size_t &ncellsY) {
-
-		if ((ncellsX > 0) && (startX != endX) && (ncellsY > 0) && (startY != endY)) {
-			_nX = ncellsX + 1;
-			_ncellsX = ncellsX;
-			_startX = startX;
-			_endX = endX;
-			const double pX = endX - startX;
-			_hX = pX / ncellsX;
-			_lenX = (pX > 0) ? pX : -pX;
-
-			_nY = ncellsY + 1;
-			_ncellsY = ncellsY;
-			_startY = startY;
-			_endY = endY;
-			const double pY = endY - startY;
-			_hY = pY / ncellsY;
-			_lenY = (pY > 0) ? pY : -pY;
-		}
-		else {
-			std::cout << "(ncellsX > 0) && (startX != endX) && (ncellsY > 0) && (startY != endY) not satisfied. No modification done" << std::endl;
 		}
 	}
 

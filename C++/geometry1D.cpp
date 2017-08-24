@@ -102,21 +102,6 @@ namespace Godzilla {
 		*labelX = _labelX;
 	}
 
-	void Geometry1D::set_geometry1D(const size_t &nX, const double &startX, const double &hX) {
-		if ((nX > 1) && (hX != 0.)) {
-			_nX = nX;
-			_ncellsX = nX - 1;
-			_hX = hX;
-			const double pX = _ncellsX * hX;
-			_startX = startX;
-			_endX = startX + pX;
-			_lenX = (pX > 0) ? pX : -pX;
-		}
-		else {
-			std::cout << "(nX > 1) && (hX != 0.) not satisfied. No modification done" << std::endl;
-		}
-	}
-
 	void Geometry1D::set_geometry1D(const size_t &nX, const double &startX, const double &hX, const std::string &labelX) {
 		if ((nX > 1) && (hX != 0.)) {
 			_nX = nX;
@@ -130,21 +115,6 @@ namespace Godzilla {
 		}
 		else {
 			std::cout << "(nX > 1) && (hX != 0.) not satisfied. No modification done" << std::endl;
-		}
-	}
-
-	void Geometry1D::set_geometry1D(const double &startX, const double &endX, const size_t &ncellsX) {
-		if ((ncellsX > 0) && (startX != endX)) {
-			_nX = ncellsX + 1;
-			_ncellsX = ncellsX;
-			_startX = startX;
-			_endX = endX;
-			const double pX = endX - startX;
-			_hX = pX / ncellsX;
-			_lenX = (pX > 0) ? pX : -pX;
-		}
-		else {
-			std::cout << "(ncellsX > 0) && (startX != endX) not satisfied. No modification done" << std::endl;
 		}
 	}
 

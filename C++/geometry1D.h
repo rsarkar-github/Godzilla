@@ -24,10 +24,8 @@ namespace Godzilla {
 			std::string get_labelX() const { return _labelX; }
 			void get_geometry1D(size_t *nX, size_t *ncellsX, double *startX, double *endX, double *lenX, double *hX, std::string *labelX) const;
 
-			void set_geometry1D(const size_t &nX, const double &startX, const double &hX);
-			void set_geometry1D(const size_t &nX, const double &startX, const double &hX, const std::string &labelX);
-			void set_geometry1D(const double &startX, const double &endX, const size_t &ncellsX);
-			void set_geometry1D(const double &startX, const double &endX, const size_t &ncellsX, const std::string &labelX);
+			void set_geometry1D(const size_t &nX, const double &startX, const double &hX, const std::string &labelX = "");
+			void set_geometry1D(const double &startX, const double &endX, const size_t &ncellsX, const std::string &labelX = "");
 			void set_geometry1D(const waveX::Axis &axis1D);
 
 			bool is_equal(const Godzilla::Geometry1D &geom1D, const bool &name_except = true) const;
