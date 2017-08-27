@@ -36,7 +36,7 @@ namespace Godzilla {
 								size_t *nY, size_t *ncellsY, double *startY, double *endY, double *lenY, double *hY, std::string *labelY) const;
 
 			void set_geometry2D(const size_t &nX, const double &startX, const double &hX,
-								const size_t &nY, const double &startY, const double &hY, const std::string &labelX, const std::string &labelY = "");
+								const size_t &nY, const double &startY, const double &hY, const std::string &labelX = "", const std::string &labelY = "");
 			void set_geometry2D(const double &startX, const double &endX, const size_t &ncellsX,
 								const double &startY, const double &endY, const size_t &ncellsY, const std::string &labelX = "", const std::string &labelY = "");
 			void set_geometry2D(const waveX::Axis &axis2D);

@@ -7,6 +7,8 @@ namespace Godzilla {
 		public:
 			// Constructors
 			BoundaryCondition2D();
+
+			BoundaryCondition2D(const Godzilla::Geometry2D &geom2D);
 			
 			BoundaryCondition2D(const Godzilla::Geometry2D &geom2D, const std::string &bc_face1, const std::string &bc_face2 = Godzilla::BC_DEFAULT,
 								const std::string &bc_face3 = Godzilla::BC_DEFAULT, const std::string &bc_face4 = Godzilla::BC_DEFAULT);

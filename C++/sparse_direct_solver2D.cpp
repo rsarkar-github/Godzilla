@@ -1,21 +1,25 @@
 #include "sparse_direct_solver2D.h"
 #include <cmath>
+#include <algorithm>
 
 namespace Godzilla {
 	namespace Helmholtz2DReal {
 		// Constructors
-		SparseDirectSolver2D::SparseDirectSolver2D(const Godzilla::Velocity2D &vel2D, const Godzilla::Field2D &forcing2D,
-												   const Godzilla::BoundaryCondition2D &bc2D, const double &omega, const int &stencil_type)
-			: _vel2D(nullptr), _forcing2D(nullptr), _bc2D(nullptr), _initialized_state(false), _is_matrix_ready(false), _is_rhs_ready(false) {
+		SparseDirectSolver2D::SparseDirectSolver2D(const Godzilla::Velocity2D *vel2D, const Godzilla::Field2D *forcing2D,
+												   const Godzilla::BoundaryCondition2D *bc2D, const double &omega, const int &stencil_type)
+
+			: _vel2D(nullptr), _forcing2D(nullptr), _bc2D(nullptr), _initialized_state(false), _is_matrix_ready(false), _is_rhs_ready(false),
+			  _dim_A(0), _A_p(nullptr), _A_i(nullptr), _A_x(nullptr), _A_z(nullptr), _b_x(nullptr), _b_z(nullptr), _y_x(nullptr), _y_z(nullptr),
+			  _symbolic(nullptr), _numeric(nullptr) {
 
 			_omega = (omega != 0.) ? omega : 1.;
 			_stencil_type = (this->is_valid_stencil(stencil_type)) ? stencil_type : 0;
 
-			const Godzilla::Geometry2D &geom2D = vel2D.get_geom2D();
-			if (this->is_velocity_real(vel2D) && geom2D.is_equal(forcing2D.get_geom2D()) && geom2D.is_equal(bc2D.get_geom2D())) {
-				_vel2D = &vel2D;
-				_forcing2D = &forcing2D;
-				_bc2D = &bc2D;
+			const Godzilla::Geometry2D &geom2D = vel2D->get_geom2D();
+			if (this->is_velocity_real(*vel2D) && geom2D.is_equal(forcing2D->get_geom2D()) && geom2D.is_equal(bc2D->get_geom2D())) {
+				_vel2D = vel2D;
+				_forcing2D = forcing2D;
+				_bc2D = bc2D;
 				_sim_geom2D = this->create_sim_geom2D(*_bc2D);
 				_pad1 = this->calculate_pad1(*_bc2D);
 				_pad2 = this->calculate_pad2(*_bc2D);
@@ -35,65 +39,180 @@ namespace Godzilla {
 		}
 
 		// Public methods
-		void SparseDirectSolver2D::change_velocity_data(const Godzilla::Velocity2D &vel2D) {
-			if (_vel2D->get_geom2D().is_equal(vel2D.get_geom2D()) && this->is_velocity_real(vel2D)) {
-				_vel2D = &vel2D;
-				_velocity_data_simgrid = this->velocity_simgrid_extrap(*_vel2D, _sim_geom2D, _pad1, _pad2, _pad3, _pad4);
-				_is_matrix_ready = false;
+		void SparseDirectSolver2D::change_velocity_data(const Godzilla::Velocity2D *vel2D) {
+			if (_initialized_state) {
+				if (_vel2D->get_geom2D().is_equal(vel2D->get_geom2D()) && this->is_velocity_real(*vel2D)) {
+					if (!_vel2D->is_data_equal(*vel2D)) {
+						_vel2D = vel2D;
+						_velocity_data_simgrid = this->velocity_simgrid_extrap(*_vel2D, _sim_geom2D, _pad1, _pad2, _pad3, _pad4);
+						
+						_is_matrix_ready = false;
+						_dim_A = 0;
+						delete[] _A_p;
+						delete[] _A_i;
+						delete[] _A_x;
+						delete[] _A_z;
+						delete[] _y_x;
+						delete[] _y_z;
+						umfpack_zl_free_numeric(&_numeric);
+						_A_p = nullptr;
+						_A_i = nullptr;
+						_A_x = nullptr;
+						_A_z = nullptr;
+						_y_x = nullptr;
+						_y_z = nullptr;
+						_numeric = nullptr;
+					}
+					else {
+						std::cerr << "Input velocity not different. Cannot change velocity data." << std::endl;
+					}
+				}
+				else {
+					std::cerr << "Input geometry does not match existing geometry or velocity not real. Cannot change velocity data." << std::endl;
+				}
 			}
 			else {
-				std::cerr << "Input geometry does not match existing geometry. Cannot change velocity data." << std::endl;
+				std::cerr << "Object not initialized. Cannot change velocity data. Initialize object first." << std::endl;
 			}
 		}
 
-		void SparseDirectSolver2D::change_forcing_data(const Godzilla::Field2D &forcing2D) {
-			if (_vel2D->get_geom2D().is_equal(forcing2D.get_geom2D())) {
-				_forcing2D = &forcing2D;
-				_forcing_data_simgrid = this->field_simgrid_zeropad(*_forcing2D, _sim_geom2D, _pad1, _pad4);
-				_is_rhs_ready = false;
+		void SparseDirectSolver2D::change_forcing_data(const Godzilla::Field2D *forcing2D) {
+			if (_initialized_state) {
+				if (_forcing2D->get_geom2D().is_equal(forcing2D->get_geom2D())) {
+					if (!_forcing2D->is_data_equal(*forcing2D)) {
+						_forcing2D = forcing2D;
+						_forcing_data_simgrid = this->field_simgrid_zeropad(*_forcing2D, _sim_geom2D, _pad1, _pad4);
+						
+						_is_rhs_ready = false;
+						delete[] _y_x;
+						delete[] _y_z;
+						delete[] _b_x;
+						delete[] _b_z;
+						_y_x = nullptr;
+						_y_z = nullptr;
+						_b_x = nullptr;
+						_b_z = nullptr;
+					}
+					else {
+						std::cerr << "Input forcing not different. Cannot change forcing data." << std::endl;
+					}
+				}
+				else {
+					std::cerr << "Input geometry does not match existing geometry. Cannot change forcing data." << std::endl;
+				}
 			}
 			else {
-				std::cerr << "Input geometry does not match existing geometry. Cannot change forcing data." << std::endl;
+				std::cerr << "Object not initialized. Cannot change forcing data. Initialize object first." << std::endl;
 			}
 		}
 
-		void SparseDirectSolver2D::change_boundary_conditions(const Godzilla::BoundaryCondition2D &bc2D) {
-			if (_vel2D->get_geom2D().is_equal(bc2D.get_geom2D())) {
-				_bc2D = &bc2D;
-				_sim_geom2D = this->create_sim_geom2D(*_bc2D);
-				_pad1 = this->calculate_pad1(*_bc2D);
-				_pad2 = this->calculate_pad2(*_bc2D);
-				_pad3 = this->calculate_pad3(*_bc2D);
-				_pad4 = this->calculate_pad4(*_bc2D);
-				_sim_bc_face1 = this->calculate_sim_bc_face1(*_bc2D, _sim_geom2D, _pad4, _pad2);
-				_sim_bc_face2 = this->calculate_sim_bc_face2(*_bc2D, _sim_geom2D, _pad1, _pad3);
-				_sim_bc_face3 = this->calculate_sim_bc_face3(*_bc2D, _sim_geom2D, _pad4, _pad2);
-				_sim_bc_face4 = this->calculate_sim_bc_face4(*_bc2D, _sim_geom2D, _pad1, _pad3);
-				_velocity_data_simgrid = this->velocity_simgrid_extrap(*_vel2D, _sim_geom2D, _pad1, _pad2, _pad3, _pad4);
-				_forcing_data_simgrid = this->field_simgrid_zeropad(*_forcing2D, _sim_geom2D, _pad1, _pad4);
-				_is_matrix_ready = false;
-				_is_rhs_ready = false;
+		void SparseDirectSolver2D::change_boundary_conditions(const Godzilla::BoundaryCondition2D *bc2D) {
+			if (_initialized_state) {
+				if (_vel2D->get_geom2D().is_equal(bc2D->get_geom2D())) {
+					_bc2D = bc2D;
+					_sim_geom2D = this->create_sim_geom2D(*_bc2D);
+					_pad1 = this->calculate_pad1(*_bc2D);
+					_pad2 = this->calculate_pad2(*_bc2D);
+					_pad3 = this->calculate_pad3(*_bc2D);
+					_pad4 = this->calculate_pad4(*_bc2D);
+					_sim_bc_face1 = this->calculate_sim_bc_face1(*_bc2D, _sim_geom2D, _pad4, _pad2);
+					_sim_bc_face2 = this->calculate_sim_bc_face2(*_bc2D, _sim_geom2D, _pad1, _pad3);
+					_sim_bc_face3 = this->calculate_sim_bc_face3(*_bc2D, _sim_geom2D, _pad4, _pad2);
+					_sim_bc_face4 = this->calculate_sim_bc_face4(*_bc2D, _sim_geom2D, _pad1, _pad3);
+					_velocity_data_simgrid = this->velocity_simgrid_extrap(*_vel2D, _sim_geom2D, _pad1, _pad2, _pad3, _pad4);
+					_forcing_data_simgrid = this->field_simgrid_zeropad(*_forcing2D, _sim_geom2D, _pad1, _pad4);
+					
+					_is_matrix_ready = false;
+					_is_rhs_ready = false;
+					_dim_A = 0;
+					delete[] _A_p;
+					delete[] _A_i;
+					delete[] _A_x;
+					delete[] _A_z;
+					delete[] _y_x;
+					delete[] _y_z;
+					delete[] _b_x;
+					delete[] _b_z;
+					umfpack_zl_free_symbolic(&_symbolic);
+					umfpack_zl_free_numeric(&_numeric);
+					_A_p = nullptr;
+					_A_i = nullptr;
+					_A_x = nullptr;
+					_A_z = nullptr;
+					_y_x = nullptr;
+					_y_z = nullptr;
+					_b_x = nullptr;
+					_b_z = nullptr;
+					_symbolic = nullptr;
+					_numeric = nullptr;
+				}
+				else {
+					std::cerr << "Input geometry does not match existing geometry. Cannot change boundary conditions." << std::endl;
+				}
 			}
 			else {
-				std::cerr << "Input geometry does not match existing geometry. Cannot change boundary conditions." << std::endl;
+				std::cerr << "Object not initialized. Cannot change boundary conditions. Initialize object first." << std::endl;
 			}
 		}
 
 		void SparseDirectSolver2D::change_omega(const double &omega) {
-			if (omega != 0.) {
+			if ((omega != 0.) && (omega != _omega)) {
 				_omega = omega;
+				
 				_is_matrix_ready = false;
+				_is_rhs_ready = false;
+				_dim_A = 0;
+				delete[] _A_p;
+				delete[] _A_i;
+				delete[] _A_x;
+				delete[] _A_z;
+				delete[] _y_x;
+				delete[] _y_z;
+				delete[] _b_x;
+				delete[] _b_z;
+				umfpack_zl_free_numeric(&_numeric);
+				_A_p = nullptr;
+				_A_i = nullptr;
+				_A_x = nullptr;
+				_A_z = nullptr;
+				_y_x = nullptr;
+				_y_z = nullptr;
+				_b_x = nullptr;
+				_b_z = nullptr;
+				_numeric = nullptr;
 			}
 			else {
-				_omega = 1.;
+				std::cerr << "Omega unchanged. Either omega equals 0 or same as existing omega." << std::endl;
 			}
 		}
 
 		void SparseDirectSolver2D::change_stencil_type(const int &stencil_type) {
 			if ((stencil_type != _stencil_type) && (this->is_valid_stencil(stencil_type))) {
 				_stencil_type = stencil_type;
+
 				_is_matrix_ready = false;
 				_is_rhs_ready = false;
+				_dim_A = 0;
+				delete[] _A_p;
+				delete[] _A_i;
+				delete[] _A_x;
+				delete[] _A_z;
+				delete[] _y_x;
+				delete[] _y_z;
+				delete[] _b_x;
+				delete[] _b_z;
+				umfpack_zl_free_symbolic(&_symbolic);
+				umfpack_zl_free_numeric(&_numeric);
+				_A_p = nullptr;
+				_A_i = nullptr;
+				_A_x = nullptr;
+				_A_z = nullptr;
+				_y_x = nullptr;
+				_y_z = nullptr;
+				_b_x = nullptr;
+				_b_z = nullptr;
+				_symbolic = nullptr;
+				_numeric = nullptr;
 			}
 			else {
 				std::cerr << "Stencil type unchanged. Either not a valid stencil type or same as existing stencil." << std::endl;
@@ -133,11 +252,20 @@ namespace Godzilla {
 			const size_t points_X = (start_nX <= end_nX) ? (end_nX - start_nX) + 1 : 0;
 			const size_t points_Y = (start_nY <= end_nY) ? (end_nY - start_nY) + 1 : 0;
 
-			const size_t active_points = ((points_X != 0) && (points_Y != 0)) ? points_X * points_Y : 0;
+			const size_t active_points = points_X * points_Y;
 			if (active_points == 0) {
 				std::cerr << "No active points to solve for. Boundary conditions determine solution." << std::endl;
 				return;
 			}
+
+			// Define vectors to create sparse matrix in triplet form
+			std::vector<size_t> row_A, col_A, row_b;
+			Godzilla::vecxd val_A, val_b;
+			row_A.reserve(active_points * 5);
+			col_A.reserve(active_points * 5);
+			val_A.reserve(active_points * 5);
+			row_b.reserve(active_points);
+			val_b.reserve(active_points);
 
 			/////////////////////////////////////////////////////////////////////////////////////////////
 			// STENCIL TYPE = 0
@@ -158,8 +286,14 @@ namespace Godzilla {
 				for (size_t i = 0; i < sY_points; ++i) {
 					ptr[i] = startY + i * stepY;
 				}
-				const Godzilla::vecxd sX = this->calculate_sX(x, _sim_geom2D, _omega, _pad1, _pad3);
-				const Godzilla::vecxd sY = this->calculate_sY(y, _sim_geom2D, _omega, _pad4, _pad2);
+				Godzilla::vecxd sX = this->calculate_sX(x, _sim_geom2D, _omega, _pad1, _pad3);
+				Godzilla::vecxd sY = this->calculate_sY(y, _sim_geom2D, _omega, _pad4, _pad2);
+				for (auto &i : sX) {
+					i /= hX;
+				}
+				for (auto &i : sY) {
+					i /= hY;
+				}
 				
 				// Get pointers to the sX, sY, velocity, forcing and boundary conditions along the 4 faces
 				const Godzilla::xd *ptr_sX = sX.data();
@@ -170,10 +304,6 @@ namespace Godzilla {
 				const Godzilla::xd *ptr_bc_face2 = _sim_bc_face2.data();
 				const Godzilla::xd *ptr_bc_face3 = _sim_bc_face3.data();
 				const Godzilla::xd *ptr_bc_face4 = _sim_bc_face4.data();
-
-				// Define vectors to create sparse matrix in triplet form
-				std::vector<size_t> row_A, col_A, row_b;
-				Godzilla::vecxd val_A, val_b;
 
 				// Define variables that will be used
 				size_t n_index = 0;
@@ -208,15 +338,15 @@ namespace Godzilla {
 					sY_index = 2 * (start_nY + 1);
 					sX_index = 2 * (start_nX + 1);
 
-					p1Y = ptr_sY[sY_index] / hY;
-					p2Y = ptr_sY[sY_index + 1] / hY;
-					p3Y = ptr_sY[sY_index - 1] / hY;
+					p1Y = ptr_sY[sY_index];
+					p2Y = ptr_sY[sY_index + 1];
+					p3Y = ptr_sY[sY_index - 1];
 					
 					for (size_t j = 1; j < points_X - 1; ++j) {
 
-						p1X = ptr_sX[sX_index] / hX;
-						p2X = ptr_sX[sX_index + 1] / hX;
-						p3X = ptr_sX[sX_index - 1] / hX;
+						p1X = ptr_sX[sX_index];
+						p2X = ptr_sX[sX_index + 1];
+						p3X = ptr_sX[sX_index - 1];
 
 						// Forcing term
 						val = ptr_forcing2D[forcing_index];
@@ -259,22 +389,18 @@ namespace Godzilla {
 				sX_index = 2 * start_nX;
 				sY_index = 2 * (start_nY + 1);
 
-				p1X = ptr_sX[sX_index] / hX;
-				p2X = ptr_sX[sX_index + 1] / hX;
-				p3X = ptr_sX[sX_index - 1] / hX;
+				p1X = ptr_sX[sX_index];
+				p2X = ptr_sX[sX_index + 1];
+				p3X = ptr_sX[sX_index - 1];
 
 				for (size_t i = 1; i < points_Y - 1; ++i) {
-					p1Y = ptr_sY[sY_index] / hY;
-					p2Y = ptr_sY[sY_index + 1] / hY;
-					p3Y = ptr_sY[sY_index - 1] / hY;
+					p1Y = ptr_sY[sY_index];
+					p2Y = ptr_sY[sY_index + 1];
+					p3Y = ptr_sY[sY_index - 1];
 
 					// Forcing term
-					if (_bc2D->get_bc_face1() != "NBC") {
-						val = ptr_forcing2D[forcing_index] - p1X * p3X * ptr_bc_face1[bc_face1_index];
-					}
-					else {
-						val = ptr_forcing2D[forcing_index] - 2 * hX * p1X * p3X * ptr_bc_face1[bc_face1_index];
-					}
+					val = ptr_forcing2D[forcing_index];
+					val -= (_bc2D->get_bc_face1() != "NBC") ? p1X * p3X * ptr_bc_face1[bc_face1_index] : 2 * hX * p1X * p3X * ptr_bc_face1[bc_face1_index];
 					this->append_b(row_b, val_b, n_index, val);
 
 					// Central coefficient
@@ -282,12 +408,7 @@ namespace Godzilla {
 					this->append_A(row_A, col_A, val_A, n_index, n_index, val);
 
 					// Right coefficient
-					if (_bc2D->get_bc_face1() != "NBC") {
-						val = p1X * p2X;
-					}
-					else {
-						val = p1X * (p2X + p3X);
-					}
+					val = (_bc2D->get_bc_face1() != "NBC") ? p1X * p2X : p1X * (p2X + p3X);
 					this->append_A(row_A, col_A, val_A, n_index, n_index + 1, val);
 
 					// Bottom coefficient
@@ -314,23 +435,19 @@ namespace Godzilla {
 				sX_index = 2 * (start_nX + 1);
 				sY_index = 2 * end_nY;
 
-				p1Y = ptr_sY[sY_index] / hY;
-				p2Y = ptr_sY[sY_index + 1] / hY;
-				p3Y = ptr_sY[sY_index - 1] / hY;
+				p1Y = ptr_sY[sY_index];
+				p2Y = ptr_sY[sY_index + 1];
+				p3Y = ptr_sY[sY_index - 1];
 
 				for (size_t i = 1; i < points_X - 1; ++i) {
 						
-					p1X = ptr_sX[sX_index] / hX;
-					p2X = ptr_sX[sX_index + 1] / hX;
-					p3X = ptr_sX[sX_index - 1] / hX;
+					p1X = ptr_sX[sX_index];
+					p2X = ptr_sX[sX_index + 1];
+					p3X = ptr_sX[sX_index - 1];
 
 					// Forcing term
-					if (_bc2D->get_bc_face2() != "NBC") {
-						val = ptr_forcing2D[forcing_index] - p1Y * p2Y * ptr_bc_face2[bc_face2_index];
-					}
-					else {
-						val = ptr_forcing2D[forcing_index] - 2 * hY * p1Y * p2Y * ptr_bc_face2[bc_face2_index];
-					}
+					val = ptr_forcing2D[forcing_index];
+					val -= (_bc2D->get_bc_face2() != "NBC") ? p1Y * p2Y * ptr_bc_face2[bc_face2_index] : 2 * hY * p1Y * p2Y * ptr_bc_face2[bc_face2_index];
 					this->append_b(row_b, val_b, n_index, val);
 
 					// Central coefficient
@@ -346,12 +463,7 @@ namespace Godzilla {
 					this->append_A(row_A, col_A, val_A, n_index, n_index + 1, val);
 
 					// Bottom coefficient
-					if (_bc2D->get_bc_face2() != "NBC") {
-						val = p1Y * p3Y;
-					}
-					else {
-						val = p1Y * (p2Y + p3Y);
-					}
+					val = (_bc2D->get_bc_face2() != "NBC") ? p1Y * p3Y : p1Y * (p2Y + p3Y);
 					this->append_A(row_A, col_A, val_A, n_index, n_index - points_X, val);
 
 					sX_index += 2;
@@ -370,24 +482,19 @@ namespace Godzilla {
 				sX_index = 2 * end_nX;
 				sY_index = 2 * (start_nY + 1);
 
-				p1X = ptr_sX[sX_index] / hX;
-				p2X = ptr_sX[sX_index + 1] / hX;
-				p3X = ptr_sX[sX_index - 1] / hX;
+				p1X = ptr_sX[sX_index];
+				p2X = ptr_sX[sX_index + 1];
+				p3X = ptr_sX[sX_index - 1];
 
 				for (size_t i = 1; i < points_Y - 1; ++i) {
 
-					p1Y = ptr_sY[sY_index] / hY;
-					p2Y = ptr_sY[sY_index + 1] / hY;
-					p3Y = ptr_sY[sY_index - 1] / hY;
+					p1Y = ptr_sY[sY_index];
+					p2Y = ptr_sY[sY_index + 1];
+					p3Y = ptr_sY[sY_index - 1];
 
 					// Forcing term
-					row_b.push_back(n_index);
-					if (_bc2D->get_bc_face3() != "NBC") {
-						val = ptr_forcing2D[forcing_index] - p1X * p2X * ptr_bc_face3[bc_face3_index];
-					}
-					else {
-						val = ptr_forcing2D[forcing_index] - 2 * hX * p1X * p2X * ptr_bc_face3[bc_face3_index];
-					}
+					val = ptr_forcing2D[forcing_index];
+					val -= (_bc2D->get_bc_face3() != "NBC") ? p1X * p2X * ptr_bc_face3[bc_face3_index] : 2 * hX * p1X * p2X * ptr_bc_face3[bc_face3_index];
 					this->append_b(row_b, val_b, n_index, val);
 
 					// Central coefficient
@@ -395,12 +502,7 @@ namespace Godzilla {
 					this->append_A(row_A, col_A, val_A, n_index, n_index, val);
 
 					// Left coefficient
-					if (_bc2D->get_bc_face3() != "NBC") {
-						val = p1X * p3X;
-					}
-					else {
-						val = p1X * (p2X + p3X);
-					}
+					val = (_bc2D->get_bc_face3() != "NBC") ? p1X * p3X : p1X * (p2X + p3X);
 					this->append_A(row_A, col_A, val_A, n_index, n_index - 1, val);
 
 					// Bottom coefficient
@@ -427,24 +529,19 @@ namespace Godzilla {
 				sX_index = 2 * (start_nX + 1);
 				sY_index = 2 * start_nY;
 
-				p1Y = ptr_sY[sY_index] / hY;
-				p2Y = ptr_sY[sY_index + 1] / hY;
-				p3Y = ptr_sY[sY_index - 1] / hY;
+				p1Y = ptr_sY[sY_index];
+				p2Y = ptr_sY[sY_index + 1];
+				p3Y = ptr_sY[sY_index - 1];
 
 				for (size_t i = 1; i < points_X - 1; ++i) {
 
-					p1X = ptr_sX[sX_index] / hX;
-					p2X = ptr_sX[sX_index + 1] / hX;
-					p3X = ptr_sX[sX_index - 1] / hX;
+					p1X = ptr_sX[sX_index];
+					p2X = ptr_sX[sX_index + 1];
+					p3X = ptr_sX[sX_index - 1];
 
 					// Forcing term
-					row_b.push_back(n_index);
-					if (_bc2D->get_bc_face4() != "NBC") {
-						val = ptr_forcing2D[forcing_index] - p1Y * p2Y * ptr_bc_face4[bc_face4_index];
-					}
-					else {
-						val = ptr_forcing2D[forcing_index] - 2 * hY * p1Y * p3Y * ptr_bc_face4[bc_face4_index];
-					}
+					val = ptr_forcing2D[forcing_index];
+					val -= (_bc2D->get_bc_face4() != "NBC") ? p1Y * p3Y * ptr_bc_face4[bc_face4_index] : 2 * hY * p1Y * p3Y * ptr_bc_face4[bc_face4_index];
 					this->append_b(row_b, val_b, n_index, val);
 
 					// Central coefficient
@@ -460,12 +557,7 @@ namespace Godzilla {
 					this->append_A(row_A, col_A, val_A, n_index, n_index + 1, val);
 
 					// Top coefficient
-					if (_bc2D->get_bc_face4() != "NBC") {
-						val = p1Y * p2Y;
-					}
-					else {
-						val = p1Y * (p2Y + p3Y);
-					}
+					val = (_bc2D->get_bc_face4() != "NBC") ? p1Y * p2Y : p1Y * (p2Y + p3Y);
 					this->append_A(row_A, col_A, val_A, n_index, n_index + points_X, val);
 
 					sX_index += 2;
@@ -476,9 +568,176 @@ namespace Godzilla {
 				}
 
 				// Handle face1-face2 corners (top left)
+				n_index = (points_Y - 1) * points_X;
+				velocity_index = end_nY * nX + start_nX;
+				forcing_index = velocity_index;
+				bc_face1_index = end_nY;
+				bc_face2_index = start_nX;
 
-			} // end if
+				sX_index = 2 * start_nX;
+				sY_index = 2 * end_nY;
 
+				p1Y = ptr_sY[sY_index];
+				p2Y = ptr_sY[sY_index + 1];
+				p3Y = ptr_sY[sY_index - 1];
+				p1X = ptr_sX[sX_index];
+				p2X = ptr_sX[sX_index + 1];
+				p3X = ptr_sX[sX_index - 1];
+
+				// Forcing term
+				val = ptr_forcing2D[forcing_index];
+				val -= (_bc2D->get_bc_face1() != "NBC") ? p1X * p3X * ptr_bc_face1[bc_face1_index] : 2 * hX * p1X * p3X * ptr_bc_face1[bc_face1_index];
+				val -= (_bc2D->get_bc_face2() != "NBC") ? p1Y * p2Y * ptr_bc_face2[bc_face2_index] : 2 * hY * p1Y * p2Y * ptr_bc_face2[bc_face2_index];
+				this->append_b(row_b, val_b, n_index, val);
+
+				// Central coefficient
+				val = -p1X * (p2X + p3X) - p1Y * (p2Y + p3Y) + std::pow(f / ptr_velocity2D[velocity_index], 2.);
+				this->append_A(row_A, col_A, val_A, n_index, n_index, val);
+
+				// Right coefficient
+				val = (_bc2D->get_bc_face1() != "NBC") ? p1X * p2X : p1X * (p2X + p3X);
+				this->append_A(row_A, col_A, val_A, n_index, n_index + 1, val);
+
+				// Bottom coefficient
+				val = (_bc2D->get_bc_face2() != "NBC") ? p1Y * p3Y : p1Y * (p2Y + p3Y);
+				this->append_A(row_A, col_A, val_A, n_index, n_index - points_X, val);
+
+				// Handle face2-face3 corners (top right)
+				n_index = points_Y * points_X - 1;
+				velocity_index = end_nY * nX + end_nX;
+				forcing_index = velocity_index;
+				bc_face2_index = end_nX;
+				bc_face3_index = end_nY;
+
+				sX_index = 2 * end_nX;
+				sY_index = 2 * end_nY;
+
+				p1Y = ptr_sY[sY_index];
+				p2Y = ptr_sY[sY_index + 1];
+				p3Y = ptr_sY[sY_index - 1];
+				p1X = ptr_sX[sX_index];
+				p2X = ptr_sX[sX_index + 1];
+				p3X = ptr_sX[sX_index - 1];
+
+				// Forcing term
+				val = ptr_forcing2D[forcing_index];
+				val -= (_bc2D->get_bc_face2() != "NBC") ? p1Y * p2Y * ptr_bc_face2[bc_face2_index] : 2 * hY * p1Y * p2Y * ptr_bc_face2[bc_face2_index];
+				val -= (_bc2D->get_bc_face3() != "NBC") ? p1X * p2X * ptr_bc_face3[bc_face3_index] : 2 * hX * p1X * p2X * ptr_bc_face3[bc_face3_index];
+				this->append_b(row_b, val_b, n_index, val);
+
+				// Central coefficient
+				val = -p1X * (p2X + p3X) - p1Y * (p2Y + p3Y) + std::pow(f / ptr_velocity2D[velocity_index], 2.);
+				this->append_A(row_A, col_A, val_A, n_index, n_index, val);
+
+				// Left coefficient
+				val = (_bc2D->get_bc_face3() != "NBC") ? p1X * p3X : p1X * (p2X + p3X);
+				this->append_A(row_A, col_A, val_A, n_index, n_index - 1, val);
+
+				// Bottom coefficient
+				val = (_bc2D->get_bc_face2() != "NBC") ? p1Y * p3Y : p1Y * (p2Y + p3Y);
+				this->append_A(row_A, col_A, val_A, n_index, n_index - points_X, val);
+
+				// Handle face3-face4 corners (bottom right)
+				n_index = points_X - 1;
+				velocity_index = start_nY * nX + end_nX;
+				forcing_index = velocity_index;
+				bc_face3_index = start_nY;
+				bc_face4_index = end_nX;
+
+				sX_index = 2 * end_nX;
+				sY_index = 2 * start_nY;
+
+				p1Y = ptr_sY[sY_index];
+				p2Y = ptr_sY[sY_index + 1];
+				p3Y = ptr_sY[sY_index - 1];
+				p1X = ptr_sX[sX_index];
+				p2X = ptr_sX[sX_index + 1];
+				p3X = ptr_sX[sX_index - 1];
+
+				// Forcing term
+				val = ptr_forcing2D[forcing_index];
+				val -= (_bc2D->get_bc_face3() != "NBC") ? p1X * p2X * ptr_bc_face3[bc_face3_index] : 2 * hX * p1X * p2X * ptr_bc_face3[bc_face3_index];
+				val -= (_bc2D->get_bc_face4() != "NBC") ? p1Y * p3Y * ptr_bc_face4[bc_face4_index] : 2 * hY * p1Y * p3Y * ptr_bc_face4[bc_face4_index];
+				this->append_b(row_b, val_b, n_index, val);
+
+				// Central coefficient
+				val = -p1X * (p2X + p3X) - p1Y * (p2Y + p3Y) + std::pow(f / ptr_velocity2D[velocity_index], 2.);
+				this->append_A(row_A, col_A, val_A, n_index, n_index, val);
+
+				// Left coefficient
+				val = (_bc2D->get_bc_face3() != "NBC") ? p1X * p3X : p1X * (p2X + p3X);
+				this->append_A(row_A, col_A, val_A, n_index, n_index - 1, val);
+
+				// Top coefficient
+				val = (_bc2D->get_bc_face4() != "NBC") ? p1Y * p2Y : p1Y * (p2Y + p3Y);
+				this->append_A(row_A, col_A, val_A, n_index, n_index + points_X, val);
+
+				// Handle face4-face1 corners (bottom left)
+				n_index = 0;
+				velocity_index = start_nY * nX + start_nX;
+				forcing_index = velocity_index;
+				bc_face4_index = start_nX;
+				bc_face1_index = start_nY;
+
+				sX_index = 2 * start_nX;
+				sY_index = 2 * start_nY;
+
+				p1Y = ptr_sY[sY_index];
+				p2Y = ptr_sY[sY_index + 1];
+				p3Y = ptr_sY[sY_index - 1];
+				p1X = ptr_sX[sX_index];
+				p2X = ptr_sX[sX_index + 1];
+				p3X = ptr_sX[sX_index - 1];
+
+				// Forcing term
+				val = ptr_forcing2D[forcing_index];
+				val -= (_bc2D->get_bc_face4() != "NBC") ? p1Y * p3Y * ptr_bc_face4[bc_face4_index] : 2 * hY * p1Y * p3Y * ptr_bc_face4[bc_face4_index];
+				val -= (_bc2D->get_bc_face1() != "NBC") ? p1X * p3X * ptr_bc_face1[bc_face1_index] : 2 * hX * p1X * p3X * ptr_bc_face1[bc_face1_index];
+				this->append_b(row_b, val_b, n_index, val);
+
+				// Central coefficient
+				val = -p1X * (p2X + p3X) - p1Y * (p2Y + p3Y) + std::pow(f / ptr_velocity2D[velocity_index], 2.);
+				this->append_A(row_A, col_A, val_A, n_index, n_index, val);
+
+				// Top coefficient
+				val = (_bc2D->get_bc_face4() != "NBC") ? p1Y * p2Y : p1Y * (p2Y + p3Y);
+				this->append_A(row_A, col_A, val_A, n_index, n_index + points_X, val);
+
+				// Right coefficient
+				val = (_bc2D->get_bc_face1() != "NBC") ? p1X * p2X : p1X * (p2X + p3X);
+				this->append_A(row_A, col_A, val_A, n_index, n_index + 1, val);
+
+			} // end if STENCIL TYPE = 0
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			// Create the UMFPACK objects needed to solve Ay = b
+			_dim_A = active_points;
+			_A_p = new SuiteSparse_long[_dim_A + 1];
+			_A_i = new SuiteSparse_long[SuiteSparse_long(val_A.size())];
+			_A_x = new double[SuiteSparse_long(val_A.size())];
+			_A_z = new double[SuiteSparse_long(val_A.size())];
+			_b_x = new double[_dim_A];
+			_b_z = new double[_dim_A];
+			_y_x = new double[_dim_A];
+			_y_z = new double[_dim_A];
+			this->set_A(_dim_A, _A_p, _A_i, _A_x, _A_z, row_A, col_A, val_A);
+			this->set_b(_dim_A, _b_x, _b_z, row_b, val_b);
+			(void)umfpack_zl_symbolic(_dim_A, _dim_A, _A_p, _A_i, _A_x, _A_z, &_symbolic, (double*)NULL, (double*)NULL);
+			(void)umfpack_zl_numeric(_A_p, _A_i, _A_x, _A_z, &_symbolic, &_numeric, (double*)NULL, (double*)NULL);
+			_is_matrix_ready = true;
+			_is_rhs_ready = true;
+
+			return;
+		}
+
+		void SparseDirectSolver2D::solve() {
+			if (this->is_solver_ready()) {
+				(void)umfpack_zl_solve(UMFPACK_A, _A_p, _A_i, _A_x, _A_z, _y_x, _y_z, _b_x, _b_z, &_numeric, (double*)NULL, (double*)NULL);
+			}
+			else {
+				std::cerr << "Solver not ready. Create matrix and rhs before solving." << std::endl;
+				return;
+			}
 		}
 
 		//***********************************************************************************************
@@ -528,39 +787,19 @@ namespace Godzilla {
 		}
 		
 		size_t SparseDirectSolver2D::calculate_pad1(const Godzilla::BoundaryCondition2D &bc2D) const {
-			if (bc2D.get_bc_face1() == "PML") {
-				return bc2D.get_pmlcells_face1();
-			}
-			else {
-				return 0;
-			}
+			return (bc2D.get_bc_face1() == "PML") ? bc2D.get_pmlcells_face1() : 0;
 		}
 
 		size_t SparseDirectSolver2D::calculate_pad2(const Godzilla::BoundaryCondition2D &bc2D) const {
-			if (bc2D.get_bc_face2() == "PML") {
-				return bc2D.get_pmlcells_face2();
-			}
-			else {
-				return 0;
-			}
+			return (bc2D.get_bc_face2() == "PML") ? bc2D.get_pmlcells_face2() : 0;
 		}
 
 		size_t SparseDirectSolver2D::calculate_pad3(const Godzilla::BoundaryCondition2D &bc2D) const {
-			if (bc2D.get_bc_face3() == "PML") {
-				return bc2D.get_pmlcells_face3();
-			}
-			else {
-				return 0;
-			}
+			return (bc2D.get_bc_face3() == "PML") ? bc2D.get_pmlcells_face3() : 0;
 		}
 
 		size_t SparseDirectSolver2D::calculate_pad4(const Godzilla::BoundaryCondition2D &bc2D) const {
-			if (bc2D.get_bc_face4() == "PML") {
-				return bc2D.get_pmlcells_face4();
-			}
-			else {
-				return 0;
-			}
+			return (bc2D.get_bc_face4() == "PML") ? bc2D.get_pmlcells_face4() : 0;
 		}
 
 		Godzilla::vecxd SparseDirectSolver2D::field_simgrid_zeropad(const Godzilla::Field2D &field2D_in, const Godzilla::Geometry2D &geom2D_out,
@@ -768,7 +1007,7 @@ namespace Godzilla {
 			const size_t nelem = x.size();
 			const double *ptr_in = x.data();
 			Godzilla::vecxd out(nelem, 0.);
-			Godzilla::xd * ptr_out = out.data();
+			Godzilla::xd *ptr_out = out.data();
 
 			const Godzilla::xd j(0., 1.);
 			const Godzilla::xd j1(1., 0.);
@@ -820,7 +1059,7 @@ namespace Godzilla {
 			const size_t nelem = y.size();
 			const double *ptr_in = y.data();
 			Godzilla::vecxd out(nelem, 0.);
-			Godzilla::xd * ptr_out = out.data();
+			Godzilla::xd *ptr_out = out.data();
 
 			const Godzilla::xd j(0., 1.);
 			const Godzilla::xd j1(1., 0.);
@@ -871,5 +1110,118 @@ namespace Godzilla {
 			row_b.push_back(row);
 			val_b.push_back(val);
 		}
+		
+		void SparseDirectSolver2D::set_A(const SuiteSparse_long &n, SuiteSparse_long *A_p, SuiteSparse_long *A_i, double *A_x, double *A_z,
+										 const std::vector<size_t> &row_A, const std::vector<size_t> &col_A, const Godzilla::vecxd &val_A) {
+			
+			const size_t nelem = val_A.size();
+			const size_t *ptr_row_A = row_A.data();
+			const size_t *ptr_col_A = col_A.data();
+			const Godzilla::xd *ptr_val_A = val_A.data();
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			// Set A_p
+
+			// Set all values to zero
+			for (size_t i = 0; i <= n; ++i) {
+				A_p[i] = 0;
+			}
+			// Count number of elements in col i and write the value in A_p[i + 1]
+			++A_p;
+			for (size_t i = 0; i < nelem; ++i) {
+				A_p[col_A[i]] += 1;
+			}
+			// Perform a running sum
+			for (size_t i = 0; i < n; ++i) {
+				A_p[i] += A_p[i - 1];
+			}
+			--A_p;
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			// Set A_i, A_x, A_z without sorting
+
+			// Make a copy of A_p in temp
+			SuiteSparse_long *temp = new SuiteSparse_long[n + 1];
+			for (size_t i = 0; i <= n; ++i) {
+				temp[i] = A_p[i];
+			}
+			// Populate A_i, A_x, A_z with columns sorted, but each row inside a column unsorted
+			size_t pos;
+			for (size_t i = 0; i < nelem; ++i) {
+				pos = temp[ptr_col_A[i]];
+				A_i[pos] = ptr_row_A[i];
+				A_x[pos] = ptr_val_A[i].real();
+				A_z[pos] = ptr_val_A[i].imag();
+				temp[ptr_col_A[i]] += 1;
+			}
+			delete[] temp;
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			// Sort A_i, A_x, A_z
+
+			// Define temporary variables
+			size_t nelem_col = 0;
+			pos = 0;
+			// Define new temp arrays and get pointers to A_i, A_x, A_z
+			temp = new SuiteSparse_long[nelem];
+			SuiteSparse_long *temp1 = new SuiteSparse_long[nelem];
+			double *temp2 = new double[nelem];
+			SuiteSparse_long *temp_A_i = A_i;
+			double *temp_A_x = A_x;
+			double *temp_A_z = A_z;
+			// Loop over each column and sort the entries
+			for (size_t i = 0; i < n; ++i) {
+				// Calculate number of non-zero entries in column
+				nelem_col = A_p[i + 1] - A_p[i];
+				// In temp write elements 0, 1, ... , nelem_col - 1 at positions temp[pos] to temp[pos + nelem_col - 1]
+				for (size_t j = 0; j < nelem_col; ++j) temp[pos + j] = j;
+				// Sort the elements from temp[pos] to temp[pos + nelem_col - 1]
+				std::sort(temp + pos, temp + pos + nelem_col, [&](size_t a, size_t b) { return temp_A_i[a] < temp_A_i[b]; });
+				// Copy elements of A_i into temp1 in sorted order and then write back
+				for (size_t j = 0; j < nelem_col; ++j) {
+					temp1[pos + j] = A_i[temp[pos + j]];
+				}
+				for (size_t j = 0; j < nelem_col; ++j) {
+					A_i[j] = temp1[pos + j];
+				}
+				// Copy elements of A_x into temp2 in sorted order and then write back
+				for (size_t j = 0; j < nelem_col; ++j) {
+					temp2[pos + j] = A_x[temp[pos + j]];
+				}
+				for (size_t j = 0; j < nelem_col; ++j) {
+					A_x[j] = temp2[pos + j];
+				}
+				// Copy elements of A_z into temp2 in sorted order and then write back
+				for (size_t j = 0; j < nelem_col; ++j) {
+					temp2[pos + j] = A_z[temp[pos + j]];
+				}
+				for (size_t j = 0; j < nelem_col; ++j) {
+					A_z[j] = temp2[pos + j];
+				}
+				// Adjust all pointers
+				pos += nelem_col;
+				temp_A_i += nelem_col;
+				temp_A_x += nelem_col;
+				temp_A_z += nelem_col;
+			}
+			delete[] temp;
+			delete[] temp1;
+			delete[] temp2;
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			return;
+		}
+
+		void SparseDirectSolver2D::set_b(const size_t &n, double *b_x, double *b_z, const std::vector<size_t> &row_b, const Godzilla::vecxd &val_b) {
+			const size_t *ptr_row_b = row_b.data();
+			const Godzilla::xd *ptr_val_b = val_b.data();
+			for (size_t i = 0; i < n; ++i) {
+				b_x[ptr_row_b[i]] = ptr_val_b[i].real();
+				b_z[ptr_row_b[i]] = ptr_val_b[i].imag();
+			}
+		}
+
 	}
 }

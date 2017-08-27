@@ -7,7 +7,7 @@ namespace Godzilla {
 		public:
 			// Constructors
 			BoundaryCondition1D();
-
+			BoundaryCondition1D(const Godzilla::Geometry1D &geom1D);
 			BoundaryCondition1D(const Godzilla::Geometry1D &geom1D, const std::string &bc_face1, const std::string &bc_face2 = Godzilla::BC_DEFAULT);
 			BoundaryCondition1D(const Godzilla::Geometry1D &geom1D, const std::string &bc_face1, const size_t &pmlcells_face1,
 								const std::string &bc_face2 = Godzilla::BC_DEFAULT, const size_t &pmlcells_face2 = Godzilla::PML_CELLS_DEFAULT);

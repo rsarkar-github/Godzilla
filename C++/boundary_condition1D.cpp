@@ -11,6 +11,12 @@ namespace Godzilla {
 		_data2 = 0.;
 	}
 
+	BoundaryCondition1D::BoundaryCondition1D(const Godzilla::Geometry1D &geom1D) : _geom1D(geom1D), _bc_face1(Godzilla::BC_DEFAULT), _bc_face2(Godzilla::BC_DEFAULT),
+																				   _pmlcells_face1(Godzilla::PML_CELLS_DEFAULT), _pmlcells_face2(Godzilla::PML_CELLS_DEFAULT) {
+
+		_data1 = 0.;
+		_data2 = 0.;
+	}
 
 	BoundaryCondition1D::BoundaryCondition1D(const Godzilla::Geometry1D &geom1D, const std::string &bc_face1, const std::string &bc_face2) : _geom1D(geom1D) {
 		_bc_face1 = this->is_valid_boundary_condition(bc_face1) ? bc_face1 : Godzilla::BC_DEFAULT;

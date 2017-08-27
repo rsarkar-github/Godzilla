@@ -19,6 +19,21 @@ namespace Godzilla {
 		_data4.shrink_to_fit();
 	}
 
+	BoundaryCondition2D::BoundaryCondition2D(const Godzilla::Geometry2D &geom2D) : _geom2D(geom2D), _bc_face1(Godzilla::BC_DEFAULT), _bc_face2(Godzilla::BC_DEFAULT),
+																				   _bc_face3(Godzilla::BC_DEFAULT), _bc_face4(Godzilla::BC_DEFAULT),
+																				   _pmlcells_face1(Godzilla::PML_CELLS_DEFAULT), _pmlcells_face2(Godzilla::PML_CELLS_DEFAULT),
+																				   _pmlcells_face3(Godzilla::PML_CELLS_DEFAULT), _pmlcells_face4(Godzilla::PML_CELLS_DEFAULT) {
+
+		_data1.assign(_geom2D.get_nY(), 0.);
+		_data1.shrink_to_fit();
+		_data2.assign(_geom2D.get_nX(), 0.);
+		_data2.shrink_to_fit();
+		_data3.assign(_geom2D.get_nY(), 0.);
+		_data3.shrink_to_fit();
+		_data4.assign(_geom2D.get_nX(), 0.);
+		_data4.shrink_to_fit();
+	}
+
 	BoundaryCondition2D::BoundaryCondition2D(const Godzilla::Geometry2D &geom2D, const std::string &bc_face1, const std::string &bc_face2,
 											 const std::string &bc_face3, const std::string &bc_face4) : _geom2D(geom2D) {
 		

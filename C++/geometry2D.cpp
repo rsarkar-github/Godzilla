@@ -171,7 +171,7 @@ namespace Godzilla {
 
 	void Geometry2D::set_geometry2D(const size_t &nX, const double &startX, const double &hX,
 									const size_t &nY, const double &startY, const double &hY, const std::string &labelX, const std::string &labelY) {
-
+		
 		if ((nX > 1) && (hX != 0.) && (nY > 1) && (hY != 0.)) {
 			_nX = nX;
 			_ncellsX = nX - 1;
@@ -199,7 +199,7 @@ namespace Godzilla {
 
 	void Geometry2D::set_geometry2D(const double &startX, const double &endX, const size_t &ncellsX,
 									const double &startY, const double &endY, const size_t &ncellsY, const std::string &labelX, const std::string &labelY) {
-
+		
 		if ((ncellsX > 0) && (startX != endX) && (ncellsY > 0) && (startY != endY)) {
 			_nX = ncellsX + 1;
 			_ncellsX = ncellsX;
