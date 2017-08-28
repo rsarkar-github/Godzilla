@@ -266,7 +266,7 @@ namespace Godzilla {
 			val_A.reserve(active_points * 5);
 			row_b.reserve(active_points);
 			val_b.reserve(active_points);
-
+			
 			/////////////////////////////////////////////////////////////////////////////////////////////
 			// STENCIL TYPE = 0
 			if (_stencil_type == 0) {
@@ -335,7 +335,7 @@ namespace Godzilla {
 					velocity_index = (start_nY + i) * nX + start_nX + 1;
 					forcing_index = velocity_index;
 
-					sY_index = 2 * (start_nY + 1);
+					sY_index = 2 * (start_nY + i);
 					sX_index = 2 * (start_nX + 1);
 
 					p1Y = ptr_sY[sY_index];
@@ -709,7 +709,7 @@ namespace Godzilla {
 
 			} // end if STENCIL TYPE = 0
 			/////////////////////////////////////////////////////////////////////////////////////////////
-
+			
 			// Create the UMFPACK objects needed to solve Ay = b
 			_dim_A = active_points;
 			_A_p = new SuiteSparse_long[_dim_A + 1];
@@ -720,10 +720,19 @@ namespace Godzilla {
 			_b_z = new double[_dim_A];
 			_y_x = new double[_dim_A];
 			_y_z = new double[_dim_A];
+
 			this->set_A(_dim_A, _A_p, _A_i, _A_x, _A_z, row_A, col_A, val_A);
 			this->set_b(_dim_A, _b_x, _b_z, row_b, val_b);
-			(void)umfpack_zl_symbolic(_dim_A, _dim_A, _A_p, _A_i, _A_x, _A_z, &_symbolic, (double*)NULL, (double*)NULL);
-			(void)umfpack_zl_numeric(_A_p, _A_i, _A_x, _A_z, &_symbolic, &_numeric, (double*)NULL, (double*)NULL);
+
+			double info[UMFPACK_INFO];
+			std::cout << "Performing umfpack_zl_symbolic : " << std::endl;
+			SuiteSparse_long status_symbolic = umfpack_zl_symbolic(_dim_A, _dim_A, _A_p, _A_i, _A_x, _A_z, &_symbolic, (double*)NULL, info);
+			std::cout << "status returned = " << status_symbolic << std::endl;
+			
+			std::cout << "Performing umfpack_zl_numeric : " << std::endl;
+			SuiteSparse_long status_numeric = umfpack_zl_numeric(_A_p, _A_i, _A_x, _A_z, _symbolic, &_numeric, (double*)NULL, info);
+			std::cout << "status returned = " << status_numeric << std::endl;
+
 			_is_matrix_ready = true;
 			_is_rhs_ready = true;
 
@@ -732,7 +741,10 @@ namespace Godzilla {
 
 		void SparseDirectSolver2D::solve() {
 			if (this->is_solver_ready()) {
-				(void)umfpack_zl_solve(UMFPACK_A, _A_p, _A_i, _A_x, _A_z, _y_x, _y_z, _b_x, _b_z, &_numeric, (double*)NULL, (double*)NULL);
+				double info[UMFPACK_INFO];
+				SuiteSparse_long status = umfpack_zl_solve(UMFPACK_A, _A_p, _A_i, _A_x, _A_z, _y_x, _y_z, _b_x, _b_z, _numeric, info, (double*)NULL);
+				std::cout << "\nPerforming umfpack_zl_solve : " << std::endl;
+				std::cout << "status returned = " << status << std::endl;
 			}
 			else {
 				std::cerr << "Solver not ready. Create matrix and rhs before solving." << std::endl;
@@ -740,6 +752,167 @@ namespace Godzilla {
 			}
 		}
 
+		void SparseDirectSolver2D::extract_solution(Godzilla::Field2D &solution2D) const {
+			if (this->is_solver_ready()) {
+				if (_forcing2D->get_geom2D().is_equal(solution2D.get_geom2D())) {
+
+					waveX::LockManager<Godzilla::Field2D, Godzilla::vecxd> lock(solution2D, 1);
+					Godzilla::xd *ptr_solution;
+					const double *ptr_y_x = _y_x;
+					const double *ptr_y_z = _y_z;
+
+					const size_t nX_solution = _vel2D->get_geom2D().get_nX();
+					const size_t nY_solution = _vel2D->get_geom2D().get_nY();
+
+					const size_t start_nX = (_bc2D->get_bc_face1() != "NBC") ? 1 : 0;
+					const size_t end_nX = (_bc2D->get_bc_face3() != "NBC") ? (_sim_geom2D.get_nX() - 2) : (_sim_geom2D.get_nX() - 1);
+					const size_t start_nY = (_bc2D->get_bc_face4() != "NBC") ? 1 : 0;
+					const size_t end_nY = (_bc2D->get_bc_face2() != "NBC") ? (_sim_geom2D.get_nY() - 2) : (_sim_geom2D.get_nY() - 1);
+					const size_t points_X = (start_nX <= end_nX) ? (end_nX - start_nX) + 1 : 0;
+					const size_t points_Y = (start_nY <= end_nY) ? (end_nY - start_nY) + 1 : 0;
+					const size_t active_points = points_X * points_Y;
+
+					// Fill the boundaries that can be filled directly from boundary conditions
+					// If face1 is DBC
+					ptr_solution = lock._ptr->data();
+					if (_bc2D->get_bc_face1() == "DBC") {
+						const Godzilla::xd *ptr_bc_data = _bc2D->get_data1().data();
+						for (size_t i = 0; i < nY_solution; ++i) {
+							*ptr_solution = ptr_bc_data[i];
+							ptr_solution += nX_solution;
+						}
+					}
+					// If face2 is DBC
+					ptr_solution = lock._ptr->data();
+					ptr_solution += (nY_solution - 1) * nX_solution;
+					if (_bc2D->get_bc_face2() == "DBC") {
+						const Godzilla::xd *ptr_bc_data = _bc2D->get_data2().data();
+						for (size_t i = 0; i < nX_solution; ++i) {
+							*ptr_solution = ptr_bc_data[i];
+							++ptr_solution;
+						}
+					}
+					// If face3 is DBC
+					ptr_solution = lock._ptr->data();
+					ptr_solution += nX_solution - 1;
+					if (_bc2D->get_bc_face3() == "DBC") {
+						const Godzilla::xd *ptr_bc_data = _bc2D->get_data3().data();
+						for (size_t i = 0; i < nY_solution; ++i) {
+							*ptr_solution = ptr_bc_data[i];
+							ptr_solution += nX_solution;
+						}
+					}
+					// If face4 is DBC
+					ptr_solution = lock._ptr->data();
+					if (_bc2D->get_bc_face4() == "DBC") {
+						const Godzilla::xd *ptr_bc_data = _bc2D->get_data4().data();
+						for (size_t i = 0; i < nX_solution; ++i) {
+							*ptr_solution = ptr_bc_data[i];
+							++ptr_solution;
+						}
+					}
+					
+					// If active points > 0, can update the points in the intersection
+					if (active_points > 0) {
+						size_t rel_start_nX = (_bc2D->get_bc_face1() == "PML") ? _pad1 - 1 : 0;
+						size_t rel_start_nY = (_bc2D->get_bc_face4() == "PML") ? _pad4 - 1 : 0;
+						size_t rel_end_nX = (_bc2D->get_bc_face3() == "PML") ? points_X - _pad3 : points_X - 1;
+						size_t rel_end_nY = (_bc2D->get_bc_face2() == "PML") ? points_Y - _pad2 : points_Y - 1;
+						size_t points_X_intersection = rel_end_nX - rel_start_nX + 1;
+						size_t points_Y_intersection = rel_end_nY - rel_start_nY + 1;
+
+						size_t rel_start_nX_out = (_bc2D->get_bc_face1() == "DBC") ? 1 : 0;
+						size_t rel_start_nY_out = (_bc2D->get_bc_face4() == "DBC") ? 1 : 0;
+
+						ptr_solution = lock._ptr->data();
+						ptr_solution += rel_start_nY_out * nX_solution + rel_start_nY_out;
+						ptr_y_x += rel_start_nY * points_X + rel_start_nX;
+						ptr_y_z += rel_start_nY * points_X + rel_start_nX;
+						for (size_t i = 0; i < points_X_intersection; ++i) {
+							for (size_t j = 0; j < points_Y_intersection; ++j) {
+								ptr_solution[j] = Godzilla::xd(ptr_y_x[j], ptr_y_z[j]);
+							}
+							ptr_solution += nX_solution;
+							ptr_y_x += points_X;
+							ptr_y_z += points_X;
+						}
+					}
+					
+					lock.deactivate_lock(solution2D);
+					return;
+				}
+				else {
+					std::cerr << "Input geometry does not match existing geometry. Cannot extract solution." << std::endl;
+					return;
+				}
+			}
+			else {
+				std::cerr << "Solver not ready. Create matrix and rhs, and solve before extracting solution." << std::endl;
+				return;
+			}
+		}
+
+		void SparseDirectSolver2D::free_solver_resources() {
+			_is_matrix_ready = false;
+			_is_rhs_ready = false;
+			_dim_A = 0;
+			delete[] _A_p;
+			delete[] _A_i;
+			delete[] _A_x;
+			delete[] _A_z;
+			delete[] _y_x;
+			delete[] _y_z;
+			delete[] _b_x;
+			delete[] _b_z;
+			if (_symbolic != nullptr) umfpack_zl_free_symbolic(&_symbolic);
+			if (_numeric != nullptr)umfpack_zl_free_numeric(&_numeric);
+			_A_p = nullptr;
+			_A_i = nullptr;
+			_A_x = nullptr;
+			_A_z = nullptr;
+			_y_x = nullptr;
+			_y_z = nullptr;
+			_b_x = nullptr;
+			_b_z = nullptr;
+			_symbolic = nullptr;
+			_numeric = nullptr;
+		}
+
+		void SparseDirectSolver2D::print_matrix(const double &umfpack_prl) const {
+			if (this->is_solver_ready()) {
+				double control[UMFPACK_CONTROL];
+				control[UMFPACK_PRL] = umfpack_prl;
+				std::cout << "\nPrinting A using umfpack_prl = " << umfpack_prl << " : " << std::endl;
+				SuiteSparse_long status = umfpack_zl_report_matrix(_dim_A, _dim_A, _A_p, _A_i, _A_x, _A_z, 1, control);
+			}
+			else {
+				std::cout << "Cannot print A as solver is not ready." << std::endl;
+			}
+		}
+
+		void SparseDirectSolver2D::print_rhs() const {
+			if (this->is_solver_ready()) {
+				std::cout << "\nPrinting rhs :" << std::endl;
+				for (size_t i = 0; i < _dim_A; ++i) {
+					std::cout << "rhs[" << i << "] = " << "( " << _b_x[i] << " , " << _b_z[i] << " )" << std::endl;
+				}
+			}
+			else {
+				std::cout << "Cannot print rhs as solver is not ready." << std::endl;
+			}
+		}
+
+		void SparseDirectSolver2D::print_solution() const {
+			if (this->is_solver_ready()) {
+				std::cout << "\nPrinting solution :" << std::endl;
+				for (size_t i = 0; i < _dim_A; ++i) {
+					std::cout << "sol[" << i << "] = " << "( " << _y_x[i] << " , " << _y_z[i] << " )" << std::endl;
+				}
+			}
+			else {
+				std::cout << "Cannot print solution as solver is not ready." << std::endl;
+			}
+		}
 		//***********************************************************************************************
 		// Private methods
 		bool SparseDirectSolver2D::is_velocity_real(const Godzilla::Velocity2D &vel2D_in) const {
@@ -1129,7 +1302,7 @@ namespace Godzilla {
 			// Count number of elements in col i and write the value in A_p[i + 1]
 			++A_p;
 			for (size_t i = 0; i < nelem; ++i) {
-				A_p[col_A[i]] += 1;
+				A_p[ptr_col_A[i]] += 1;
 			}
 			// Perform a running sum
 			for (size_t i = 0; i < n; ++i) {
@@ -1181,24 +1354,24 @@ namespace Godzilla {
 				std::sort(temp + pos, temp + pos + nelem_col, [&](size_t a, size_t b) { return temp_A_i[a] < temp_A_i[b]; });
 				// Copy elements of A_i into temp1 in sorted order and then write back
 				for (size_t j = 0; j < nelem_col; ++j) {
-					temp1[pos + j] = A_i[temp[pos + j]];
+					temp1[pos + j] = temp_A_i[temp[pos + j]];
 				}
 				for (size_t j = 0; j < nelem_col; ++j) {
-					A_i[j] = temp1[pos + j];
+					temp_A_i[j] = temp1[pos + j];
 				}
 				// Copy elements of A_x into temp2 in sorted order and then write back
 				for (size_t j = 0; j < nelem_col; ++j) {
-					temp2[pos + j] = A_x[temp[pos + j]];
+					temp2[pos + j] = temp_A_x[temp[pos + j]];
 				}
 				for (size_t j = 0; j < nelem_col; ++j) {
-					A_x[j] = temp2[pos + j];
+					temp_A_x[j] = temp2[pos + j];
 				}
 				// Copy elements of A_z into temp2 in sorted order and then write back
 				for (size_t j = 0; j < nelem_col; ++j) {
-					temp2[pos + j] = A_z[temp[pos + j]];
+					temp2[pos + j] = temp_A_z[temp[pos + j]];
 				}
 				for (size_t j = 0; j < nelem_col; ++j) {
-					A_z[j] = temp2[pos + j];
+					temp_A_z[j] = temp2[pos + j];
 				}
 				// Adjust all pointers
 				pos += nelem_col;

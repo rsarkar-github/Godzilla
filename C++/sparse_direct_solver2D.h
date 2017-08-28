@@ -1,4 +1,5 @@
 #pragma once
+#include "lock_manager.h"
 #include "boundary_condition2D.h"
 #include "velocity2D.h"
 #include "field2D.h"
@@ -21,6 +22,12 @@ namespace Godzilla {
 				void change_stencil_type(const int &stencil_type);
 				void create_sparse_matrix_rhs();
 				void solve();
+				void extract_solution(Godzilla::Field2D &solution2D) const;
+				void free_solver_resources();
+
+				void print_matrix(const double &umfpack_prl) const;
+				void print_rhs() const;
+				void print_solution() const;
 
 			private:
 				// Private members

@@ -8,21 +8,19 @@
 
 int main() {
 
-	size_t ncellsX = 3, ncellsY = 3;
+	size_t ncellsX = 6, ncellsY = 6;
 	double startX = 0., startY = 0.;
-	double endX = 10., endY = 10.;
+	double endX = 1., endY = 1.;
 
 	Godzilla::Geometry2D geom2D(startX, endX, ncellsX, startY, endY, ncellsY, "x", "y");
 
-	Godzilla::xd scalar(5., 0.);
+	Godzilla::xd scalar(1., 0.);
 	Godzilla::vecd data(geom2D.get_nX() * geom2D.get_nY(), 0.);
-	double cnt = 2;
-	for (auto &i : data) {
-		i = cnt;
-		cnt += 1.0;
-	}
-	Godzilla::Velocity2D vel2D(geom2D, data);
-	Godzilla::Field2D forcing2D(geom2D, 1.);
+	data[(geom2D.get_nX() * geom2D.get_nY()) / 2] = 1.;
+
+	Godzilla::Velocity2D vel2D(geom2D, scalar);
+	Godzilla::Field2D forcing2D(geom2D, data);
+	Godzilla::Field2D solution2D(geom2D);
 	Godzilla::BoundaryCondition2D bc2D(geom2D, "PML", "PML", "PML", "PML");
 	double omega = 1;
 
@@ -30,36 +28,18 @@ int main() {
 	solver.create_sparse_matrix_rhs();
 	solver.solve();
 
+	solver.extract_solution(solution2D);
+	const Godzilla::xd *data_sol = solution2D.get_cdata().data();
+	size_t nX = solution2D.get_geom2D().get_nX();
+	size_t nY = solution2D.get_geom2D().get_nY();
+	for (size_t i = 0; i < nY; ++i) {
+		for (size_t j = 0; j < nX; ++j) {
+			std::cout << data_sol[i * nX + j] << " ";
+		}
+		std::cout << std::endl;
+	}
+
 	int haltscreen;
 	std::cin >> haltscreen;
 	return 0;
 }
-
-
-//int main(void) {
-//
-//	SuiteSparse_long n = 5;
-//	SuiteSparse_long Ap[] = { 0, 2, 5, 9, 10, 12 };
-//	SuiteSparse_long Ai[] = { 0, 1, 0, 2, 4, 1, 2, 3, 4, 2, 1, 4 };
-//	double Ax[] = { 2., 3., 3., -1., 4., 4., -3., 1., 2., 2., 6., 1. };
-//	double Az[] = { 2., 3., 3., -1., 4., 4., -3., 1., 2., 2., 6., 1. };
-//	double bx[] = { 8., 45., -3., 3., 19. };
-//	double bz[] = { 8., 45., -3., 3., 19. };
-//	double Xx[5], Xz[5];
-//
-//	double *null = (double *)NULL;
-//	int i;
-//	void *Symbolic, *Numeric;
-//	(void)umfpack_zl_symbolic(n, n, Ap, Ai, Ax, Az, &Symbolic, null, null);
-//	(void)umfpack_zl_numeric(Ap, Ai, Ax, Az, Symbolic, &Numeric, null, null);
-//	umfpack_zl_free_symbolic(&Symbolic);
-//	(void)umfpack_zl_solve(UMFPACK_A, Ap, Ai, Ax, Az, Xx, Xz, bx, bz, Numeric, null, null);
-//	umfpack_zl_free_numeric(&Numeric);
-//	for (i = 0; i < n; i++) printf("Xx [%d] = %g, Xz [%d] = %g\n", i, Xx[i], Xz[i]);
-//
-//	int a;
-//	std::cin >> a;
-//
-//	return 0;
-//
-//}
