@@ -9,7 +9,7 @@
 
 int main() {
 
-	size_t ncellsX = 2, ncellsY = 2;
+	size_t ncellsX = 500, ncellsY = 500;
 	double startX = 0., startY = 0.;
 	double endX = 1., endY = 1.;
 
@@ -22,9 +22,8 @@ int main() {
 	Godzilla::Velocity2D vel2D(geom2D, scalar);
 	Godzilla::Field2D forcing2D(geom2D, data);
 	Godzilla::Field2D solution2D(geom2D);
-	//Godzilla::BoundaryCondition2D bc2D(geom2D, "PML", "PML", "PML", "PML");
-	Godzilla::BoundaryCondition2D bc2D(geom2D);
-	double omega = 150;
+	Godzilla::BoundaryCondition2D bc2D(geom2D, "PML", "PML", "PML", "PML");
+	double omega = 300;
 
 	Godzilla::Helmholtz2DReal::SparseDirectSolver2D solver(&vel2D, &forcing2D, &bc2D, omega, 0);
 	solver.create_sparse_matrix_rhs();

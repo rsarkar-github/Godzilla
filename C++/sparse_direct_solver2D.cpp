@@ -1,6 +1,7 @@
 #include "sparse_direct_solver2D.h"
 #include <cmath>
 #include <algorithm>
+#include <cassert>
 
 namespace Godzilla {
 	namespace Helmholtz2DReal {
@@ -708,36 +709,42 @@ namespace Godzilla {
 					val = (_bc2D->get_bc_face1() != "NBC") ? p1X * p2X : p1X * (p2X + p3X);
 					this->append_A(row_A, col_A, val_A, n_index, n_index + 1, val);
 				}
-				if ((points_X == 1) && (points_Y == 1)) {
-					n_index = 0;
-					velocity_index = start_nY * nX + start_nX;
-					forcing_index = velocity_index;
-					bc_face1_index = start_nY;
-					bc_face2_index = start_nX;
-					bc_face3_index = start_nY;
-					bc_face4_index = start_nX;
+				else {
+					if ((points_X == 1) && (points_Y == 1)) {
+						n_index = 0;
+						velocity_index = start_nY * nX + start_nX;
+						forcing_index = velocity_index;
+						bc_face1_index = start_nY;
+						bc_face2_index = start_nX;
+						bc_face3_index = start_nY;
+						bc_face4_index = start_nX;
 
-					sX_index = 2 * start_nX;
-					sY_index = 2 * start_nY;
+						sX_index = 2 * start_nX;
+						sY_index = 2 * start_nY;
 
-					p1Y = ptr_sY[sY_index];
-					p2Y = ptr_sY[sY_index + 1];
-					p3Y = ptr_sY[sY_index - 1];
-					p1X = ptr_sX[sX_index];
-					p2X = ptr_sX[sX_index + 1];
-					p3X = ptr_sX[sX_index - 1];
+						p1Y = ptr_sY[sY_index];
+						p2Y = ptr_sY[sY_index + 1];
+						p3Y = ptr_sY[sY_index - 1];
+						p1X = ptr_sX[sX_index];
+						p2X = ptr_sX[sX_index + 1];
+						p3X = ptr_sX[sX_index - 1];
 
-					// Forcing term
-					val = ptr_forcing2D[forcing_index];
-					val -= (_bc2D->get_bc_face1() != "NBC") ? p1X * p3X * ptr_bc_face1[bc_face1_index] : 2 * hX * p1X * p3X * ptr_bc_face1[bc_face1_index];
-					val -= (_bc2D->get_bc_face2() != "NBC") ? p1Y * p2Y * ptr_bc_face2[bc_face2_index] : 2 * hY * p1Y * p2Y * ptr_bc_face2[bc_face2_index];
-					val -= (_bc2D->get_bc_face3() != "NBC") ? p1X * p2X * ptr_bc_face3[bc_face3_index] : 2 * hX * p1X * p2X * ptr_bc_face3[bc_face3_index];
-					val -= (_bc2D->get_bc_face4() != "NBC") ? p1Y * p3Y * ptr_bc_face4[bc_face4_index] : 2 * hY * p1Y * p3Y * ptr_bc_face4[bc_face4_index];
-					this->append_b(row_b, val_b, n_index, val);
+						// Forcing term
+						val = ptr_forcing2D[forcing_index];
+						val -= (_bc2D->get_bc_face1() != "NBC") ? p1X * p3X * ptr_bc_face1[bc_face1_index] : 2 * hX * p1X * p3X * ptr_bc_face1[bc_face1_index];
+						val -= (_bc2D->get_bc_face2() != "NBC") ? p1Y * p2Y * ptr_bc_face2[bc_face2_index] : 2 * hY * p1Y * p2Y * ptr_bc_face2[bc_face2_index];
+						val -= (_bc2D->get_bc_face3() != "NBC") ? p1X * p2X * ptr_bc_face3[bc_face3_index] : 2 * hX * p1X * p2X * ptr_bc_face3[bc_face3_index];
+						val -= (_bc2D->get_bc_face4() != "NBC") ? p1Y * p3Y * ptr_bc_face4[bc_face4_index] : 2 * hY * p1Y * p3Y * ptr_bc_face4[bc_face4_index];
+						this->append_b(row_b, val_b, n_index, val);
 
-					// Central coefficient
-					val = -p1X * (p2X + p3X) - p1Y * (p2Y + p3Y) + std::pow(f / ptr_velocity2D[velocity_index], 2.);
-					this->append_A(row_A, col_A, val_A, n_index, n_index, val);
+						// Central coefficient
+						val = -p1X * (p2X + p3X) - p1Y * (p2Y + p3Y) + std::pow(f / ptr_velocity2D[velocity_index], 2.);
+						this->append_A(row_A, col_A, val_A, n_index, n_index, val);
+					}
+					else {
+						std::cerr << "Either (points_X == 1) or (points_Y == 1). Case not supported currectly." << std::endl;
+						assert(1 == 2);
+					}
 				}
 			} // end if STENCIL TYPE = 0
 			/////////////////////////////////////////////////////////////////////////////////////////////
@@ -753,7 +760,6 @@ namespace Godzilla {
 			_y_x = new double[_dim_A];
 			_y_z = new double[_dim_A];
 			
-			std::cout << "val_A.size() = " << val_A.size() << std::endl;
 			this->set_A(_dim_A, _A_p, _A_i, _A_x, _A_z, row_A, col_A, val_A);
 			this->set_b(_b_x, _b_z, row_b, val_b);
 
@@ -1340,10 +1346,8 @@ namespace Godzilla {
 				A_p[ptr_col_A[i]] += 1;
 			}
 			// Perform a running sum
-			std::cout << "Printing A_p : " << std::endl;
 			for (size_t i = 0; i < n; ++i) {
 				A_p[i] += A_p[i - 1];
-				std::cout << A_p[i] << std::endl;
 			}
 			--A_p;
 			/////////////////////////////////////////////////////////////////////////////////////////////
@@ -1353,17 +1357,13 @@ namespace Godzilla {
 
 			// Make a copy of A_p in temp
 			SuiteSparse_long *temp = new SuiteSparse_long[n + 1];
-			std::cout << "Printing temp : " << std::endl;
 			for (size_t i = 0; i <= n; ++i) {
 				temp[i] = A_p[i];
-				std::cout << temp[i] << std::endl;
 			}
 			// Populate A_i, A_x, A_z with columns sorted, but each row inside a column unsorted
 			size_t pos;
-			std::cout << "Printing pos : " << std::endl;
 			for (size_t i = 0; i < nelem; ++i) {
 				pos = temp[ptr_col_A[i]];
-				std::cout << pos << std::endl;
 				A_i[pos] = ptr_row_A[i];
 				A_x[pos] = ptr_val_A[i].real();
 				A_z[pos] = ptr_val_A[i].imag();
