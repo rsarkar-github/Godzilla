@@ -16,6 +16,7 @@ namespace Godzilla {
 
 	// PML parameters
 	extern size_t PML_CELLS_DEFAULT;
+	extern std::complex<double> PML_DAMPING;
 
 	// Boundary conditions
 	extern std::string BC_DEFAULT;

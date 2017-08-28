@@ -9,7 +9,8 @@ namespace Godzilla {
 	double GRID_MAX_SIZE = 1e6;
 
 	// PML parameters
-	size_t PML_CELLS_DEFAULT = 10;
+	size_t PML_CELLS_DEFAULT = 20;
+	std::complex<double> PML_DAMPING = 100;
 
 	// Boundary conditions
 	std::string BC_DEFAULT = "DBC";

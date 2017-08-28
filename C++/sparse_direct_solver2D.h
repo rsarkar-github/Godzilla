@@ -131,7 +131,7 @@ namespace Godzilla {
 				void append_b(std::vector<size_t> &row_b, Godzilla::vecxd &val_b, const size_t &row, const Godzilla::xd &val) const;
 				void set_A(const SuiteSparse_long &n, SuiteSparse_long *A_p, SuiteSparse_long *A_i, double *A_x, double *A_z,
 						   const std::vector<size_t> &row_A, const std::vector<size_t> &col_A, const Godzilla::vecxd &val_A);
-				void set_b(const size_t &n, double *b_x, double *b_z, const std::vector<size_t> &row_b, const Godzilla::vecxd &val_b);
+				void set_b(double *b_x, double *b_z, const std::vector<size_t> &row_b, const Godzilla::vecxd &val_b);
 		};
 	}
 }
