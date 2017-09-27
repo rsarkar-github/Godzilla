@@ -27,7 +27,7 @@ int main() {
 	Godzilla::Field2D forcing2D(geom2D, data);
 	Godzilla::Field2D solution2D(geom2D);
 	Godzilla::BoundaryCondition2D bc2D(geom2D, "PML", "PML", "PML", "PML");
-	double omega = 40;
+	double omega = 20;
 
 	Godzilla::Helmholtz2DReal::SparseDirectSolver2D solver(&vel2D, &forcing2D, &bc2D, omega, 0);
 	solver.create_sparse_matrix_rhs();

@@ -10,7 +10,7 @@ namespace Godzilla {
 
 	// PML parameters
 	size_t PML_CELLS_DEFAULT = 20;
-	std::complex<double> PML_DAMPING = 100;
+	double PML_DAMPING = 50;
 
 	// Boundary conditions
 	std::string BC_DEFAULT = "DBC";

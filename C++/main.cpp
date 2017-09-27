@@ -11,36 +11,68 @@ int main() {
 
 	size_t ncellsX = 500, ncellsY = 500;
 	double startX = 0., startY = 0.;
-	double endX = 1., endY = 1.;
+	double endX = 10., endY = 10.;
 
 	Godzilla::Geometry2D geom2D(startX, endX, ncellsX, startY, endY, ncellsY, "x", "y");
 
 	Godzilla::xd scalar(1., 0.);
 	Godzilla::vecd data(geom2D.get_nX() * geom2D.get_nY(), 0.);
+	Godzilla::vecxd veldata(geom2D.get_nX() * geom2D.get_nY(), scalar);
 	data[(geom2D.get_nX() * geom2D.get_nY()) / 2] = 1.;
+	veldata[geom2D.get_nX() * (geom2D.get_nY() / 4) + geom2D.get_nX() / 2] *= 2.;
+	/*for (size_t i = 0; i < geom2D.get_nX() * geom2D.get_nY() / 2; ++i) {
+		veldata[i] = 2.;
+	}*/
 
 	Godzilla::Velocity2D vel2D(geom2D, scalar);
+	Godzilla::Velocity2D vel2D1(geom2D, veldata);
 	Godzilla::Field2D forcing2D(geom2D, data);
 	Godzilla::Field2D solution2D(geom2D);
+	Godzilla::Field2D solution2D1(geom2D);
 	Godzilla::BoundaryCondition2D bc2D(geom2D, "PML", "PML", "PML", "PML");
-	double omega = 300;
-
+	double omega = 20;
+	
 	Godzilla::Helmholtz2DReal::SparseDirectSolver2D solver(&vel2D, &forcing2D, &bc2D, omega, 0);
 	solver.create_sparse_matrix_rhs();
 	solver.solve();
 	solver.extract_solution(solution2D);
+
+	/*solver.change_velocity_data(&vel2D1);
+	solver.create_sparse_matrix_rhs();
+	solver.solve();
+	solver.extract_solution(solution2D1);*/
+
+	Godzilla::vecxd born_forcing_data(geom2D.get_nX() * geom2D.get_nY(), 0.);
+	born_forcing_data[geom2D.get_nX() * (geom2D.get_nY() / 4) + geom2D.get_nX() / 2] = 
+		2 * omega * omega * (1. / 1) * solution2D.get_cdata()[geom2D.get_nX() * (geom2D.get_nY() / 4) + geom2D.get_nX() / 2];
+
+	Godzilla::Field2D forcing2D1(geom2D, born_forcing_data);
+
+	solver.change_forcing_data(&forcing2D1);
+	solver.create_sparse_matrix_rhs();
+	solver.solve();
+	solver.extract_solution(solution2D1);
 
 	Godzilla::vecd solution2Dreal, solution2Dimag;
 	size_t nelem = solution2D.get_nelem();
 	solution2Dreal.assign(nelem, 0.);
 	solution2Dimag.assign(nelem, 0.);
 
-	const Godzilla::xd *ptr_sol = solution2D.get_cdata().data();
+	/*const Godzilla::xd *ptr_sol = solution2D.get_cdata().data();
+	const Godzilla::xd *ptr_sol1 = solution2D1.get_cdata().data();
 	double *ptr_sol_real = solution2Dreal.data();
 	double *ptr_sol_imag = solution2Dimag.data();
 	for (size_t i = 0; i < nelem; ++i) {
-		ptr_sol_real[i] = ptr_sol[i].real();
-		ptr_sol_imag[i] = ptr_sol[i].imag();
+		ptr_sol_real[i] = ptr_sol[i].real() - ptr_sol1[i].real();
+		ptr_sol_imag[i] = ptr_sol[i].imag() - ptr_sol1[i].imag();
+	}*/
+
+	const Godzilla::xd *ptr_sol1 = solution2D1.get_cdata().data();
+	double *ptr_sol_real = solution2Dreal.data();
+	double *ptr_sol_imag = solution2Dimag.data();
+	for (size_t i = 0; i < nelem; ++i) {
+		ptr_sol_real[i] = ptr_sol1[i].real();
+		ptr_sol_imag[i] = ptr_sol1[i].imag();
 	}
 
 	wavemod2d::EasyIO io;

@@ -43,7 +43,6 @@ namespace Godzilla {
 		void SparseDirectSolver2D::change_velocity_data(const Godzilla::Velocity2D *vel2D) {
 			if (_initialized_state) {
 				if (_vel2D->get_geom2D().is_equal(vel2D->get_geom2D()) && this->is_velocity_real(*vel2D)) {
-					if (!_vel2D->is_data_equal(*vel2D)) {
 						_vel2D = vel2D;
 						_velocity_data_simgrid = this->velocity_simgrid_extrap(*_vel2D, _sim_geom2D, _pad1, _pad2, _pad3, _pad4);
 						
@@ -63,10 +62,6 @@ namespace Godzilla {
 						_y_x = nullptr;
 						_y_z = nullptr;
 						_numeric = nullptr;
-					}
-					else {
-						std::cerr << "Input velocity not different. Cannot change velocity data." << std::endl;
-					}
 				}
 				else {
 					std::cerr << "Input geometry does not match existing geometry or velocity not real. Cannot change velocity data." << std::endl;
@@ -80,23 +75,39 @@ namespace Godzilla {
 		void SparseDirectSolver2D::change_forcing_data(const Godzilla::Field2D *forcing2D) {
 			if (_initialized_state) {
 				if (_forcing2D->get_geom2D().is_equal(forcing2D->get_geom2D())) {
-					if (!_forcing2D->is_data_equal(*forcing2D)) {
-						_forcing2D = forcing2D;
-						_forcing_data_simgrid = this->field_simgrid_zeropad(*_forcing2D, _sim_geom2D, _pad1, _pad4);
+					_forcing2D = forcing2D;
+					_forcing_data_simgrid = this->field_simgrid_zeropad(*_forcing2D, _sim_geom2D, _pad1, _pad4);
 						
-						_is_rhs_ready = false;
-						delete[] _y_x;
-						delete[] _y_z;
-						delete[] _b_x;
-						delete[] _b_z;
-						_y_x = nullptr;
-						_y_z = nullptr;
-						_b_x = nullptr;
-						_b_z = nullptr;
-					}
-					else {
-						std::cerr << "Input forcing not different. Cannot change forcing data." << std::endl;
-					}
+					/*_is_rhs_ready = false;
+					delete[] _y_x;
+					delete[] _y_z;
+					delete[] _b_x;
+					delete[] _b_z;
+					_y_x = nullptr;
+					_y_z = nullptr;
+					_b_x = nullptr;
+					_b_z = nullptr;*/
+					_is_matrix_ready = false;
+					_is_rhs_ready = false;
+					_dim_A = 0;
+					delete[] _A_p;
+					delete[] _A_i;
+					delete[] _A_x;
+					delete[] _A_z;
+					delete[] _y_x;
+					delete[] _y_z;
+					delete[] _b_x;
+					delete[] _b_z;
+					umfpack_zl_free_numeric(&_numeric);
+					_A_p = nullptr;
+					_A_i = nullptr;
+					_A_x = nullptr;
+					_A_z = nullptr;
+					_y_x = nullptr;
+					_y_z = nullptr;
+					_b_x = nullptr;
+					_b_z = nullptr;
+					_numeric = nullptr;
 				}
 				else {
 					std::cerr << "Input geometry does not match existing geometry. Cannot change forcing data." << std::endl;
@@ -782,7 +793,7 @@ namespace Godzilla {
 			if (this->is_solver_ready()) {
 				double info[UMFPACK_INFO];
 				SuiteSparse_long status = umfpack_zl_solve(UMFPACK_A, _A_p, _A_i, _A_x, _A_z, _y_x, _y_z, _b_x, _b_z, _numeric, info, (double*)NULL);
-				std::cout << "\nPerforming umfpack_zl_solve : " << std::endl;
+				std::cout << "Performing umfpack_zl_solve : " << std::endl;
 				std::cout << "status returned = " << status << std::endl;
 			}
 			else {
@@ -1215,8 +1226,8 @@ namespace Godzilla {
 			const double endX = geom2D.get_endX();
 			const double start_bcX = startX + geom2D.get_hX() * pad1;
 			const double end_bcX = endX - geom2D.get_hX() * pad3;
-			const double pmlwidth_face1 = start_bcX - startX;
-			const double pmlwidth_face3 = endX - end_bcX;
+			const double pmlwidth_face1 = std::abs(start_bcX - startX);
+			const double pmlwidth_face3 = std::abs(endX - end_bcX);
 
 			const size_t nelem = x.size();
 			const double *ptr_in = x.data();
@@ -1233,13 +1244,13 @@ namespace Godzilla {
 						sigmaX = 0.;
 					}
 					else if (ptr_in[i] < start_bcX) {
-						sigmaX = std::pow((ptr_in[i] - start_bcX) / pmlwidth_face1, 2.0);
+						sigmaX = (Godzilla::PML_DAMPING / pmlwidth_face1) * std::pow((ptr_in[i] - start_bcX) / pmlwidth_face1, 2.0);
 					}
 					else if (ptr_in[i] > end_bcX) {
-						sigmaX = std::pow((ptr_in[i] - end_bcX) / pmlwidth_face3, 2.0);
+						sigmaX = (Godzilla::PML_DAMPING / pmlwidth_face3) * std::pow((ptr_in[i] - end_bcX) / pmlwidth_face3, 2.0);
 					}
 					sigmaX /= omega;
-					ptr_out[i] = j1 / (j1 + Godzilla::PML_DAMPING * sigmaX * j);
+					ptr_out[i] = j1 / (j1 + sigmaX * j);
 				}
 			}
 			else {
@@ -1249,13 +1260,13 @@ namespace Godzilla {
 						sigmaX = 0.;
 					}
 					else if (ptr_in[i] > start_bcX) {
-						sigmaX = std::pow((ptr_in[i] - start_bcX) / pmlwidth_face1, 2.0);
+						sigmaX = (Godzilla::PML_DAMPING / pmlwidth_face1) * std::pow((ptr_in[i] - start_bcX) / pmlwidth_face1, 2.0);
 					}
 					else if (ptr_in[i] < end_bcX) {
-						sigmaX = std::pow((ptr_in[i] - end_bcX) / pmlwidth_face3, 2.0);
+						sigmaX = (Godzilla::PML_DAMPING / pmlwidth_face3) * std::pow((ptr_in[i] - end_bcX) / pmlwidth_face3, 2.0);
 					}
 					sigmaX /= omega;
-					ptr_out[i] = j1 / (j1 + Godzilla::PML_DAMPING * sigmaX * j);
+					ptr_out[i] = j1 / (j1 + sigmaX * j);
 				}
 			}
 			return out;
@@ -1285,13 +1296,13 @@ namespace Godzilla {
 						sigmaY = 0.;
 					}
 					else if (ptr_in[i] < start_bcY) {
-						sigmaY = std::pow((ptr_in[i] - start_bcY) / pmlwidth_face4, 2.0);
+						sigmaY = (Godzilla::PML_DAMPING / pmlwidth_face4) * std::pow((ptr_in[i] - start_bcY) / pmlwidth_face4, 2.0);
 					}
 					else if (ptr_in[i] > end_bcY) {
-						sigmaY = std::pow((ptr_in[i] - end_bcY) / pmlwidth_face2, 2.0);
+						sigmaY = (Godzilla::PML_DAMPING / pmlwidth_face2) * std::pow((ptr_in[i] - end_bcY) / pmlwidth_face2, 2.0);
 					}
 					sigmaY /= omega;
-					ptr_out[i] = j1 / (j1 + Godzilla::PML_DAMPING * sigmaY * j);
+					ptr_out[i] = j1 / (j1 + sigmaY * j);
 				}
 			}
 			else {
@@ -1301,10 +1312,10 @@ namespace Godzilla {
 						sigmaY = 0.;
 					}
 					else if (ptr_in[i] > start_bcY) {
-						sigmaY = std::pow((ptr_in[i] - start_bcY) / pmlwidth_face4, 2.0);
+						sigmaY = (Godzilla::PML_DAMPING / pmlwidth_face4) * std::pow((ptr_in[i] - start_bcY) / pmlwidth_face4, 2.0);
 					}
 					else if (ptr_in[i] < end_bcY) {
-						sigmaY = std::pow((ptr_in[i] - end_bcY) / pmlwidth_face2, 2.0);
+						sigmaY = (Godzilla::PML_DAMPING / pmlwidth_face2) * std::pow((ptr_in[i] - end_bcY) / pmlwidth_face2, 2.0);
 					}
 					sigmaY /= omega;
 					ptr_out[i] = j1 / (j1 + Godzilla::PML_DAMPING * sigmaY * j);
