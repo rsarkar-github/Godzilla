@@ -12,15 +12,15 @@ pi = math.pi
 
 # Define box extents and grid along X and Y dimensions, PML parameters
 startX = 0.
-endX = 0.5
+endX = 1.
 etaX = 0.1
-nX = 25
+nX = 50
 startY = 0.
-endY = 0.5
+endY = 1.
 etaY = 0.1
-nY = 25
+nY = 50
 
-C = 20.0
+C = 10
 
 # Calculate number of cells and grid spacing along X and Y
 sizeX = (endX - startX)
@@ -39,7 +39,7 @@ startbcY = startY + pmlY
 endbcY = endY - pmlY
 
 # Setup frequency parameters
-f = 5
+f = 10.0
 omega = 2 * pi * f
 
 """
@@ -280,6 +280,13 @@ def fill_source_impulse(src, amp, ix, iy):
     return src
 
 """
+Fill the source with a constant source
+"""
+def fill_source_constant(src, amp):
+    src = src * 0. + amp
+    return src
+
+"""
 Fill the source with a dipole
 """
 def fill_source_dipole(src, amp, ix, iy):
@@ -361,7 +368,7 @@ Main program starts here
 if __name__ == "__main__":
     
     A = initialize_matrix()
-    vel = initialize_constant_velocities(1.0)
+    vel = initialize_constant_velocities(1.0 + 2.0j)
     src = initialize_source()
     A = fill_Helmholtz_matrix(A, vel)
     
@@ -371,6 +378,7 @@ if __name__ == "__main__":
     #plot_eigenvalues(evals)
     
     src = fill_source_impulse(src, 1e4, nX / 2, nY / 2)
+    #src = fill_source_constant(src, 1.0)
     u = solve(A,src)
     plot(u)
     
