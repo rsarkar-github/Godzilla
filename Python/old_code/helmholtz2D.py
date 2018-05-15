@@ -276,7 +276,7 @@ def fill_Helmholtz_matrix(A, vel):
 Fill the source with an impulse
 """
 def fill_source_impulse(src, amp, ix, iy):
-    src[nX * iy + ix] = amp
+    src[int(nX * iy + ix)] = amp
     return src
 
 """
