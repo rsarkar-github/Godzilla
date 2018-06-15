@@ -3,11 +3,21 @@
 Created on Mon May 07 09:30:00 2018
 @author: rahul
 """
-from CreateMatrixHelmholtz import*
+
+from Common import Common
+from Velocity import Velocity2D
+from CreateGeometry import CreateGeometry2D
+from CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
+from scipy.sparse.linalg import splu
+import numpy as np
 import time
+import matplotlib as mpl
+mpl.use("Agg")
+import matplotlib.pyplot as plt
+
 
 # Global parameters
-ncells_list = range(50, 1000, 50)
+ncells_list = range(50, 100, 50)
 nfac = 5
 nsolve = 10
 
@@ -141,7 +151,7 @@ ax[0].set_title(
     fontweight="normal",
     fontname="Times New Roman"
 )
-plt.savefig("Helmholtz-Performance-Metrics-1000-Shots.pdf", bbox_inches="tight")
+plt.savefig("Helmholtz-Performance-Metrics-10000-Shots.pdf", bbox_inches="tight")
 
 # Semilogy plot
 fig = plt.figure()

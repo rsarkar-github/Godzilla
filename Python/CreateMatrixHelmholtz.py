@@ -8,6 +8,8 @@ from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import splu
 import numpy as np
 import copy
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 

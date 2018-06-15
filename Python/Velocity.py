@@ -6,6 +6,8 @@ Created on Mon Apr 22 17:04:30 2017
 from CreateGeometry import*
 import copy
 import numpy as np
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 
@@ -82,6 +84,74 @@ class Velocity2D(object):
         else:
             raise ValueError("Perturbation leads to values outside range of geometry object.")
 
+    def plot_difference(
+            self,
+            vel_comparison,
+            pad=True,
+            title="Velocity Difference",
+            xlabel="X",
+            ylabel="Z",
+            colorlabel="km/s",
+            vmin="",
+            vmax="",
+            cmap="jet",
+            show=True,
+            savefile=""
+    ):
+
+        vel2d_temp = self.vel - vel_comparison.vel
+
+        if pad:
+
+            # Plot the velocity field difference
+            if vmin is "":
+                vmin = np.amin(vel2d_temp)
+            if vmax is "":
+                vmax = np.amax(vel2d_temp)
+
+            plt.figure()
+            plt.imshow(np.transpose(vel2d_temp), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            cb = plt.colorbar()
+            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.title(title)
+
+            if savefile is not "":
+                plt.savefig(savefile, bbox_inches="tight")
+
+            if show:
+                plt.show()
+
+        else:
+
+            # Extract velocity field without padding region
+            cells_x = self.geometry2D.ncellsX
+            cells_z = self.geometry2D.ncellsZ
+            padcells_x = self.geometry2D.ncellsX_pad
+            padcells_z = self.geometry2D.ncellsZ_pad
+            vel_field = vel2d_temp[padcells_x: padcells_x + cells_x + 1, padcells_z: padcells_z + cells_z + 1]
+
+            # Plot the velocity field difference
+            if vmin is "":
+                vmin = np.amin(vel_field)
+            if vmax is "":
+                vmax = np.amax(vel_field)
+
+            plt.figure()
+            plt.imshow(np.transpose(vel_field), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            cb = plt.colorbar()
+            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.title(title)
+
+            if savefile is not "":
+                plt.savefig(savefile, bbox_inches="tight")
+
+            if show:
+                plt.show()
+
     def plot_nopad(
             self,
             title="Velocity",
@@ -90,6 +160,8 @@ class Velocity2D(object):
             colorlabel="km/s",
             vmin="",
             vmax="",
+            cmap="jet",
+            show=True,
             savefile=""
     ):
 
@@ -107,7 +179,7 @@ class Velocity2D(object):
             vmax = np.amax(vel_field)
 
         plt.figure()
-        plt.imshow(np.transpose(vel_field), origin="lower", vmin=vmin, vmax=vmax)
+        plt.imshow(np.transpose(vel_field), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
         cb = plt.colorbar()
         cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
         plt.xlabel(xlabel)
@@ -117,7 +189,8 @@ class Velocity2D(object):
         if savefile is not "":
             plt.savefig(savefile, bbox_inches="tight")
 
-        plt.show()
+        if show:
+            plt.show()
 
     def plot(
             self,
@@ -127,6 +200,8 @@ class Velocity2D(object):
             colorlabel="km/s",
             vmin="",
             vmax="",
+            cmap="jet",
+            show=True,
             savefile=""
     ):
 
@@ -137,7 +212,7 @@ class Velocity2D(object):
             vmax = np.amax(self.vel)
 
         plt.figure()
-        plt.imshow(np.transpose(self.vel), origin="lower", vmin=vmin, vmax=vmax)
+        plt.imshow(np.transpose(self.vel), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
         cb = plt.colorbar()
         cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
         plt.xlabel(xlabel)
@@ -147,7 +222,8 @@ class Velocity2D(object):
         if savefile is not "":
             plt.savefig(savefile, bbox_inches="tight")
 
-        plt.show()
+        if show:
+            plt.show()
 
 
 if __name__ == "__main__":
