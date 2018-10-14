@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 
 # Global parameters
-ncells_list = range(50, 100, 50)
+ncells_list = range(50, 1000, 50)
 nfac = 5
 nsolve = 10
 

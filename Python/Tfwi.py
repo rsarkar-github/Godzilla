@@ -113,7 +113,7 @@ class Tfwi2D(object):
         vec1 = np.reshape(a=vec, newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1))
 
         plt.figure()
-        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
@@ -155,7 +155,7 @@ class Tfwi2D(object):
         )
 
         plt.figure()
-        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
@@ -214,7 +214,7 @@ class Tfwi2D(object):
 
         plt.figure()
         plt.subplot(121)
-        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1)
+        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
@@ -223,7 +223,7 @@ class Tfwi2D(object):
         plt.title(title1)
 
         plt.subplot(122)
-        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2)
+        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
@@ -282,7 +282,7 @@ class Tfwi2D(object):
 
         plt.figure()
         plt.subplot(121)
-        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1)
+        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
@@ -291,7 +291,7 @@ class Tfwi2D(object):
         plt.title(title1)
 
         plt.subplot(122)
-        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2)
+        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
@@ -554,8 +554,8 @@ class Tfwi2D(object):
                     title2="Imag",
                     colorbar=False,
                     show=False,
-                    cmap1="seismic",
-                    cmap2="seismic",
+                    cmap1="jet",
+                    cmap2="jet",
                     savefile=lsm_adjoint_image_file + "-" + str(nomega) + ".pdf"
                 )
 
@@ -569,7 +569,7 @@ class Tfwi2D(object):
                 title="LSM adjoint image",
                 colorbar=False,
                 show=False,
-                cmap="seismic",
+                cmap="jet",
                 savefile=lsm_adjoint_image_file + ".pdf"
             )
 
@@ -889,15 +889,15 @@ if __name__ == "__main__":
     else:
         tfwi.set_flat_spectrum_wavelet()
 
-    # tfwi.perform_lsm_cg(
-    #     save_lsm_adjoint_image=True,
-    #     save_lsm_adjoint_allimages=True,
-    #     lsm_adjoint_image_file="lsm-adjoint-image-8-flat"
-    # )
-
-    tfwi.perform_lsm_cg_stochastic(
-        prob=0.6,
+    tfwi.perform_lsm_cg(
         save_lsm_adjoint_image=True,
-        save_lsm_adjoint_allimages=False,
-        lsm_adjoint_image_file="lsm-adjoint-image-8-p60"
+        save_lsm_adjoint_allimages=True,
+        lsm_adjoint_image_file="lsm-adjoint-image-8"
     )
+
+    # tfwi.perform_lsm_cg_stochastic(
+    #     prob=0.6,
+    #     save_lsm_adjoint_image=True,
+    #     save_lsm_adjoint_allimages=False,
+    #     lsm_adjoint_image_file="lsm-adjoint-image-8-p60"
+    # )
