@@ -1,4 +1,4 @@
-from Tfwi import Tfwi2D
+from TfwiLeastSquares import Tfwi2D
 from Velocity import*
 
 
