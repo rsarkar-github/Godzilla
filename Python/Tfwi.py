@@ -3,15 +3,15 @@
 Created on Mon Apr 23 17:04:30 2017
 @author: rahul
 """
-from Velocity import*
+from Common import*
+from CreateGeometry import CreateGeometry2D
+from Velocity import Velocity2D
 from CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
+from Utilities import TypeChecker
 import copy
 import numpy as np
 import time
 from scipy.sparse.linalg import splu
-import matplotlib as mpl
-mpl.use("Agg")
-import matplotlib.pyplot as plt
 
 
 class Tfwi2D(object):
@@ -37,15 +37,16 @@ class Tfwi2D(object):
             self.veltrue.geometry2D.omega_min,
             self.veltrue.geometry2D.omega_max
         ]
-        self.wavelet = self.set_ricker_wavelet(omega_peak=self.veltrue.geometry2D.omega_max / 2.0)
+        self.wavelet = []
+        self.set_ricker_wavelet(omega_peak=self.veltrue.geometry2D.omega_max / 2.0)
 
     def set_true_model(self, velocity):
 
-        self.veltrue.set_velocity(velocity=velocity)
+        self.veltrue.vel = velocity
 
     def set_starting_model(self, velocity):
 
-        self.velstart.set_velocity(velocity=velocity)
+        self.velstart.vel = velocity
 
     def set_constant_starting_model(self):
 
@@ -74,7 +75,7 @@ class Tfwi2D(object):
 
     def set_flat_spectrum_wavelet(self):
 
-        self.wavelet = [1.0 for omega in self.omega_list]
+        self.wavelet = [1.0 for _ in self.omega_list]
 
     def ricker_time(self, freq_peak=10.0, nt=250, dt=0.004, delay=0.05):
 
@@ -87,260 +88,6 @@ class Tfwi2D(object):
 
         amp = 2.0 * (omega ** 2.0) / (np.sqrt(Common.pi) * (omega_peak ** 3.0)) * np.exp(-(omega / omega_peak) ** 2)
         return np.complex64(amp)
-
-    def __plot_nopad_vec_real(
-            self,
-            vec,
-            title="Field",
-            xlabel="X",
-            ylabel="Z",
-            colorbar=True,
-            colorlabel="",
-            vmin="",
-            vmax="",
-            cmap="hot",
-            show=True,
-            savefile=""
-    ):
-
-        # Plot the velocity field
-        if vmin is "":
-            vmin = np.amin(vec)
-        if vmax is "":
-            vmax = np.amax(vec)
-
-        # Reshape vec
-        vec1 = np.reshape(a=vec, newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1))
-
-        plt.figure()
-        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
-        if colorbar:
-            cb = plt.colorbar()
-            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.title(title)
-
-        if savefile is not "":
-            plt.savefig(savefile, bbox_inches="tight")
-
-        if show:
-            plt.show()
-
-    def __plot_pad_vec_real(
-            self,
-            vec,
-            title="Field",
-            xlabel="X",
-            ylabel="Z",
-            colorbar=True,
-            colorlabel="",
-            vmin="",
-            vmax="",
-            cmap="hot",
-            show=True,
-            savefile=""
-    ):
-
-        # Plot the velocity field
-        if vmin is "":
-            vmin = np.amin(vec)
-        if vmax is "":
-            vmax = np.amax(vec)
-
-        # Reshape vec
-        vec1 = np.reshape(
-            a=vec,
-            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
-        )
-
-        plt.figure()
-        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
-        if colorbar:
-            cb = plt.colorbar()
-            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.title(title)
-
-        if savefile is not "":
-            plt.savefig(savefile, bbox_inches="tight")
-
-        if show:
-            plt.show()
-
-    def __plot_nopad_vec_complex(
-            self,
-            vec,
-            title1="Field",
-            title2="Field",
-            xlabel1="X",
-            ylabel1="Z",
-            xlabel2="X",
-            ylabel2="Z",
-            colorbar=True,
-            colorlabel1="",
-            colorlabel2="",
-            vmin1="",
-            vmax1="",
-            vmin2="",
-            vmax2="",
-            cmap1="hot",
-            cmap2="hot",
-            show=True,
-            savefile=""
-    ):
-
-        # Plot the velocity field
-        if vmin1 is "":
-            vmin1 = np.amin(np.real(vec))
-        if vmax1 is "":
-            vmax1 = np.amax(np.real(vec))
-
-        if vmin2 is "":
-            vmin2 = np.amin(np.imag(vec))
-        if vmax2 is "":
-            vmax2 = np.amax(np.imag(vec))
-
-        # Reshape vec
-        vec1 = np.reshape(
-            a=np.real(vec),
-            newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1)
-        )
-        vec2 = np.reshape(
-            a=np.imag(vec),
-            newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1)
-        )
-
-        plt.figure()
-        plt.subplot(121)
-        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
-        if colorbar:
-            cb = plt.colorbar()
-            cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel1)
-        plt.ylabel(ylabel1)
-        plt.title(title1)
-
-        plt.subplot(122)
-        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
-        if colorbar:
-            cb = plt.colorbar()
-            cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel2)
-        plt.ylabel(ylabel2)
-        plt.title(title2)
-
-        if savefile is not "":
-            plt.savefig(savefile, bbox_inches="tight")
-
-        if show:
-            plt.show()
-
-    def __plot_pad_vec_complex(
-            self,
-            vec,
-            title1="Field",
-            title2="Field",
-            xlabel1="X",
-            ylabel1="Z",
-            xlabel2="X",
-            ylabel2="Z",
-            colorbar=True,
-            colorlabel1="",
-            colorlabel2="",
-            vmin1="",
-            vmax1="",
-            vmin2="",
-            vmax2="",
-            cmap1="hot",
-            cmap2="hot",
-            show=True,
-            savefile=""
-    ):
-
-        # Plot the velocity field
-        if vmin1 is "":
-            vmin1 = np.amin(np.real(vec))
-        if vmax1 is "":
-            vmax1 = np.amax(np.real(vec))
-
-        if vmin2 is "":
-            vmin2 = np.amin(np.imag(vec))
-        if vmax2 is "":
-            vmax2 = np.amax(np.imag(vec))
-
-        # Reshape vec
-        vec1 = np.reshape(
-            a=np.real(vec),
-            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
-        )
-        vec2 = np.reshape(
-            a=np.imag(vec),
-            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
-        )
-
-        plt.figure()
-        plt.subplot(121)
-        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
-        if colorbar:
-            cb = plt.colorbar()
-            cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel1)
-        plt.ylabel(ylabel1)
-        plt.title(title1)
-
-        plt.subplot(122)
-        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
-        if colorbar:
-            cb = plt.colorbar()
-            cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel2)
-        plt.ylabel(ylabel2)
-        plt.title(title2)
-
-        if savefile is not "":
-            plt.savefig(savefile, bbox_inches="tight")
-
-        if show:
-            plt.show()
-
-    def __residual_2_modeling_grid(self, vec_residual, vec_out, add_flag=False):
-
-        if not add_flag:
-            vec_out = vec_out * 0
-
-        nx_solver = self.veltrue.geometry2D.gridpointsX - 2
-        rcvlist = self.veltrue.geometry2D.receivers
-
-        for nreceiver, receiver in enumerate(rcvlist):
-            receiver_grid_index = nx_solver * (receiver[1] - 1) + receiver[0] - 1
-            vec_out[receiver_grid_index] += vec_residual[nreceiver]
-
-        return vec_out
-
-    def __modeling_grid_2_nopad_grid(self, vec_model_grid, vec_nopad_grid, add_flag=False):
-
-        if not add_flag:
-            vec_nopad_grid = vec_nopad_grid * 0
-
-        # Get model grid point info, pad info, nopad grid info
-        nx_model = self.veltrue.geometry2D.gridpointsX - 2
-        nx_nopad = self.veltrue.geometry2D.ncellsX + 1
-        nz_nopad = self.veltrue.geometry2D.ncellsZ + 1
-        nx_skip = self.veltrue.geometry2D.ncellsX_pad - 1
-        nz_skip = self.veltrue.geometry2D.ncellsZ_pad - 1
-
-        # Copy into cropped field
-        for nz in range(nz_nopad):
-            start_nopad = nz * nx_nopad
-            end_nopad = start_nopad + nx_nopad
-            start_model = (nz + nz_skip) * nx_model + nx_skip
-            end_model = start_model + nx_nopad
-
-            vec_nopad_grid[start_nopad: end_nopad] += vec_model_grid[start_model: end_model]
-
-        return vec_nopad_grid
 
     def perform_lsm_cg(
             self,
@@ -807,6 +554,310 @@ class Tfwi2D(object):
                 cmap="seismic",
                 savefile=lsm_adjoint_image_file + ".pdf"
             )
+
+    """
+    # Private methods
+    """
+
+    def __plot_nopad_vec_real(
+            self,
+            vec,
+            title="Field",
+            xlabel="X",
+            ylabel="Z",
+            colorbar=True,
+            colorlabel="",
+            vmin="",
+            vmax="",
+            cmap="hot",
+            show=True,
+            savefile=""
+    ):
+
+        # Plot the velocity field
+        if vmin is "":
+            vmin = np.amin(vec)
+        if vmax is "":
+            vmax = np.amax(vec)
+
+        # Reshape vec
+        vec1 = np.reshape(a=vec, newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1))
+
+        plt.figure()
+        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
+        if colorbar:
+            cb = plt.colorbar()
+            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(title)
+
+        if savefile is not "":
+            plt.savefig(savefile, bbox_inches="tight")
+
+        if show:
+            plt.show()
+
+    def __plot_pad_vec_real(
+            self,
+            vec,
+            title="Field",
+            xlabel="X",
+            ylabel="Z",
+            colorbar=True,
+            colorlabel="",
+            vmin="",
+            vmax="",
+            cmap="hot",
+            show=True,
+            savefile=""
+    ):
+
+        # Plot the velocity field
+        if vmin is "":
+            vmin = np.amin(vec)
+        if vmax is "":
+            vmax = np.amax(vec)
+
+        # Reshape vec
+        vec1 = np.reshape(
+            a=vec,
+            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
+        )
+
+        plt.figure()
+        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
+        if colorbar:
+            cb = plt.colorbar()
+            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(title)
+
+        if savefile is not "":
+            plt.savefig(savefile, bbox_inches="tight")
+
+        if show:
+            plt.show()
+
+    def __plot_nopad_vec_complex(
+            self,
+            vec,
+            title1="Field",
+            title2="Field",
+            xlabel1="X",
+            ylabel1="Z",
+            xlabel2="X",
+            ylabel2="Z",
+            colorbar=True,
+            colorlabel1="",
+            colorlabel2="",
+            vmin1="",
+            vmax1="",
+            vmin2="",
+            vmax2="",
+            cmap1="hot",
+            cmap2="hot",
+            show=True,
+            savefile=""
+    ):
+
+        # Plot the velocity field
+        if vmin1 is "":
+            vmin1 = np.amin(np.real(vec))
+        if vmax1 is "":
+            vmax1 = np.amax(np.real(vec))
+
+        if vmin2 is "":
+            vmin2 = np.amin(np.imag(vec))
+        if vmax2 is "":
+            vmax2 = np.amax(np.imag(vec))
+
+        # Reshape vec
+        vec1 = np.reshape(
+            a=np.real(vec),
+            newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1)
+        )
+        vec2 = np.reshape(
+            a=np.imag(vec),
+            newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1)
+        )
+
+        plt.figure()
+        plt.subplot(121)
+        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
+        if colorbar:
+            cb = plt.colorbar()
+            cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
+        plt.xlabel(xlabel1)
+        plt.ylabel(ylabel1)
+        plt.title(title1)
+
+        plt.subplot(122)
+        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
+        if colorbar:
+            cb = plt.colorbar()
+            cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
+        plt.xlabel(xlabel2)
+        plt.ylabel(ylabel2)
+        plt.title(title2)
+
+        if savefile is not "":
+            plt.savefig(savefile, bbox_inches="tight")
+
+        if show:
+            plt.show()
+
+    def __plot_pad_vec_complex(
+            self,
+            vec,
+            title1="Field",
+            title2="Field",
+            xlabel1="X",
+            ylabel1="Z",
+            xlabel2="X",
+            ylabel2="Z",
+            colorbar=True,
+            colorlabel1="",
+            colorlabel2="",
+            vmin1="",
+            vmax1="",
+            vmin2="",
+            vmax2="",
+            cmap1="hot",
+            cmap2="hot",
+            show=True,
+            savefile=""
+    ):
+
+        # Plot the velocity field
+        if vmin1 is "":
+            vmin1 = np.amin(np.real(vec))
+        if vmax1 is "":
+            vmax1 = np.amax(np.real(vec))
+
+        if vmin2 is "":
+            vmin2 = np.amin(np.imag(vec))
+        if vmax2 is "":
+            vmax2 = np.amax(np.imag(vec))
+
+        # Reshape vec
+        vec1 = np.reshape(
+            a=np.real(vec),
+            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
+        )
+        vec2 = np.reshape(
+            a=np.imag(vec),
+            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
+        )
+
+        plt.figure()
+        plt.subplot(121)
+        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
+        if colorbar:
+            cb = plt.colorbar()
+            cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
+        plt.xlabel(xlabel1)
+        plt.ylabel(ylabel1)
+        plt.title(title1)
+
+        plt.subplot(122)
+        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
+        if colorbar:
+            cb = plt.colorbar()
+            cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
+        plt.xlabel(xlabel2)
+        plt.ylabel(ylabel2)
+        plt.title(title2)
+
+        if savefile is not "":
+            plt.savefig(savefile, bbox_inches="tight")
+
+        if show:
+            plt.show()
+
+    def __residual_2_modeling_grid(self, vec_residual, vec_out, add_flag=False):
+
+        if not add_flag:
+            vec_out = vec_out * 0
+
+        nx_solver = self.veltrue.geometry2D.gridpointsX - 2
+        rcvlist = self.veltrue.geometry2D.receivers
+
+        for nreceiver, receiver in enumerate(rcvlist):
+            receiver_grid_index = nx_solver * (receiver[1] - 1) + receiver[0] - 1
+            vec_out[receiver_grid_index] += vec_residual[nreceiver]
+
+        return vec_out
+
+    def __modeling_grid_2_nopad_grid(self, vec_model_grid, vec_nopad_grid, add_flag=False):
+
+        if not add_flag:
+            vec_nopad_grid = vec_nopad_grid * 0
+
+        # Get model grid point info, pad info, nopad grid info
+        nx_model = self.veltrue.geometry2D.gridpointsX - 2
+        nx_nopad = self.veltrue.geometry2D.ncellsX + 1
+        nz_nopad = self.veltrue.geometry2D.ncellsZ + 1
+        nx_skip = self.veltrue.geometry2D.ncellsX_pad - 1
+        nz_skip = self.veltrue.geometry2D.ncellsZ_pad - 1
+
+        # Copy into cropped field
+        for nz in range(nz_nopad):
+            start_nopad = nz * nx_nopad
+            end_nopad = start_nopad + nx_nopad
+            start_model = (nz + nz_skip) * nx_model + nx_skip
+            end_model = start_model + nx_nopad
+
+            vec_nopad_grid[start_nopad: end_nopad] += vec_model_grid[start_model: end_model]
+
+        return vec_nopad_grid
+
+    def __conjugate_gradients(self, linear_operator, rhs, x0, niter):
+
+        # Calculate initial residual, and residual norm
+        r = rhs - linear_operator(x0)
+        r_norm = np.linalg.norm(x=r)
+        if r_norm < 1e-10:
+            return x0
+        r_norm_sq = r_norm ** 2
+
+        # Initialize p
+        p = copy.deepcopy(r)
+
+        # Initialize residual array, iteration array
+        residual = [r_norm]
+        iterations = [0]
+
+        # Run CG iterations
+        for num_iter in range(niter):
+
+            # Compute A*p and alpha
+            Ap = linear_operator(p)
+            alpha = r_norm_sq / np.vdot(p, Ap)
+
+            # Update x0, residual
+            x0 += alpha * p
+            r -= alpha * Ap
+
+            # Calculate beta
+            r_norm_new = np.linalg.norm(x=r)
+            r_norm_new_sq = r_norm_new ** 2
+            beta = r_norm_new_sq / r_norm_sq
+
+            # Check convergence
+            if r_norm_new < 1e-10:
+                break
+
+            # Update p, residual norm
+            p = r + beta * p
+            r_norm_sq = r_norm_new_sq
+
+            # Update residual array, iteration array
+            residual.append(r_norm_new)
+            iterations.append(num_iter)
+
+        return x0, (iterations, residual)
 
 
 if __name__ == "__main__":

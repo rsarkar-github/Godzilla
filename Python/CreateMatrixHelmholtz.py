@@ -3,14 +3,14 @@
 Created on Mon Apr 22 17:04:30 2017
 @author: rahul
 """
-from Velocity import*
+from Common import*
+from Velocity import Velocity2D
+from CreateGeometry import CreateGeometry2D
+from Utilities import TypeChecker
 from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import splu
-import numpy as np
 import copy
-import matplotlib as mpl
-mpl.use("Agg")
-import matplotlib.pyplot as plt
+import numpy as np
 
 
 class CreateMatrixHelmholtz2D(object):
@@ -18,24 +18,23 @@ class CreateMatrixHelmholtz2D(object):
     Create a sparse matrix object that can solve the Helmholtz equation.
     Currently the class only supports PML boundary conditions on all faces.
     """
+    """
+    TODO:
+    1. Add exception handling
+    """
 
     def __init__(self, velocity2d=Velocity2D(), pml_damping=Common.pml_damping):
 
-        self.vel2D = copy.deepcopy(velocity2d)
-        self.pml_damping = pml_damping
+        TypeChecker.check(x=velocity2d, expected_type=(Velocity2D,))
+        TypeChecker.check_float_positive(x=pml_damping)
 
-    def set_velocity(self, velocity2d=Velocity2D()):
-
-        self.vel2D = copy.deepcopy(velocity2d)
-
-    def set_pml_damping(self, pml_damping=Common.pml_damping):
-
-        self.pml_damping = pml_damping
+        self.__vel2D = copy.deepcopy(velocity2d)
+        self.__pml_damping = pml_damping
 
     def create_matrix(self, omega=Common.omega, transpose_flag=False):
 
         # Check if omega is in range
-        if not self.vel2D.geometry2D.omega_min <= omega <= self.vel2D.geometry2D.omega_max:
+        if not self.__vel2D.geometry2D.omega_min <= omega <= self.__vel2D.geometry2D.omega_max:
             raise ValueError("Omega outside range supported by geometry object.")
 
         # Create sx and sz arrays
@@ -48,10 +47,10 @@ class CreateMatrixHelmholtz2D(object):
         cols = []
 
         # Define some parameters
-        nx = self.vel2D.geometry2D.gridpointsX - 2
-        nz = self.vel2D.geometry2D.gridpointsZ - 2
-        hx = self.vel2D.geometry2D.dx
-        hz = self.vel2D.geometry2D.dz
+        nx = self.__vel2D.geometry2D.gridpointsX - 2
+        nz = self.__vel2D.geometry2D.gridpointsZ - 2
+        hx = self.__vel2D.geometry2D.dx
+        hz = self.__vel2D.geometry2D.dz
 
         ####################################################################################################
         # Loop over interior nodes
@@ -69,7 +68,7 @@ class CreateMatrixHelmholtz2D(object):
 
                 rows.append(n2)
                 cols.append(n2)
-                data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[i2, i1]) ** 2)
+                data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[i2, i1]) ** 2)
 
                 rows.append(n2)
                 cols.append(n2 + 1)
@@ -104,7 +103,7 @@ class CreateMatrixHelmholtz2D(object):
 
             rows.append(n2)
             cols.append(n2)
-            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[i2, 1]) ** 2)
+            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[i2, 1]) ** 2)
 
             rows.append(n2)
             cols.append(n2 + 1)
@@ -132,7 +131,7 @@ class CreateMatrixHelmholtz2D(object):
 
             rows.append(n2)
             cols.append(n2)
-            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[i2, nz]) ** 2)
+            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[i2, nz]) ** 2)
 
             rows.append(n2)
             cols.append(n2 + 1)
@@ -160,7 +159,7 @@ class CreateMatrixHelmholtz2D(object):
 
             rows.append(n2)
             cols.append(n2)
-            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[1, i1]) ** 2)
+            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[1, i1]) ** 2)
 
             rows.append(n2)
             cols.append(n2 + 1)
@@ -188,7 +187,7 @@ class CreateMatrixHelmholtz2D(object):
 
             rows.append(n2)
             cols.append(n2)
-            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[nx, i1]) ** 2)
+            data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[nx, i1]) ** 2)
 
             rows.append(n2)
             cols.append(n2 - 1)
@@ -216,7 +215,7 @@ class CreateMatrixHelmholtz2D(object):
 
         rows.append(n2)
         cols.append(n2)
-        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[1, 1]) ** 2)
+        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[1, 1]) ** 2)
 
         rows.append(n2)
         cols.append(n2 + 1)
@@ -237,7 +236,7 @@ class CreateMatrixHelmholtz2D(object):
 
         rows.append(n2)
         cols.append(n2)
-        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[nx, 1]) ** 2)
+        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[nx, 1]) ** 2)
 
         rows.append(n2)
         cols.append(n2 - 1)
@@ -258,7 +257,7 @@ class CreateMatrixHelmholtz2D(object):
 
         rows.append(n2)
         cols.append(n2)
-        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[1, nz]) ** 2)
+        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[1, nz]) ** 2)
 
         rows.append(n2)
         cols.append(n2 + 1)
@@ -279,7 +278,7 @@ class CreateMatrixHelmholtz2D(object):
 
         rows.append(n2)
         cols.append(n2)
-        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.vel2D.vel[nx, nz]) ** 2)
+        data.append(- p1x * (p3x + p2x) - p1z * (p3z + p2z) + (omega / self.__vel2D.vel[nx, nz]) ** 2)
 
         rows.append(n2)
         cols.append(n2 - 1)
@@ -298,39 +297,69 @@ class CreateMatrixHelmholtz2D(object):
 
         return mtx
 
+    """
+    # Properties
+    """
+
+    @property
+    def vel2D(self):
+
+        return self.__vel2D
+
+    @vel2D.setter
+    def vel2D(self, velocity2d):
+
+        TypeChecker.check(x=velocity2d, expected_type=(Velocity2D,))
+        self.__vel2D = copy.deepcopy(velocity2d)
+
+    @property
+    def pml_damping(self):
+
+        return self.__pml_damping
+
+    @pml_damping.setter
+    def pml_damping(self, pml_damping_value):
+
+        TypeChecker.check_float_positive(x=pml_damping_value)
+        self.__pml_damping = pml_damping_value
+
+    """
+    # Private Methods
+    """
+
     def __sx_array(self, omega):
 
-        pml_width = self.vel2D.geometry2D.ncellsX_pad * self.vel2D.geometry2D.dx
-        dx = self.vel2D.geometry2D.dx / 2.0
-        end_x = self.vel2D.geometry2D.dimX + 2 * pml_width
-        sx = np.zeros(shape=(2 * self.vel2D.geometry2D.gridpointsX - 1,), dtype=np.complex64)
+        pml_width = self.__vel2D.geometry2D.ncellsX_pad * self.__vel2D.geometry2D.dx
+        dx = self.__vel2D.geometry2D.dx / 2.0
+        end_x = self.__vel2D.geometry2D.dimX + 2 * pml_width
+        sx = np.zeros(shape=(2 * self.__vel2D.geometry2D.gridpointsX - 1,), dtype=np.complex64)
 
-        for i1 in range(2 * self.vel2D.geometry2D.ncellsX_pad + 1):
+        for i1 in range(2 * self.__vel2D.geometry2D.ncellsX_pad + 1):
             sx[i1] = (1.0 - i1 * dx / pml_width) ** 2
 
-        for i1 in range(2 * (self.vel2D.geometry2D.ncellsX + self.vel2D.geometry2D.ncellsX_pad),
-                        2 * self.vel2D.geometry2D.gridpointsX - 1):
+        for i1 in range(2 * (self.__vel2D.geometry2D.ncellsX + self.__vel2D.geometry2D.ncellsX_pad),
+                        2 * self.__vel2D.geometry2D.gridpointsX - 1):
             sx[i1] = (1.0 - (end_x - i1 * dx) / pml_width) ** 2
 
-        sx = (self.pml_damping / pml_width) * sx
+        sx = (self.__pml_damping / pml_width) * sx
         sx = 1 + Common.i * sx / omega
         return 1.0 / sx
 
     def __sz_array(self, omega):
 
-        pml_width = self.vel2D.geometry2D.ncellsZ_pad * self.vel2D.geometry2D.dz
-        dz = self.vel2D.geometry2D.dz / 2.0
-        end_z = self.vel2D.geometry2D.dimZ + 2 * pml_width
-        sz = np.zeros(shape=(2 * self.vel2D.geometry2D.gridpointsZ - 1,), dtype=np.complex64)
+        pml_width = self.__vel2D.geometry2D.ncellsZ_pad * self.__vel2D.geometry2D.dz
+        dz = self.__vel2D.geometry2D.dz / 2.0
+        end_z = self.__vel2D.geometry2D.dimZ + 2 * pml_width
+        sz = np.zeros(shape=(2 * self.__vel2D.geometry2D.gridpointsZ - 1,), dtype=np.complex64)
 
-        for i1 in range(2 * self.vel2D.geometry2D.ncellsZ_pad + 1):
+        for i1 in range(2 * self.__vel2D.geometry2D.ncellsZ_pad + 1):
             sz[i1] = (1.0 - i1 * dz / pml_width) ** 2
 
-        for i1 in range(2 * (self.vel2D.geometry2D.ncellsZ + self.vel2D.geometry2D.ncellsZ_pad),
-                        2 * self.vel2D.geometry2D.gridpointsZ - 1):
+        for i1 in range(2 * (self.__vel2D.geometry2D.ncellsZ + self.__vel2D.geometry2D.ncellsZ_pad),
+                        2 * self.__vel2D.geometry2D.gridpointsZ - 1):
             sz[i1] = (1.0 - (end_z - i1 * dz) / pml_width) ** 2
 
-        sz = (self.pml_damping / pml_width) * sz
+        sz = (self.__pml_damping / pml_width) * sz
         sz = 1 + Common.i * sz / omega
         return 1.0 / sz
 
@@ -360,12 +389,12 @@ if __name__ == "__main__":
     plt.subplot(121)
     plt.title('Real(x)')
     plt.grid(color='w')
-    plt.imshow(xreal)
+    plt.imshow(xreal, cmap="jet")
     plt.colorbar()
 
     plt.subplot(122)
     plt.title('Imag(x)')
     plt.grid(color='w')
-    plt.imshow(ximag)
+    plt.imshow(ximag, cmap="jet")
     plt.colorbar()
     plt.show()

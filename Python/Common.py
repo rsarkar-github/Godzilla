@@ -5,7 +5,9 @@ Created on Mon Apr 22 17:04:30 2017
 """
 
 import math
-
+import matplotlib as mpl
+# mpl.use("Agg")
+import matplotlib.pyplot as plt
 
 class Common(object):
 

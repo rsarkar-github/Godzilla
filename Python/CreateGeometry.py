@@ -3,12 +3,17 @@
 Created on Mon Apr 22 17:04:30 2017
 @author: rahul
 """
-from Common import Common
+from Common import*
 
 
 class CreateGeometry2D(object):
     """
     This class creates the geometry of the seismic experiment
+    """
+    """
+    TODO:
+    1. Add exception handling
+    2. Add plotting capabilities to display the geometry
     """
 
     def __init__(
@@ -24,48 +29,40 @@ class CreateGeometry2D(object):
         ####################################################################################################
         # These quantities cannot be changed after class is initialized
         ####################################################################################################
-        self.dimX = float(xdim)
-        self.dimZ = float(zdim)
-        self.vmin = float(vmin)
-        self.vmax = float(vmax)
-        self.omega_max = float(omega_max)
-        self.omega_min = float(omega_min)
-        self.lambda_min = 2 * Common.pi * vmin / float(omega_max)
-        self.lambda_max = 2 * Common.pi * vmax / float(omega_min)
+        self.__dimX = float(xdim)
+        self.__dimZ = float(zdim)
+        self.__vmin = float(vmin)
+        self.__vmax = float(vmax)
+        self.__omega_min = float(omega_min)
+        self.__omega_max = float(omega_max)
+        self.__lambda_min = 2 * Common.pi * vmin / float(omega_max)
+        self.__lambda_max = 2 * Common.pi * vmax / float(omega_min)
 
         ####################################################################################################
         # These quantities can be changed after class is initialized
         ####################################################################################################
 
         # Set parameters by default
-        self.ncellsX = 0
-        self.ncellsZ = 0
-        self.dx = 0.0
-        self.dz = 0.0
-        self.ncellsX_pad = 0
-        self.ncellsZ_pad = 0
-        self.gridpointsX = 0
-        self.gridpointsZ = 0
+        self.__ncellsX = 0
+        self.__ncellsZ = 0
+        self.__dx = 0.0
+        self.__dz = 0.0
+        self.__ncellsX_pad = 0
+        self.__ncellsZ_pad = 0
+        self.__gridpointsX = 0
+        self.__gridpointsZ = 0
         self.set_default_params()
-
-        # Set source positions
-        self.sources = []
-        self.set_default_sources()
-
-        # Set receiver positions
-        self.receivers = []
-        self.set_default_receivers()
 
     def set_default_params(self):
 
-        self.ncellsX = int((self.dimX / self.lambda_min) * Common.ppw)
-        self.ncellsZ = int((self.dimZ / self.lambda_min) * Common.ppw)
-        self.dx = self.dimX / float(self.ncellsX)
-        self.dz = self.dimZ / float(self.ncellsZ)
-        self.ncellsX_pad = int(Common.pml * self.lambda_max / self.dx)
-        self.ncellsZ_pad = int(Common.pml * self.lambda_max / self.dz)
-        self.gridpointsX = self.ncellsX + 2 * self.ncellsX_pad + 1
-        self.gridpointsZ = self.ncellsZ + 2 * self.ncellsZ_pad + 1
+        self.__ncellsX = int((self.__dimX / self.__lambda_min) * Common.ppw)
+        self.__ncellsZ = int((self.__dimZ / self.__lambda_min) * Common.ppw)
+        self.__dx = self.__dimX / float(self.__ncellsX)
+        self.__dz = self.__dimZ / float(self.__ncellsZ)
+        self.__ncellsX_pad = int(Common.pml * self.__lambda_max / self.__dx)
+        self.__ncellsZ_pad = int(Common.pml * self.__lambda_max / self.__dz)
+        self.__gridpointsX = self.__ncellsX + 2 * self.__ncellsX_pad + 1
+        self.__gridpointsZ = self.__ncellsZ + 2 * self.__ncellsZ_pad + 1
 
     def set_params(
             self,
@@ -77,45 +74,125 @@ class CreateGeometry2D(object):
     ):
 
         if check:
-            if self.check_gridparams(self.dimX, ncells_x, ncells_x_pad):
-                if self.check_gridparams(self.dimZ, ncells_z, ncells_z_pad):
-                    self.ncellsX = int(ncells_x)
-                    self.ncellsZ = int(ncells_z)
-                    self.dx = self.dimX / float(self.ncellsX)
-                    self.dz = self.dimZ / float(self.ncellsZ)
-                    self.ncellsX_pad = int(ncells_x_pad)
-                    self.ncellsZ_pad = int(ncells_z_pad)
-                    self.gridpointsX = self.ncellsX + 2 * self.ncellsX_pad + 1
-                    self.gridpointsZ = self.ncellsZ + 2 * self.ncellsZ_pad + 1
+            if self.__check_gridparams(self.__dimX, ncells_x, ncells_x_pad):
+                if self.__check_gridparams(self.__dimZ, ncells_z, ncells_z_pad):
+                    self.__ncellsX = int(ncells_x)
+                    self.__ncellsZ = int(ncells_z)
+                    self.__dx = self.__dimX / float(self.__ncellsX)
+                    self.__dz = self.__dimZ / float(self.__ncellsZ)
+                    self.__ncellsX_pad = int(ncells_x_pad)
+                    self.__ncellsZ_pad = int(ncells_z_pad)
+                    self.__gridpointsX = self.__ncellsX + 2 * self.__ncellsX_pad + 1
+                    self.__gridpointsZ = self.__ncellsZ + 2 * self.__ncellsZ_pad + 1
                 else:
                     raise ValueError("Grid parameter check failed.")
             else:
                 raise ValueError("Grid parameter check failed.")
         else:
-            self.ncellsX = int(ncells_x)
-            self.ncellsZ = int(ncells_z)
-            self.dx = self.dimX / float(self.ncellsX)
-            self.dz = self.dimZ / float(self.ncellsZ)
-            self.ncellsX_pad = int(ncells_x_pad)
-            self.ncellsZ_pad = int(ncells_z_pad)
-            self.gridpointsX = self.ncellsX + 2 * self.ncellsX_pad + 1
-            self.gridpointsZ = self.ncellsZ + 2 * self.ncellsZ_pad + 1
+            self.__ncellsX = int(ncells_x)
+            self.__ncellsZ = int(ncells_z)
+            self.__dx = self.__dimX / float(self.__ncellsX)
+            self.__dz = self.__dimZ / float(self.__ncellsZ)
+            self.__ncellsX_pad = int(ncells_x_pad)
+            self.__ncellsZ_pad = int(ncells_z_pad)
+            self.__gridpointsX = self.__ncellsX + 2 * self.__ncellsX_pad + 1
+            self.__gridpointsZ = self.__ncellsZ + 2 * self.__ncellsZ_pad + 1
 
-    def check_gridparams(self, dim, ncells, ncells_pad):
+    """
+    # Properties
+    """
 
-        d_max = self.lambda_min / Common.ppw
-        ncells_min = int((dim / self.lambda_min) * Common.ppw)
-        ncells_pad_min = int(Common.pml * self.lambda_max / d_max)
+    @property
+    def dimX(self):
+
+        return self.__dimX
+
+    @property
+    def dimZ(self):
+
+        return self.__dimZ
+
+    @property
+    def vmin(self):
+
+        return self.__vmin
+
+    @property
+    def vmax(self):
+
+        return self.__vmax
+
+    @property
+    def omega_min(self):
+
+        return self.__omega_min
+
+    @property
+    def omega_max(self):
+
+        return self.__omega_max
+
+    @property
+    def lambda_min(self):
+
+        return self.__lambda_min
+
+    @property
+    def lambda_max(self):
+
+        return self.__lambda_max
+
+    @property
+    def ncellsX(self):
+
+        return self.__ncellsX
+
+    @property
+    def ncellsZ(self):
+
+        return self.__ncellsZ
+
+    @property
+    def dx(self):
+
+        return self.__dx
+
+    @property
+    def dz(self):
+
+        return self.__dz
+
+    @property
+    def ncellsX_pad(self):
+
+        return self.__ncellsX_pad
+
+    @property
+    def ncellsZ_pad(self):
+
+        return self.__ncellsZ_pad
+
+    @property
+    def gridpointsX(self):
+
+        return self.__gridpointsX
+
+    @property
+    def gridpointsZ(self):
+
+        return self.__gridpointsZ
+
+    """
+    # Private Methods
+    """
+
+    def __check_gridparams(self, dim, ncells, ncells_pad):
+
+        d_max = self.__lambda_min / Common.ppw
+        ncells_min = int((dim / self.__lambda_min) * Common.ppw)
+        ncells_pad_min = int(Common.pml * self.__lambda_max / d_max)
 
         if ncells >= ncells_min and ncells_pad >= ncells_pad_min:
             return True
         else:
             return False
-
-    def set_default_sources(self, skip=1):
-
-        self.sources = [[self.ncellsX_pad + i, self.ncellsZ_pad] for i in range(0, self.ncellsX + 1, skip)]
-
-    def set_default_receivers(self, skip=1):
-
-        self.receivers = [[self.ncellsX_pad + i, self.ncellsZ_pad] for i in range(0, self.ncellsX + 1, skip)]
