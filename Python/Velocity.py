@@ -16,7 +16,7 @@ class Velocity2D(object):
     """
     """
     TODO:
-    1. Add exception handling
+    1. Add exception handling (e.g. what happens in constructor when velocity is provided but gepmetry2d is not?)
     """
 
     def __init__(

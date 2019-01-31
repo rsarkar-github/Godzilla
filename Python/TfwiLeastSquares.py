@@ -5,14 +5,14 @@ Created on Wed Jan 30 17:04:30 2019
 """
 from Common import*
 from CreateGeometry import CreateGeometry2D
+from Acquisition import Acquisition2D
 from Velocity import Velocity2D
 from CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
-from Acquisition import Acquisition2D
-from Utilities import TypeChecker
+from Utilities import TypeChecker, WaveletTools, LinearSolvers
 import copy
 import numpy as np
-import time
 from scipy.sparse.linalg import splu
+import time
 
 
 class TfwiLeastSquares2D(object):
@@ -25,79 +25,70 @@ class TfwiLeastSquares2D(object):
     """
     def __init__(
             self,
-            veltrue=Velocity2D(),
-            velstart=Velocity2D(),
-            acquisition=Acquisition2D()
+            veltrue,
+            velstart,
+            acquisition
     ):
         # Check types
-        TypeChecker.check(x=veltrue, expected_type=(Velocity2D))
-        TypeChecker.check(x=velstart, expected_type=(Velocity2D))
-        TypeChecker.check(x=acquisition, expected_type=(Acquisition2D))
+        TypeChecker.check(x=veltrue, expected_type=Velocity2D)
+        TypeChecker.check(x=velstart, expected_type=Velocity2D)
+        TypeChecker.check(x=acquisition, expected_type=Acquisition2D)
 
         # Check if geometries match
         if veltrue.geometry2D != velstart.geometry2D or veltrue.geometry2D != acquisition.geometry2D:
             raise TypeError("Geometries of veltrue, velstart and acquisition do not match.")
 
         # Copy the objects
+        self.__geometry2D = copy.deepcopy(veltrue.geometry2D)
         self.__veltrue = copy.deepcopy(veltrue)
         self.__velstart = copy.deepcopy(velstart)
         self.__acquisition = copy.deepcopy(acquisition)
 
+        # Set frequencies for the problem
         self.__omega_list = [
-            self.veltrue.geometry2D.omega_min,
-            self.veltrue.geometry2D.omega_max
+            self.__geometry2D.omega_min,
+            self.__geometry2D.omega_max
         ]
+
+        # Set wavelet coefficients
         self.__wavelet = []
-        self.set_ricker_wavelet(omega_peak=self.veltrue.geometry2D.omega_max / 2.0)
+        self.set_ricker_wavelet(omega_peak=self.__geometry2D.omega_max / 2.0)
 
-    def set_true_model(self, velocity):
+    def set_constant_starting_model(self, value=None):
 
-        self.veltrue.vel = velocity
+        if value is None:
 
-    def set_starting_model(self, velocity):
+            value = (self.__geometry2D.vmax + self.__geometry2D.vmin) / 2.0
+            self.__velstart.set_constant_velocity(value)
+            self.__run_cleanup(flag=3)
 
-        self.velstart.vel = velocity
-
-    def set_constant_starting_model(self):
-
-        velavg = (self.veltrue.geometry2D.vmax + self.veltrue.geometry2D.vmin) / 2.0
-        self.velstart.set_constant_velocity(velavg)
-
-    def set_omega_list(self, omega_list):
-
-        omega_minimum = self.veltrue.geometry2D.omega_min
-        omega_maximum = self.veltrue.geometry2D.omega_max
-
-        if np.all(np.asarray([omega_minimum <= omega <= omega_maximum for omega in omega_list])):
-            self.omega_list = omega_list
-            self.set_ricker_wavelet(omega_peak=self.veltrue.geometry2D.omega_max / 2.0)
         else:
-            raise ValueError("Frequency values outside range supported by geometry grid.")
 
-    def set_ricker_wavelet(self, omega_peak):
+            TypeChecker.check_float_bounds(x=value, lb=self.__geometry2D.vmin, ub=self.__geometry2D.vmax)
+            self.__velstart.set_constant_velocity(value)
+            self.__run_cleanup(flag=3)
 
-        self.wavelet = [
-            self.ricker_wavelet_coefficient(
+    def set_ricker_wavelet(self, omega_peak=None):
+
+        if omega_peak is None:
+            omega_peak = self.__geometry2D.omega_max / 2.0
+        else:
+            TypeChecker.check_float_positive(x=omega_peak)
+
+        self.__wavelet = [
+            WaveletTools.ricker_wavelet_coefficient(
                 omega=omega,
                 omega_peak=omega_peak
-            ) for omega in self.omega_list
+            ) for omega in self.__omega_list
         ]
+        self.__run_cleanup(flag=6)
 
     def set_flat_spectrum_wavelet(self):
 
-        self.wavelet = [1.0 for _ in self.omega_list]
+        self.__wavelet = [np.complex64(1.0) for _ in self.__omega_list]
+        self.__run_cleanup(flag=6)
 
-    def ricker_time(self, freq_peak=10.0, nt=250, dt=0.004, delay=0.05):
-
-        t = np.arange(0.0, nt * dt, dt)
-        y = (1.0 - 2.0 * (Common.pi ** 2) * (freq_peak ** 2) * ((t - delay) ** 2)) \
-            * np.exp(-(Common.pi ** 2) * (freq_peak ** 2) * ((t - delay) ** 2))
-        return t, y
-
-    def ricker_wavelet_coefficient(self, omega, omega_peak):
-
-        amp = 2.0 * (omega ** 2.0) / (np.sqrt(Common.pi) * (omega_peak ** 3.0)) * np.exp(-(omega / omega_peak) ** 2)
-        return np.complex64(amp)
+    ###########################################################################################################
 
     def perform_lsm_cg(
             self,
@@ -330,244 +321,23 @@ class TfwiLeastSquares2D(object):
                 savefile=lsm_adjoint_image_file + ".pdf"
             )
 
-    def perform_lsm_cg_stochastic(
-            self,
-            prob=1.0,
-            save_lsm_adjoint_image=True,
-            save_lsm_adjoint_allimages=False,
-            lsm_adjoint_image_file="lsm_adjoint_image"
-    ):
-
-        print("Starting the conjugate gradient least squares migration...\n")
-        ####################################################################################################
-        # Get quantities needed throughout the computation
-        ####################################################################################################
-
-        # Get shots, receivers
-        rcvlist = self.veltrue.geometry2D.receivers
-        srclist = self.veltrue.geometry2D.sources
-        nrcv = len(rcvlist)
-        nsrc = len(srclist)
-
-        # Get grid point info
-        nx_solver = self.veltrue.geometry2D.gridpointsX - 2
-        nz_solver = self.veltrue.geometry2D.gridpointsZ - 2
-        nx_nopad = self.veltrue.geometry2D.ncellsX + 1
-        nz_nopad = self.veltrue.geometry2D.ncellsZ + 1
-
-        ####################################################################################################
-        # Generate true data
-        ####################################################################################################
-        print("Generating true data...\n")
-
-        # Create Helmholtz object
-        helmholtz_true = CreateMatrixHelmholtz2D(velocity2d=self.veltrue, pml_damping=Common.pml_damping)
-
-        # Allocate space for storing true data
-        data_true = np.zeros(shape=(len(self.omega_list), nsrc, nrcv), dtype=np.complex64)
-
-        # Loop over frequencies
-        print("Looping over frequencies...\n")
-        cum_time_datagen = 0.0
-        for nomega, omega in enumerate(self.omega_list):
-
-            print("Starting computation for nomega = ", nomega, " / ", len(self.omega_list) - 1)
-            time_datagen_start = time.time()
-
-            # Factorize matrices
-            print("Creating factorized matrix...")
-            time_fac_start = time.time()
-            mat_helmholtz2d_true = helmholtz_true.create_matrix(omega)
-            fac_mat_helmholtz2d_true = splu(mat_helmholtz2d_true)
-            time_fac_end = time.time()
-            print("Matrix factorized. Time for factorization = ", time_fac_end - time_fac_start, " s")
-
-            # Initialize rhs
-            b = np.zeros(shape=(nx_solver * nz_solver, 1), dtype=np.complex64)
-
-            # Start cumulative time counter
-            cum_time_solve = 0.0
-
-            # Loop over shots
-            for nshot, shot in enumerate(srclist):
-
-                time_solve_start = time.time()
-
-                # Create RHS
-                b = b * 0
-                shot_grid_index = nx_solver * (shot[1] - 1) + shot[0] - 1
-                b[shot_grid_index] = self.wavelet[nomega]
-
-                # Solve for wave field
-                u = fac_mat_helmholtz2d_true.solve(rhs=b)
-
-                # Sample wave field at receivers
-                for nreceiver, receiver in enumerate(rcvlist):
-                    receiver_grid_index = nx_solver * (receiver[1] - 1) + receiver[0] - 1
-                    data_true[nomega, nshot, nreceiver] = u[receiver_grid_index]
-
-                time_solve_end = time.time()
-                cum_time_solve = cum_time_solve + (time_solve_end - time_solve_start)
-                print("Solving equation for nshot = ", nshot, " / ", nsrc - 1,
-                      ", Time to solve = ", time_solve_end - time_solve_start, " s")
-
-            time_datagen_end = time.time()
-            cum_time_datagen = cum_time_datagen + (time_datagen_end - time_datagen_start)
-
-            # Print average time to solution
-            print("Solving linear system for ", nsrc, "shots took ", cum_time_solve, " s")
-            print("Average time for linear solve = ", cum_time_solve / float(nsrc), " s")
-
-        # Print total data generation time
-        print("Data generation for ", len(self.omega_list), " frequencies, and ",
-              nsrc, " shots took ", cum_time_datagen, "s\n\n")
-
-        # Free resources
-        del helmholtz_true
-
-        ####################################################################################################
-        # Pre-compute quantities
-        ####################################################################################################
-        print("Starting pre-compute phase...\n")
-
-        # //////////////////////////////////////////////////////////////////////////////////////////////////
-        print("Pre-computing factorized matrices...")
-        helmholtz_start = CreateMatrixHelmholtz2D(velocity2d=self.velstart, pml_damping=Common.pml_damping)
-
-        # Initialize list for pre-computed LU factors
-        fac_mat_helmholtz2d_start_list = []
-
-        # Loop over frequencies
-        print("Looping over frequencies...\n")
-        cum_time_matfac = 0.0
-        for nomega, omega in enumerate(self.omega_list):
-
-            print("Starting computation for nomega = ", nomega, " / ", len(self.omega_list) - 1)
-
-            # Factorize matrices
-            print("Creating factorized matrix...")
-            time_fac_start = time.time()
-
-            mat_helmholtz2d_start = helmholtz_start.create_matrix(omega)
-            fac_mat_helmholtz2d_start = splu(mat_helmholtz2d_start)
-            mat_helmholtz2d_start = helmholtz_start.create_matrix(omega, transpose_flag=True)
-            fac_mat_helmholtz2d_t_start = splu(mat_helmholtz2d_start)
-
-            time_fac_end = time.time()
-            fac_mat_helmholtz2d_start_list.append([fac_mat_helmholtz2d_start, fac_mat_helmholtz2d_t_start])
-
-            print("Matrix factorized. Time for factorization of matrix and its transpose = ",
-                  time_fac_end - time_fac_start, " s")
-            cum_time_matfac = cum_time_matfac + (time_fac_end - time_fac_start)
-
-        # Print total time for matrix factorization
-        print("Matrix factorization for ", len(self.omega_list), " frequencies took ", cum_time_matfac, "s\n\n")
-
-        ####################################################################################################
-        # Compute rhs
-        ####################################################################################################
-        print("Computing rhs...\n")
-
-        # Initialize rhs vector
-        rhs = np.zeros(shape=(len(self.omega_list) * nx_nopad * nz_nopad), dtype=np.complex64)
-
-        # Loop over frequencies
-        print("Looping over frequencies...\n")
-        cum_time_rhsgen = 0.0
-        for nomega in range(len(self.omega_list)):
-
-            print("Starting rhs computation for nomega = ", nomega, " / ", len(self.omega_list) - 1)
-            time_rhsgen_start = time.time()
-
-            # Initialize rhs, sampled data vector at receivers
-            b = np.zeros(shape=(nx_solver * nz_solver), dtype=np.complex64)
-            data_rcv = np.zeros(shape=nrcv, dtype=np.complex64)
-
-            # Start cumulative time counter
-            cum_time_solve = 0.0
-
-            # Loop over shots
-            for nshot, shot in enumerate(srclist):
-
-                if np.random.uniform(low=0.0, high=1.0) > prob:
-                    continue
-
-                time_solve_start = time.time()
-
-                # Create RHS
-                b = b * 0
-                shot_grid_index = nx_solver * (shot[1] - 1) + shot[0] - 1
-                b[shot_grid_index] = self.wavelet[nomega]
-
-                # Solve for wave field
-                u = fac_mat_helmholtz2d_start_list[nomega][0].solve(rhs=b)
-
-                # Sample wave field at receivers
-                for nreceiver, receiver in enumerate(rcvlist):
-                    receiver_grid_index = nx_solver * (receiver[1] - 1) + receiver[0] - 1
-                    data_rcv[nreceiver] = u[receiver_grid_index]
-
-                # Calculate residual and backproject
-                data_rcv = data_true[nomega, nshot, :] - data_rcv
-                b = self.__residual_2_modeling_grid(vec_residual=data_rcv, vec_out=b)
-                b = fac_mat_helmholtz2d_start_list[nomega][1].solve(rhs=b)
-                b = b * np.conjugate(u)
-
-                # Add to rhs
-                rhs[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad] = \
-                    self.__modeling_grid_2_nopad_grid(
-                        vec_model_grid=b,
-                        vec_nopad_grid=rhs[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad],
-                        add_flag=True
-                    )
-
-                time_solve_end = time.time()
-                cum_time_solve = cum_time_solve + (time_solve_end - time_solve_start)
-                print("Creating rhs for nshot = ", nshot, " / ", nsrc - 1,
-                      ", Time to solve = ", time_solve_end - time_solve_start, " s")
-
-            time_rhsgen_end = time.time()
-            cum_time_rhsgen = cum_time_rhsgen + (time_rhsgen_end - time_rhsgen_start)
-
-            # Print average time to solution
-            print("Creating rhs for ", nsrc, "shots took ", cum_time_solve, " s")
-            print("Average time per shot = ", cum_time_solve / float(nsrc), " s")
-
-        # Print total rhs generation time
-        print("Rhs generation for ", len(self.omega_list), " frequencies, and ",
-              nsrc, " shots took ", cum_time_rhsgen, "s\n\n")
-
-        # Plot rhs for QC
-        if save_lsm_adjoint_allimages:
-            for nomega in range(len(self.omega_list)):
-                self.__plot_nopad_vec_complex(
-                    vec=rhs[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad],
-                    title1="Real",
-                    title2="Imag",
-                    colorbar=False,
-                    show=False,
-                    cmap1="seismic",
-                    cmap2="seismic",
-                    savefile=lsm_adjoint_image_file + "-" + str(nomega) + ".pdf"
-                )
-
-        # Form adjoint image
-        if save_lsm_adjoint_image:
-            lsm_adjoint = np.zeros(shape=(nx_nopad * nz_nopad), dtype=np.complex64)
-            for nomega in range(len(self.omega_list)):
-                lsm_adjoint += rhs[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad]
-            self.__plot_nopad_vec_real(
-                vec=np.real(lsm_adjoint),
-                title="LSM adjoint image",
-                colorbar=False,
-                show=False,
-                cmap="seismic",
-                savefile=lsm_adjoint_image_file + ".pdf"
-            )
-
     """
     # Properties
     """
+
+    @property
+    def geometry2D(self):
+
+        return self.__geometry2D
+
+    @geometry2D.setter
+    def geometry2D(self, geometry2d):
+
+        TypeChecker.check(x=geometry2d, expected_type=(CreateGeometry2D,))
+
+        self.__geometry2D = geometry2d
+        self.__run_cleanup(flag=1)
+
     @property
     def veltrue(self):
 
@@ -576,11 +346,171 @@ class TfwiLeastSquares2D(object):
     @veltrue.setter
     def veltrue(self, velocity2d):
 
-        self.__veltrue = velocity2d
+        TypeChecker.check(x=velocity2d, expected_type=(Velocity2D,))
+
+        if self.__geometry2D == velocity2d.geometry2D:
+
+            self.__veltrue = velocity2d
+            self.__run_cleanup(flag=2)
+
+        else:
+            raise TypeError("Assignment not possible as geometries do not match.")
+
+    @property
+    def veltrue_vals(self):
+
+        return self.__veltrue.vel
+
+    @veltrue_vals.setter
+    def veltrue_vals(self, velocity):
+
+        self.__veltrue.vel = velocity
+        self.__run_cleanup(flag=2)
+
+    @property
+    def velstart(self):
+
+        return self.__velstart
+
+    @velstart.setter
+    def velstart(self, velocity2d):
+
+        TypeChecker.check(x=velocity2d, expected_type=(Velocity2D,))
+
+        if self.__geometry2D == velocity2d.geometry2D:
+
+            self.__velstart = velocity2d
+            self.__run_cleanup(flag=3)
+
+        else:
+            raise TypeError("Assignment not possible as geometries do not match.")
+
+    @property
+    def velstart_vals(self):
+
+        return self.__velstart.vel
+
+    @velstart_vals.setter
+    def velstart_vals(self, velocity):
+
+        self.__velstart.vel = velocity
+        self.__run_cleanup(flag=3)
+
+    @property
+    def acquisition(self):
+
+        return self.__acquisition
+
+    @acquisition.setter
+    def acquisition(self, acquisition2d):
+
+        TypeChecker.check(x=acquisition2d, expected_type=(Acquisition2D,))
+
+        if self.__geometry2D == acquisition2d.geometry2D:
+
+            self.__acquisition = acquisition2d
+            self.__run_cleanup(flag=4)
+
+        else:
+            raise TypeError("Assignment not possible as geometries do not match.")
+
+    @property
+    def omega_list(self):
+
+        return self.__omega_list
+
+    @omega_list.setter
+    def omega_list(self, omega):
+
+        TypeChecker.check(x=omega, expected_type=(list,))
+
+        omega_minimum = self.__geometry2D.omega_min
+        omega_maximum = self.__geometry2D.omega_max
+
+        for item in omega:
+            TypeChecker.check_float_bounds(x=item, lb=omega_minimum, ub=omega_maximum)
+
+        self.__omega_list = omega
+        self.__run_cleanup(flag=5)
+
+    @property
+    def wavelet(self):
+
+        return self.__wavelet
+
+    @wavelet.setter
+    def wavelet(self, wavelet_val):
+
+        if wavelet_val == "ricker" or wavelet_val == "Ricker":
+            self.set_ricker_wavelet()
+            self.__run_cleanup(flag=6)
+            return
+
+        if wavelet_val == "flat":
+            self.set_flat_spectrum_wavelet()
+            self.__run_cleanup(flag=6)
+            return
+
+        TypeChecker.check(x=wavelet_val, expected_type=(list,))
+
+        if len(wavelet_val) != len(self.__omega_list):
+            raise TypeError("Wavelet value list does not have same length as list of frequencies.")
+
+        for item in wavelet_val:
+            TypeChecker.check(x=item, expected_type=(np.complex64, float, int))
+
+        self.__wavelet = np.complex64(wavelet_val)
+        self.__run_cleanup(flag=6)
 
     """
     # Private methods
     """
+
+    def __run_cleanup(self, flag):
+
+        """
+        Performs cleanup on the class
+        """
+
+        if flag == 1:
+            """
+            If self.__geometry2D is reset
+            """
+            self.__veltrue = Velocity2D(geometry2d=self.__geometry2D)
+            self.__velstart = Velocity2D(geometry2d=self.__geometry2D)
+            self.__acquisition = Acquisition2D(geometry2d=self.__geometry2D)
+            self.__omega_list = [self.__geometry2D.omega_min, self.__geometry2D.omega_max]
+            self.set_ricker_wavelet(omega_peak=self.__geometry2D.omega_max / 2.0)
+
+        if flag == 2:
+            """
+            If self.__veltrue is reset
+            """
+            raise NotImplementedError
+
+        if flag == 3:
+            """
+            If self.__velstart is reset
+            """
+            raise NotImplementedError
+
+        if flag == 4:
+            """
+            If self.__acquisition is reset
+            """
+            raise NotImplementedError
+
+        if flag == 5:
+            """
+            If self.__omega_list is reset
+            """
+            self.set_ricker_wavelet(omega_peak=self.__geometry2D.omega_max / 2.0)
+
+        if flag == 6:
+            """
+            If self.__wavelet is reset
+            """
+            raise NotImplementedError
 
     def __plot_nopad_vec_real(
             self,
@@ -835,52 +765,6 @@ class TfwiLeastSquares2D(object):
             vec_nopad_grid[start_nopad: end_nopad] += vec_model_grid[start_model: end_model]
 
         return vec_nopad_grid
-
-    def __conjugate_gradients(self, linear_operator, rhs, x0, niter):
-
-        # Calculate initial residual, and residual norm
-        r = rhs - linear_operator(x0)
-        r_norm = np.linalg.norm(x=r)
-        if r_norm < 1e-10:
-            return x0
-        r_norm_sq = r_norm ** 2
-
-        # Initialize p
-        p = copy.deepcopy(r)
-
-        # Initialize residual array, iteration array
-        residual = [r_norm]
-        iterations = [0]
-
-        # Run CG iterations
-        for num_iter in range(niter):
-
-            # Compute A*p and alpha
-            Ap = linear_operator(p)
-            alpha = r_norm_sq / np.vdot(p, Ap)
-
-            # Update x0, residual
-            x0 += alpha * p
-            r -= alpha * Ap
-
-            # Calculate beta
-            r_norm_new = np.linalg.norm(x=r)
-            r_norm_new_sq = r_norm_new ** 2
-            beta = r_norm_new_sq / r_norm_sq
-
-            # Check convergence
-            if r_norm_new < 1e-10:
-                break
-
-            # Update p, residual norm
-            p = r + beta * p
-            r_norm_sq = r_norm_new_sq
-
-            # Update residual array, iteration array
-            residual.append(r_norm_new)
-            iterations.append(num_iter)
-
-        return x0, (iterations, residual)
 
 
 if __name__ == "__main__":
