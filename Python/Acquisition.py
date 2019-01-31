@@ -30,6 +30,24 @@ class Acquisition2D(object):
         self.__receivers = {}
         self.set_default_sources_receivers(source_skip=1, receiver_skip=1)
 
+    def __eq__(self, other):
+
+        if not isinstance(other, self.__class__):
+            return False
+
+        return self.__geometry2D == other.geometry2D \
+            and self.__sources == other.sources \
+            and self.__receivers == other.receivers
+
+    def __ne__(self, other):
+
+        if not isinstance(other, self.__class__):
+            return True
+
+        return self.__geometry2D != other.geometry2D \
+            or self.__sources != other.sources \
+            or self.__receivers != other.receivers
+
     def set_default_sources_receivers(self, source_skip=1, receiver_skip=1):
 
         receivers = [
@@ -50,9 +68,32 @@ class Acquisition2D(object):
     """
 
     @property
+    def geometry2D(self):
+
+        return self.__geometry2D
+
+    @geometry2D.setter
+    def geometry2D(self, geometry2d):
+
+        TypeChecker.check(x=geometry2d, expected_type=(CreateGeometry2D,))
+
+        self.__geometry2D = geometry2d
+        self.__sources = {}
+        self.__receivers = {}
+        self.set_default_sources_receivers(source_skip=1, receiver_skip=1)
+
+    @property
     def sources(self):
+
         return self.__sources
 
     @property
     def receivers(self):
+
         return self.__receivers
+
+
+if __name__ == "__main__":
+    """
+    Do something here
+    """

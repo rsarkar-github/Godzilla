@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jan 30 17:04:30 2019
+Created on Mon Apr 23 17:04:30 2017
 @author: rahul
 """
 from Common import*
 from CreateGeometry import CreateGeometry2D
 from Velocity import Velocity2D
 from CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
-from Acquisition import Acquisition2D
 from Utilities import TypeChecker
 import copy
 import numpy as np
@@ -19,26 +18,26 @@ class Tfwi2D(object):
     """
     Create a Tfwi problem object for 2D test problems
     """
-    """
-    TODO:
-    1. Add exception handling
-    """
     def __init__(
             self,
             veltrue=Velocity2D(),
-            velstart=Velocity2D(),
-            acquisition=Acquisition2D()
     ):
 
-        self.__veltrue = copy.deepcopy(veltrue)
-        self.__velstart = copy.deepcopy(velstart)
-        self.__acquisition = copy.deepcopy(acquisition)
+        ####################################################################################################
+        # These quantities cannot be changed after class is initialized
+        ####################################################################################################
+        self.veltrue = copy.deepcopy(veltrue)
+        self.velstart = copy.deepcopy(veltrue)
+        self.set_constant_starting_model()
 
-        self.__omega_list = [
+        ####################################################################################################
+        # These quantities can be changed after class is initialized
+        ####################################################################################################
+        self.omega_list = [
             self.veltrue.geometry2D.omega_min,
             self.veltrue.geometry2D.omega_max
         ]
-        self.__wavelet = []
+        self.wavelet = []
         self.set_ricker_wavelet(omega_peak=self.veltrue.geometry2D.omega_max / 2.0)
 
     def set_true_model(self, velocity):
@@ -555,19 +554,6 @@ class Tfwi2D(object):
                 cmap="seismic",
                 savefile=lsm_adjoint_image_file + ".pdf"
             )
-
-    """
-    # Properties
-    """
-    @property
-    def veltrue(self):
-
-        return self.__veltrue
-
-    @veltrue.setter
-    def veltrue(self, veltrue):
-
-        self.__veltrue = veltrue
 
     """
     # Private methods

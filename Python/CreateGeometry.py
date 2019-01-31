@@ -53,6 +53,88 @@ class CreateGeometry2D(object):
         self.__gridpointsZ = 0
         self.set_default_params()
 
+    def __eq__(self, other):
+
+        if not isinstance(other, self.__class__):
+            return False
+
+        if self.__dimX != other.dimX:
+            return False
+        if self.__dimZ != other.dimZ:
+            return False
+        if self.__vmin != other.vmin:
+            return False
+        if self.__vmax != other.vmax:
+            return False
+        if self.__omega_min != other.omega_min:
+            return False
+        if self.__omega_max != other.omega_max:
+            return False
+        if self.__lambda_min != other.lambda_min:
+            return False
+        if self.__lambda_max != other.lambda_max:
+            return False
+
+        if self.__ncellsX != other.ncellsX:
+            return False
+        if self.__ncellsZ != other.ncellsZ:
+            return False
+        if self.__dx != other.dx:
+            return False
+        if self.__dz != other.dz:
+            return False
+        if self.__ncellsX_pad != other.ncellsX_pad:
+            return False
+        if self.__ncellsZ_pad != other.ncellsZ_pad:
+            return False
+        if self.__gridpointsX != other.gridpointsX:
+            return False
+        if self.__gridpointsZ != other.gridpointsZ:
+            return False
+
+        return True
+
+    def __ne__(self, other):
+
+        if not isinstance(other, self.__class__):
+            return True
+
+        if self.__dimX != other.dimX:
+            return True
+        if self.__dimZ != other.dimZ:
+            return True
+        if self.__vmin != other.vmin:
+            return True
+        if self.__vmax != other.vmax:
+            return True
+        if self.__omega_min != other.omega_min:
+            return True
+        if self.__omega_max != other.omega_max:
+            return True
+        if self.__lambda_min != other.lambda_min:
+            return True
+        if self.__lambda_max != other.lambda_max:
+            return True
+
+        if self.__ncellsX != other.ncellsX:
+            return True
+        if self.__ncellsZ != other.ncellsZ:
+            return True
+        if self.__dx != other.dx:
+            return True
+        if self.__dz != other.dz:
+            return True
+        if self.__ncellsX_pad != other.ncellsX_pad:
+            return True
+        if self.__ncellsZ_pad != other.ncellsZ_pad:
+            return True
+        if self.__gridpointsX != other.gridpointsX:
+            return True
+        if self.__gridpointsZ != other.gridpointsZ:
+            return True
+
+        return False
+
     def set_default_params(self):
 
         self.__ncellsX = int((self.__dimX / self.__lambda_min) * Common.ppw)

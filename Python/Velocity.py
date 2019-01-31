@@ -21,15 +21,55 @@ class Velocity2D(object):
 
     def __init__(
             self,
-            geometry2d=CreateGeometry2D()
+            geometry2d=CreateGeometry2D(),
+            velocity=None
     ):
 
         TypeChecker.check(x=geometry2d, expected_type=(CreateGeometry2D,))
-
         self.__geometry2D = geometry2d
-        self.__vel = self.create_default_velocity()
-        self.__vmin = np.amin(self.__vel)
-        self.__vmax = np.amax(self.__vel)
+
+        if velocity is None:
+
+            self.__vel = self.create_default_velocity()
+            self.__vmin = np.amin(self.__vel)
+            self.__vmax = np.amax(self.__vel)
+
+        else:
+
+            TypeChecker.check(x=velocity, expected_type=(np.ndarray,))
+
+            x = np.zeros(shape=(self.__geometry2D.gridpointsX, self.__geometry2D.gridpointsZ), dtype=float)
+            if np.all(velocity * 0 == x):
+                vmin = np.amin(velocity)
+                vmax = np.amax(velocity)
+                if vmin >= self.__geometry2D.vmin and vmax <= self.__geometry2D.vmax:
+                    self.__vel = copy.deepcopy(velocity)
+                    self.__vmin = vmin
+                    self.__vmax = vmax
+                else:
+                    raise ValueError("Velocity values outside range of geometry object.")
+            else:
+                raise ValueError("Velocity object type inconsistent.")
+
+    def __eq__(self, other):
+
+        if not isinstance(other, self.__class__):
+            return False
+
+        return self.__geometry2D == other.geometry2D \
+            and np.all(self.__vel == other.vel) \
+            and self.__vmin == other.vmin \
+            and self.__vmax == other.vmax
+
+    def __ne__(self, other):
+
+        if not isinstance(other, self.__class__):
+            return True
+
+        return self.__geometry2D != other.geometry2D \
+            or np.any(self.__vel != other.vel) \
+            or self.__vmin != other.vmin \
+            or self.__vmax != other.vmax
 
     def create_default_velocity(self):
 
@@ -64,7 +104,7 @@ class Velocity2D(object):
 
     def plot_difference(
             self,
-            vel_comparison,
+            vel_other,
             pad=True,
             title="Velocity Difference",
             xlabel="X",
@@ -77,20 +117,24 @@ class Velocity2D(object):
             savefile=""
     ):
 
-        TypeChecker.check(x=vel_comparison, expected_type=(Velocity2D,))
+        TypeChecker.check(x=vel_other, expected_type=(Velocity2D,))
 
-        vel2d_temp = self.__vel - vel_comparison.vel
+        if self.__geometry2D == vel_other.geometry2D:
+            vel_diff = self.__vel - vel_other.vel
+
+        else:
+            raise TypeError("Velocities being compared to do have same geometries.")
 
         if pad:
 
             # Plot the velocity field difference
             if vmin is "":
-                vmin = np.amin(vel2d_temp)
+                vmin = np.amin(vel_diff)
             if vmax is "":
-                vmax = np.amax(vel2d_temp)
+                vmax = np.amax(vel_diff)
 
             plt.figure()
-            plt.imshow(np.transpose(vel2d_temp), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(vel_diff), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)
@@ -110,16 +154,16 @@ class Velocity2D(object):
             cells_z = self.__geometry2D.ncellsZ
             padcells_x = self.__geometry2D.ncellsX_pad
             padcells_z = self.__geometry2D.ncellsZ_pad
-            vel2d_temp = vel2d_temp[padcells_x: padcells_x + cells_x + 1, padcells_z: padcells_z + cells_z + 1]
+            vel_diff = vel_diff[padcells_x: padcells_x + cells_x + 1, padcells_z: padcells_z + cells_z + 1]
 
             # Plot the velocity field difference
             if vmin is "":
-                vmin = np.amin(vel2d_temp)
+                vmin = np.amin(vel_diff)
             if vmax is "":
-                vmax = np.amax(vel2d_temp)
+                vmax = np.amax(vel_diff)
 
             plt.figure()
-            plt.imshow(np.transpose(vel2d_temp), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(vel_diff), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)
@@ -132,49 +176,10 @@ class Velocity2D(object):
             if show:
                 plt.show()
 
-    def plot_nopad(
-            self,
-            title="Velocity",
-            xlabel="X",
-            ylabel="Z",
-            colorlabel="km/s",
-            vmin="",
-            vmax="",
-            cmap="jet",
-            show=True,
-            savefile=""
-    ):
-
-        # Extract velocity field without padding region
-        cells_x = self.__geometry2D.ncellsX
-        cells_z = self.__geometry2D.ncellsZ
-        padcells_x = self.__geometry2D.ncellsX_pad
-        padcells_z = self.__geometry2D.ncellsZ_pad
-        vel_field = self.__vel[padcells_x: padcells_x + cells_x + 1, padcells_z: padcells_z + cells_z + 1]
-
-        # Plot the velocity field
-        if vmin is "":
-            vmin = np.amin(vel_field)
-        if vmax is "":
-            vmax = np.amax(vel_field)
-
-        plt.figure()
-        plt.imshow(np.transpose(vel_field), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
-        cb = plt.colorbar()
-        cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.title(title)
-
-        if savefile is not "":
-            plt.savefig(savefile, bbox_inches="tight")
-
-        if show:
-            plt.show()
-
     def plot(
             self,
             title="Velocity",
+            pad=True,
             xlabel="X",
             ylabel="Z",
             colorlabel="km/s",
@@ -185,28 +190,55 @@ class Velocity2D(object):
             savefile=""
     ):
 
-        # Plot the velocity field
-        if vmin is "":
-            vmin = np.amin(self.__vel)
-        if vmax is "":
-            vmax = np.amax(self.__vel)
+        if pad:
 
-        plt.figure()
-        plt.imshow(np.transpose(self.__vel), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
-        cb = plt.colorbar()
-        cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.title(title)
+            # Extract velocity field without padding region
+            vel_nopad = self.vel_nopad
 
-        if savefile is not "":
-            plt.savefig(savefile, bbox_inches="tight")
+            # Plot the velocity field
+            if vmin is "":
+                vmin = np.amin(vel_nopad)
+            if vmax is "":
+                vmax = np.amax(vel_nopad)
 
-        if show:
-            plt.show()
+            plt.figure()
+            plt.imshow(np.transpose(vel_nopad), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            cb = plt.colorbar()
+            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.title(title)
+
+            if savefile is not "":
+                plt.savefig(savefile, bbox_inches="tight")
+
+            if show:
+                plt.show()
+
+        else:
+
+            # Plot the velocity field
+            if vmin is "":
+                vmin = np.amin(self.__vel)
+            if vmax is "":
+                vmax = np.amax(self.__vel)
+
+            plt.figure()
+            plt.imshow(np.transpose(self.__vel), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            cb = plt.colorbar()
+            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.title(title)
+
+            if savefile is not "":
+                plt.savefig(savefile, bbox_inches="tight")
+
+            if show:
+                plt.show()
 
     """
-    # Private Methods
+    # Properties
     """
     @property
     def geometry2D(self):
@@ -241,6 +273,42 @@ class Velocity2D(object):
                 self.__vel = copy.deepcopy(velocity)
                 self.__vmin = vmin
                 self.__vmax = vmax
+            else:
+                raise ValueError("Velocity values outside range of geometry object.")
+        else:
+            raise ValueError("Velocity object type inconsistent.")
+
+    @property
+    def vel_nopad(self):
+
+        # Extract velocity field without padding region
+        cells_x = self.__geometry2D.ncellsX
+        cells_z = self.__geometry2D.ncellsZ
+        padcells_x = self.__geometry2D.ncellsX_pad
+        padcells_z = self.__geometry2D.ncellsZ_pad
+        vel_nopad = self.__vel[padcells_x: padcells_x + cells_x + 1, padcells_z: padcells_z + cells_z + 1]
+
+        return vel_nopad
+
+    @vel_nopad.setter
+    def vel_nopad(self, velocity):
+
+        TypeChecker.check(x=velocity, expected_type=(np.ndarray,))
+
+        cells_x = self.__geometry2D.ncellsX
+        cells_z = self.__geometry2D.ncellsZ
+        padcells_x = self.__geometry2D.ncellsX_pad
+        padcells_z = self.__geometry2D.ncellsZ_pad
+
+        x = np.zeros(shape=(cells_x + 1, cells_z + 1), dtype=float)
+        if np.all(velocity * 0 == x):
+            vmin = np.amin(velocity)
+            vmax = np.amax(velocity)
+            if vmin >= self.__geometry2D.vmin and vmax <= self.__geometry2D.vmax:
+                self.__vel[padcells_x: padcells_x + cells_x + 1, padcells_z: padcells_z + cells_z + 1] = velocity
+                self.__vmin = np.amin(self.__vel)
+                self.__vmax = np.amax(self.__vel)
+
             else:
                 raise ValueError("Velocity values outside range of geometry object.")
         else:

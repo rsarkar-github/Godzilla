@@ -21,6 +21,7 @@ class CreateMatrixHelmholtz2D(object):
     """
     TODO:
     1. Add exception handling
+    2. Think about setting pml_values (exception handling)
     """
 
     def __init__(self, velocity2d=Velocity2D(), pml_damping=Common.pml_damping):
@@ -31,11 +32,42 @@ class CreateMatrixHelmholtz2D(object):
         self.__vel2D = copy.deepcopy(velocity2d)
         self.__pml_damping = pml_damping
 
-    def create_matrix(self, omega=Common.omega, transpose_flag=False):
+    def __eq__(self, other):
 
-        # Check if omega is in range
-        if not self.__vel2D.geometry2D.omega_min <= omega <= self.__vel2D.geometry2D.omega_max:
-            raise ValueError("Omega outside range supported by geometry object.")
+        if not isinstance(other, self.__class__):
+            return False
+
+        return self.__vel2D == other.vel2D and self.__pml_damping == other.pml_damping
+
+    def __ne__(self, other):
+
+        if not isinstance(other, self.__class__):
+            return True
+
+        return self.__vel2D != other.vel2D or self.__pml_damping != other.pml_damping
+
+    def create_matrix(self, omega=None, transpose_flag=False):
+
+        TypeChecker.check(x=transpose_flag, expected_type=(bool,))
+
+        if omega is not None:
+
+            TypeChecker.check_float_positive(x=omega)
+
+            # Check if omega is in range
+            if not self.__vel2D.geometry2D.omega_min <= omega <= self.__vel2D.geometry2D.omega_max:
+                raise ValueError("Omega outside range supported by geometry object.")
+
+        else:
+
+            omega = Common.omega
+            # Check if omega is in range
+            if not self.__vel2D.geometry2D.omega_min <= omega <= self.__vel2D.geometry2D.omega_max:
+
+                print("Default omega value outside range supported by geometry object. "
+                      "Setting omega to be the mid-value supported by the geometry.")
+
+                omega = 0.5 * (self.__vel2D.geometry2D.omega_min + self.__vel2D.geometry2D.omega_max)
 
         # Create sx and sz arrays
         sx = self.__sx_array(omega=omega)
