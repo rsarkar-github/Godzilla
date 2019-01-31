@@ -15,7 +15,7 @@ import time
 from scipy.sparse.linalg import splu
 
 
-class Tfwi2D(object):
+class TfwiLeastSquares2D(object):
     """
     Create a Tfwi problem object for 2D test problems
     """
@@ -29,7 +29,16 @@ class Tfwi2D(object):
             velstart=Velocity2D(),
             acquisition=Acquisition2D()
     ):
+        # Check types
+        TypeChecker.check(x=veltrue, expected_type=(Velocity2D))
+        TypeChecker.check(x=velstart, expected_type=(Velocity2D))
+        TypeChecker.check(x=acquisition, expected_type=(Acquisition2D))
 
+        # Check if geometries match
+        if veltrue.geometry2D != velstart.geometry2D or veltrue.geometry2D != acquisition.geometry2D:
+            raise TypeError("Geometries of veltrue, velstart and acquisition do not match.")
+
+        # Copy the objects
         self.__veltrue = copy.deepcopy(veltrue)
         self.__velstart = copy.deepcopy(velstart)
         self.__acquisition = copy.deepcopy(acquisition)
@@ -565,9 +574,9 @@ class Tfwi2D(object):
         return self.__veltrue
 
     @veltrue.setter
-    def veltrue(self, veltrue):
+    def veltrue(self, velocity2d):
 
-        self.__veltrue = veltrue
+        self.__veltrue = velocity2d
 
     """
     # Private methods
