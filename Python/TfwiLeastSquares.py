@@ -13,6 +13,7 @@ import copy
 import numpy as np
 from scipy.sparse.linalg import splu
 import time
+import gc
 
 
 class TfwiLeastSquares2D(object):
@@ -53,6 +54,13 @@ class TfwiLeastSquares2D(object):
         # Set wavelet coefficients
         self.__wavelet = []
         self.set_ricker_wavelet(omega_peak=self.__geometry2D.omega_max / 2.0)
+
+        ################################################################################################################
+        # Objects which are purely internal
+        self.__true_data = None
+        self.__residual = None
+        self.__matfac_velstart = None
+        self.__matfac_velstart_t = None
 
     def set_constant_starting_model(self, value=None):
 
@@ -481,36 +489,63 @@ class TfwiLeastSquares2D(object):
             self.__acquisition = Acquisition2D(geometry2d=self.__geometry2D)
             self.__omega_list = [self.__geometry2D.omega_min, self.__geometry2D.omega_max]
             self.set_ricker_wavelet(omega_peak=self.__geometry2D.omega_max / 2.0)
+            self.__run_default_cleanup()
 
         if flag == 2:
             """
             If self.__veltrue is reset
             """
-            raise NotImplementedError
+            self.__run_default_cleanup()
 
         if flag == 3:
             """
             If self.__velstart is reset
             """
-            raise NotImplementedError
+            self.__run_default_cleanup()
 
         if flag == 4:
             """
             If self.__acquisition is reset
             """
-            raise NotImplementedError
+            self.__run_default_cleanup()
 
         if flag == 5:
             """
             If self.__omega_list is reset
             """
             self.set_ricker_wavelet(omega_peak=self.__geometry2D.omega_max / 2.0)
+            self.__run_default_cleanup()
 
         if flag == 6:
             """
             If self.__wavelet is reset
             """
-            raise NotImplementedError
+            self.__run_default_cleanup()
+
+    def __run_default_cleanup(self):
+
+        try:
+            del self.__true_data
+        except NameError:
+            print("self.__true_data already deleted.")
+
+        try:
+            del self.__residual
+        except NameError:
+            print("self.__residual already deleted.")
+
+        try:
+            del self.__matfac_velstart
+        except NameError:
+            print("self.__matfac_velstart already deleted.")
+
+        try:
+            del self.__matfac_velstart_t
+        except NameError:
+            print("self.__matfac_velstart_t already deleted.")
+
+        collected = gc.collect()
+        print("Garbage collector: collected %d objects." % collected)
 
     def __plot_nopad_vec_real(
             self,
@@ -534,7 +569,7 @@ class TfwiLeastSquares2D(object):
             vmax = np.amax(vec)
 
         # Reshape vec
-        vec1 = np.reshape(a=vec, newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1))
+        vec1 = np.reshape(a=vec, newshape=(self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1))
 
         plt.figure()
         plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
@@ -575,7 +610,7 @@ class TfwiLeastSquares2D(object):
         # Reshape vec
         vec1 = np.reshape(
             a=vec,
-            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
+            newshape=(self.__geometry2D.gridpointsZ - 2, self.__geometry2D.gridpointsX - 2)
         )
 
         plt.figure()
@@ -629,11 +664,11 @@ class TfwiLeastSquares2D(object):
         # Reshape vec
         vec1 = np.reshape(
             a=np.real(vec),
-            newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1)
+            newshape=(self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1)
         )
         vec2 = np.reshape(
             a=np.imag(vec),
-            newshape=(self.veltrue.geometry2D.ncellsZ + 1, self.veltrue.geometry2D.ncellsX + 1)
+            newshape=(self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1)
         )
 
         plt.figure()
@@ -697,11 +732,11 @@ class TfwiLeastSquares2D(object):
         # Reshape vec
         vec1 = np.reshape(
             a=np.real(vec),
-            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
+            newshape=(self.__geometry2D.gridpointsZ - 2, self.__geometry2D.gridpointsX - 2)
         )
         vec2 = np.reshape(
             a=np.imag(vec),
-            newshape=(self.veltrue.geometry2D.gridpointsZ - 2, self.veltrue.geometry2D.gridpointsX - 2)
+            newshape=(self.__geometry2D.gridpointsZ - 2, self.__geometry2D.gridpointsX - 2)
         )
 
         plt.figure()
@@ -795,10 +830,12 @@ if __name__ == "__main__":
         ncells_z_pad=75,
         check=False
     )
+
+    # Create acquisition object
     skip_src = 1
     skip_rcv = 1
-    geom2d.set_default_sources(skip=skip_src)
-    geom2d.set_default_receivers(skip=skip_rcv)
+    acq2d = Acquisition2D(geometry2d=geom2d)
+    acq2d.set_default_sources_receivers(source_skip=skip_src, receiver_skip=skip_rcv)
 
     # Create a default Velocity 2D object
     vel_true = Velocity2D(geometry2d=geom2d)
@@ -811,9 +848,9 @@ if __name__ == "__main__":
     vel_true.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
 
     # Create a Tfwi object, with a constant starting model
-    tfwi = Tfwi2D(veltrue=vel_true)
-    tfwi.set_constant_starting_model()
-    tfwi.veltrue.plot_nopad(
+    tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_true, acquisition=acq2d)
+    tfwilsq.set_constant_starting_model()
+    tfwilsq.veltrue.plot_nopad(
         title="True Model",
         vmin=2.0,
         vmax=2.3,
@@ -821,7 +858,7 @@ if __name__ == "__main__":
         ylabel="Z grid points",
         savefile="veltrue.pdf"
     )
-    tfwi.velstart.plot_nopad(
+    tfwilsq.velstart.plot_nopad(
         title="Starting Model",
         vmin=2.0,
         vmax=2.3,
@@ -829,8 +866,8 @@ if __name__ == "__main__":
         ylabel="Z grid points",
         savefile="velstart.pdf"
     )
-    tfwi.veltrue.plot_difference(
-        vel_comparison=tfwi.velstart,
+    tfwilsq.veltrue.plot_difference(
+        vel_comparison=tfwilsq.velstart,
         pad=False,
         title="Model Difference",
         xlabel="X grid points",
@@ -841,21 +878,14 @@ if __name__ == "__main__":
 
     # omega_list = np.arange(domega, omega_max, domega)
     omega_list = np.arange(omega_max / 8, omega_max + omega_max / 8, omega_max / 8)
-    tfwi.set_omega_list(omega_list=omega_list)
+    tfwilsq.omega_list = omega_list
     if not flat_spectrum:
-        tfwi.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
+        tfwilsq.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
     else:
-        tfwi.set_flat_spectrum_wavelet()
+        tfwilsq.set_flat_spectrum_wavelet()
 
-    tfwi.perform_lsm_cg(
+    tfwilsq.perform_lsm_cg(
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=True,
         lsm_adjoint_image_file="lsm-adjoint-image-8"
     )
-
-    # tfwi.perform_lsm_cg_stochastic(
-    #     prob=0.6,
-    #     save_lsm_adjoint_image=True,
-    #     save_lsm_adjoint_allimages=False,
-    #     lsm_adjoint_image_file="lsm-adjoint-image-8-p60"
-    # )
