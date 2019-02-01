@@ -46,9 +46,9 @@ class CreateMatrixHelmholtz2D(object):
 
         return self.__vel2D != other.vel2D or self.__pml_damping != other.pml_damping
 
-    def create_matrix(self, omega=None, transpose_flag=False):
+    def create_matrix(self, omega=None, conjugate_flag=False):
 
-        TypeChecker.check(x=transpose_flag, expected_type=(bool,))
+        TypeChecker.check(x=conjugate_flag, expected_type=(bool,))
 
         if omega is not None:
 
@@ -321,7 +321,7 @@ class CreateMatrixHelmholtz2D(object):
         data.append(p1z * p3z)
 
         # Convert to csc format
-        if transpose_flag:
+        if conjugate_flag:
             mtx = csc_matrix((data, (cols, rows)), shape=(nx * nz, nx * nz))
             mtx = mtx.conjugate()
         else:

@@ -192,17 +192,14 @@ class Velocity2D(object):
 
         if pad:
 
-            # Extract velocity field without padding region
-            vel_nopad = self.vel_nopad
-
             # Plot the velocity field
             if vmin is "":
-                vmin = np.amin(vel_nopad)
+                vmin = np.amin(self.__vel)
             if vmax is "":
-                vmax = np.amax(vel_nopad)
+                vmax = np.amax(self.__vel)
 
             plt.figure()
-            plt.imshow(np.transpose(vel_nopad), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(self.__vel), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)
@@ -217,14 +214,17 @@ class Velocity2D(object):
 
         else:
 
+            # Extract velocity field without padding region
+            vel_nopad = self.vel_nopad
+
             # Plot the velocity field
             if vmin is "":
-                vmin = np.amin(self.__vel)
+                vmin = np.amin(vel_nopad)
             if vmax is "":
-                vmax = np.amax(self.__vel)
+                vmax = np.amax(vel_nopad)
 
             plt.figure()
-            plt.imshow(np.transpose(self.__vel), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(vel_nopad), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)
