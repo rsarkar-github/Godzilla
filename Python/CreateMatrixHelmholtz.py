@@ -61,6 +61,7 @@ class CreateMatrixHelmholtz2D(object):
         else:
 
             omega = Common.omega
+
             # Check if omega is in range
             if not self.__vel2D.geometry2D.omega_min <= omega <= self.__vel2D.geometry2D.omega_max:
 
@@ -279,7 +280,7 @@ class CreateMatrixHelmholtz2D(object):
         data.append(p1z * p2z)
 
         # 3. Top Left
-        n2 = (nz - 1) * nz
+        n2 = (nz - 1) * nx
         p1z = sz[2 * nz] / hz
         p2z = sz[2 * nz + 1] / hz
         p3z = sz[2 * nz - 1] / hz
@@ -399,7 +400,7 @@ class CreateMatrixHelmholtz2D(object):
 if __name__ == "__main__":
 
     # Create a default Velocity 2D object
-    geom2d = CreateGeometry2D(xdim=0.5, zdim=0.5, vmin=0.5, vmax=1.5, omega_max=10)
+    geom2d = CreateGeometry2D(xdim=0.75, zdim=0.5, vmin=0.5, vmax=1.5, omega_max=10)
     vel2d = Velocity2D(geometry2d=geom2d)
 
     # Create a MatrixHelmholtz2D object

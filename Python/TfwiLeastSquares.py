@@ -927,7 +927,7 @@ class TfwiLeastSquares2D(object):
 if __name__ == "__main__":
 
     # Define frequency parameters (in Hertz)
-    freq_peak_ricker = 10
+    freq_peak_ricker = 25
     freq_max = 20
     flat_spectrum = False
     omega_max = 2 * Common.pi * freq_max
@@ -938,7 +938,7 @@ if __name__ == "__main__":
 
     # Create geometry object
     geom2d = CreateGeometry2D(
-        xdim=0.5,
+        xdim=1.5,
         zdim=0.5,
         vmin=1.5,
         vmax=2.5,
@@ -1020,5 +1020,5 @@ if __name__ == "__main__":
     tfwilsq.perform_lsm_cg(
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=True,
-        lsm_adjoint_image_file="lsm-adjoint-image-noanomaly"
+        lsm_adjoint_image_file="lsm-adjoint-image-noanomaly-pf25"
     )
