@@ -22,10 +22,10 @@ def ricker_time(freq_peak=10.0, nt=250, dt=0.004, delay=0.05):
     return t, y
 
 
-def ricker_wavelet_coefficient(omega, omega_peak):
+def ricker_wavelet_coefficient(omega, omega_peak, scale=1e6):
 
     TypeChecker.check_float_positive(x=omega)
     TypeChecker.check_float_positive(x=omega_peak)
 
     amp = 2.0 * (omega ** 2.0) / (np.sqrt(math.pi) * (omega_peak ** 3.0)) * np.exp(-(omega / omega_peak) ** 2)
-    return np.complex64(amp)
+    return scale * np.complex64(amp)

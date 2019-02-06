@@ -17,13 +17,23 @@ TODO:
 
 def conjugate_gradients(linear_operator, rhs, x0, niter):
 
-    TypeChecker.check_float_positive(x=niter)
+    TypeChecker.check_int_positive(x=niter)
+
+    # Get rhs norm
+    fac = np.linalg.norm(x=rhs)
+    print("Norm of rhs = ", fac)
+    if fac < 1e-15:
+        raise ValueError("Norm of rhs < 1e-15. Trivial solution of zero. Scale up the problem.")
+
+    # Scale rhs
+    rhs_new = rhs / fac
+    x = x0 / fac
 
     # Calculate initial residual, and residual norm
-    r = rhs - linear_operator(x0)
+    r = rhs_new - linear_operator(x)
     r_norm = np.linalg.norm(x=r)
-    if r_norm < 1e-10:
-        return x0
+    if r_norm < 1e-12:
+        return x0, [r_norm]
     r_norm_sq = r_norm ** 2
 
     # Initialize p
@@ -31,17 +41,23 @@ def conjugate_gradients(linear_operator, rhs, x0, niter):
 
     # Initialize residual array, iteration array
     residual = [r_norm]
-    iterations = [0]
+    objective = [0.5 * np.vdot(x, linear_operator(x)) - np.real(np.vdot(x, rhs_new))]
 
     # Run CG iterations
     for num_iter in range(niter):
+
+        print(
+            "Beginning iteration : ", num_iter,
+            " , Residual : ", residual[num_iter],
+            " , Objective : ", objective[num_iter]
+        )
 
         # Compute A*p and alpha
         matrix_times_p = linear_operator(p)
         alpha = r_norm_sq / np.vdot(p, matrix_times_p)
 
         # Update x0, residual
-        x0 += alpha * p
+        x += alpha * p
         r -= alpha * matrix_times_p
 
         # Calculate beta
@@ -50,7 +66,7 @@ def conjugate_gradients(linear_operator, rhs, x0, niter):
         beta = r_norm_new_sq / r_norm_sq
 
         # Check convergence
-        if r_norm_new < 1e-10:
+        if r_norm_new < 1e-12:
             break
 
         # Update p, residual norm
@@ -59,6 +75,8 @@ def conjugate_gradients(linear_operator, rhs, x0, niter):
 
         # Update residual array, iteration array
         residual.append(r_norm_new)
-        iterations.append(num_iter)
 
-    return x0, (iterations, residual)
+    # Remove the effect of the scaling
+    x = x * fac
+
+    return x, residual
