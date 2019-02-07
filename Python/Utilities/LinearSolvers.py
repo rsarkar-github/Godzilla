@@ -41,7 +41,7 @@ def conjugate_gradients(linear_operator, rhs, x0, niter):
 
     # Initialize residual array, iteration array
     residual = [r_norm]
-    objective = [0.5 * np.vdot(x, linear_operator(x)) - np.real(np.vdot(x, rhs_new))]
+    objective = [np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new))]
 
     # Run CG iterations
     for num_iter in range(niter):
@@ -75,8 +75,48 @@ def conjugate_gradients(linear_operator, rhs, x0, niter):
 
         # Update residual array, iteration array
         residual.append(r_norm_new)
+        objective.append(np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new)))
 
     # Remove the effect of the scaling
     x = x * fac
 
     return x, residual
+
+
+if __name__ == "__main__":
+
+    # Create a trial problem
+    dim = 30
+
+    a = np.zeros((dim, dim), dtype=np.complex64)
+    a += np.random.rand(dim, dim).astype(dtype=np.complex64) \
+         + 1j * np.random.rand(dim, dim).astype(dtype=np.complex64)
+    q, _ = np.linalg.qr(a)
+    d = np.random.uniform(low=1, high=2, size=(dim,)).astype(dtype=np.complex64)
+
+    mat = np.dot(np.diag(d), q)
+    mat = np.dot(np.conjugate(np.transpose(q)), mat)
+    vector_true = np.random.rand(dim).astype(dtype=np.complex64) \
+                  + 1j * np.random.rand(dim).astype(dtype=np.complex64)
+    b = np.dot(mat, vector_true)
+    x0 = np.zeros((dim,), dtype=np.complex64)
+
+    # The operator
+    def linop(x):
+        return np.dot(mat, x)
+
+    # Solve
+    x0, res = conjugate_gradients(linear_operator=linop, rhs=b, x0=x0, niter=10)
+
+    # Print solution
+    print("\nTrue solution:")
+    print(vector_true)
+
+    print("\nCG solution:")
+    print(x0)
+
+    print("\nDifference:")
+    print(vector_true - x0)
+
+    print("\nResiduals:")
+    print(res)

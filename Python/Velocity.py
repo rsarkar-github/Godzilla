@@ -134,7 +134,7 @@ class Velocity2D(object):
                 vmax = np.amax(vel_diff)
 
             plt.figure()
-            plt.imshow(np.transpose(vel_diff), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(vel_diff), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)
@@ -163,7 +163,7 @@ class Velocity2D(object):
                 vmax = np.amax(vel_diff)
 
             plt.figure()
-            plt.imshow(np.transpose(vel_diff), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(vel_diff), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)
@@ -199,7 +199,7 @@ class Velocity2D(object):
                 vmax = np.amax(self.__vel)
 
             plt.figure()
-            plt.imshow(np.transpose(self.__vel), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(self.__vel), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)
@@ -224,7 +224,7 @@ class Velocity2D(object):
                 vmax = np.amax(vel_nopad)
 
             plt.figure()
-            plt.imshow(np.transpose(vel_nopad), origin="lower", vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(np.transpose(vel_nopad), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
             plt.xlabel(xlabel)

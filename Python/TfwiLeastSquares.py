@@ -311,7 +311,7 @@ class TfwiLeastSquares2D(object):
                     b = b * np.conjugate(u)
 
                     # Add to result
-                    matrix_times_vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
+                    matrix_times_vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] = \
                         self.__modeling_grid_2_nopad_grid(
                             vec_model_grid=b,
                             vec_nopad_grid=matrix_times_vector[
@@ -368,7 +368,7 @@ class TfwiLeastSquares2D(object):
                     vec=x0[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad],
                     title1="Real",
                     title2="Imag",
-                    colorbar=True,
+                    colorbar=False,
                     show=False,
                     cmap1="Greys",
                     cmap2="Greys",
@@ -383,7 +383,7 @@ class TfwiLeastSquares2D(object):
             self.__plot_nopad_vec_real(
                 vec=np.real(lsm),
                 title="LSM inverted image",
-                colorbar=True,
+                colorbar=False,
                 show=False,
                 cmap="Greys",
                 savefile=lsm_image_file + ".pdf"
@@ -923,7 +923,7 @@ class TfwiLeastSquares2D(object):
         vec1 = np.reshape(a=vec, newshape=(self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1))
 
         plt.figure()
-        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
+        plt.imshow(vec1, origin="upper", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
@@ -965,7 +965,7 @@ class TfwiLeastSquares2D(object):
         )
 
         plt.figure()
-        plt.imshow(vec1, origin="lower", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
+        plt.imshow(vec1, origin="upper", vmin=vmin, vmax=vmax, cmap=cmap, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
@@ -1024,7 +1024,7 @@ class TfwiLeastSquares2D(object):
 
         plt.figure()
         plt.subplot(121)
-        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
+        plt.imshow(vec1, origin="upper", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
@@ -1033,7 +1033,7 @@ class TfwiLeastSquares2D(object):
         plt.title(title1)
 
         plt.subplot(122)
-        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
+        plt.imshow(vec2, origin="upper", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
@@ -1092,7 +1092,7 @@ class TfwiLeastSquares2D(object):
 
         plt.figure()
         plt.subplot(121)
-        plt.imshow(vec1, origin="lower", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
+        plt.imshow(vec1, origin="upper", vmin=vmin1, vmax=vmax1, cmap=cmap1, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel1, labelpad=-40, y=1.05, rotation=0)
@@ -1101,7 +1101,7 @@ class TfwiLeastSquares2D(object):
         plt.title(title1)
 
         plt.subplot(122)
-        plt.imshow(vec2, origin="lower", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
+        plt.imshow(vec2, origin="upper", vmin=vmin2, vmax=vmax2, cmap=cmap2, interpolation="bilinear")
         if colorbar:
             cb = plt.colorbar()
             cb.set_label(colorlabel2, labelpad=-40, y=1.05, rotation=0)
@@ -1157,12 +1157,12 @@ if __name__ == "__main__":
     center_nx = int(ngridpoints_x / 2)
     center_nz = int(ngridpoints_z / 2)
 
-    # vel_true.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
+    vel_true.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
     vel = vel_true.vel
     vel[:, int(ngridpoints_z / 2) + 15] = 2.25
     vel_true.vel = vel
 
-    # vel_start.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
+    vel_start.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
 
     # Create a Tfwi object, with a constant starting model
     tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_start, acquisition=acq2d)
@@ -1174,7 +1174,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="veltrue-noanomaly.pdf"
+        savefile="veltrue-anomaly.pdf"
     )
     tfwilsq.velstart.plot(
         title="Starting Model",
@@ -1183,7 +1183,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="velstart-noanomaly.pdf"
+        savefile="velstart-anomaly.pdf"
     )
     tfwilsq.veltrue.plot_difference(
         vel_other=tfwilsq.velstart,
@@ -1194,7 +1194,7 @@ if __name__ == "__main__":
         vmin=-0.5,
         vmax=0.5,
         cmap="Greys",
-        savefile="veldiff-noanomaly.pdf"
+        savefile="veldiff-anomaly.pdf"
     )
 
     # omega_list = np.arange(domega, omega_max, domega)
@@ -1210,15 +1210,15 @@ if __name__ == "__main__":
     # tfwilsq.compute_residual()
 
     inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-        epsilon=100000,
-        gamma=100000,
+        epsilon=0,
+        gamma=0,
         niter=10,
         save_lsm_image=True,
         save_lsm_allimages=True,
-        lsm_image_file="lsm_image1",
+        lsm_image_file="lsm_image-anomaly-epsgam0",
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=True,
-        lsm_adjoint_image_file="lsm-adjoint-image"
+        lsm_adjoint_image_file="lsm-adjoint-image-anomaly"
     )
 
     print(inversion_metrics)
