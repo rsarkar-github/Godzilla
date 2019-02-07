@@ -1174,7 +1174,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="veltrue-anomaly.pdf"
+        savefile="Fig/veltrue-anomalyneg.pdf"
     )
     tfwilsq.velstart.plot(
         title="Starting Model",
@@ -1183,7 +1183,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="velstart-anomaly.pdf"
+        savefile="Fig/velstart-anomalyneg.pdf"
     )
     tfwilsq.veltrue.plot_difference(
         vel_other=tfwilsq.velstart,
@@ -1194,7 +1194,7 @@ if __name__ == "__main__":
         vmin=-0.5,
         vmax=0.5,
         cmap="Greys",
-        savefile="veldiff-anomaly.pdf"
+        savefile="Fig/veldiff-anomalyneg.pdf"
     )
 
     # omega_list = np.arange(domega, omega_max, domega)
@@ -1215,10 +1215,10 @@ if __name__ == "__main__":
         niter=10,
         save_lsm_image=True,
         save_lsm_allimages=True,
-        lsm_image_file="lsm_image-anomaly-epsgam0",
+        lsm_image_file="Fig/lsm-image-anomalyneg-epsgam0",
         save_lsm_adjoint_image=True,
-        save_lsm_adjoint_allimages=True,
-        lsm_adjoint_image_file="lsm-adjoint-image-anomaly"
+        save_lsm_adjoint_allimages=False,
+        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomalyneg"
     )
 
     print(inversion_metrics)
