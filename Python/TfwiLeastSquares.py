@@ -1143,7 +1143,7 @@ if __name__ == "__main__":
     print("Number of grid points in Z", geom2d.gridpointsZ)
 
     # Create acquisition object
-    skip_src = 1
+    skip_src = 10
     skip_rcv = 1
     acq2d = Acquisition2D(geometry2d=geom2d)
     acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=0.5)
@@ -1220,16 +1220,16 @@ if __name__ == "__main__":
     else:
         tfwilsq.set_flat_spectrum_wavelet()
 
-    # inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-    #     epsilon=0,
-    #     gamma=0,
-    #     niter=30,
-    #     save_lsm_image=True,
-    #     save_lsm_allimages=True,
-    #     lsm_image_file="Fig/lsm-image-anomaly-bigmodel-eps0",
-    #     save_lsm_adjoint_image=True,
-    #     save_lsm_adjoint_allimages=True,
-    #     lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-bigmodel"
-    # )
-    #
-    # print(inversion_metrics)
+    inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
+        epsilon=0,
+        gamma=0,
+        niter=30,
+        save_lsm_image=True,
+        save_lsm_allimages=True,
+        lsm_image_file="Fig/lsm-image-anomaly-bigmodel-eps0",
+        save_lsm_adjoint_image=True,
+        save_lsm_adjoint_allimages=True,
+        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-bigmodel"
+    )
+
+    print(inversion_metrics)

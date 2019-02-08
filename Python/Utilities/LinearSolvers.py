@@ -6,6 +6,7 @@ Created on Thu Jan 31 12:11:15 2019
 """
 from Utilities import TypeChecker
 import copy
+import time
 import numpy as np
 
 
@@ -15,7 +16,7 @@ TODO:
 """
 
 
-def conjugate_gradients(linear_operator, rhs, x0, niter):
+def conjugate_gradients(linear_operator, rhs, x0, niter, printobj=False):
 
     TypeChecker.check_int_positive(x=niter)
 
@@ -41,16 +42,25 @@ def conjugate_gradients(linear_operator, rhs, x0, niter):
 
     # Initialize residual array, iteration array
     residual = [r_norm]
-    objective = [np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new))]
+    if printobj:
+        objective = [np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new))]
 
     # Run CG iterations
     for num_iter in range(niter):
 
-        print(
-            "Beginning iteration : ", num_iter,
-            " , Residual : ", residual[num_iter],
-            " , Objective : ", objective[num_iter]
-        )
+        t1 = time.time()
+
+        if printobj:
+            print(
+                "Beginning iteration : ", num_iter,
+                " , Residual : ", residual[num_iter],
+                " , Objective : ", objective[num_iter]
+            )
+        else:
+            print(
+                "Beginning iteration : ", num_iter,
+                " , Residual : ", residual[num_iter]
+            )
 
         # Compute A*p and alpha
         matrix_times_p = linear_operator(p)
@@ -75,7 +85,11 @@ def conjugate_gradients(linear_operator, rhs, x0, niter):
 
         # Update residual array, iteration array
         residual.append(r_norm_new)
-        objective.append(np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new)))
+        if printobj:
+            objective.append(np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new)))
+
+        t2 = time.time()
+        print("Iteration took ", t2 - t1, " s\n")
 
     # Remove the effect of the scaling
     x = x * fac
