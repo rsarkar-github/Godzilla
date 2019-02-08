@@ -1120,9 +1120,10 @@ if __name__ == "__main__":
 
     # Define frequency parameters (in Hertz)
     freq_peak_ricker = 25
-    freq_max = 20
+    freq_max = 35
     flat_spectrum = False
     omega_max = 2 * Common.pi * freq_max
+    omega_min = 2 * Common.pi * freq_peak_ricker / 2.0
     dt = 0.5 / freq_max
     nt = 100
     domega = (2 * Common.pi) / (nt * dt)
@@ -1130,12 +1131,12 @@ if __name__ == "__main__":
 
     # Create geometry object
     geom2d = CreateGeometry2D(
-        xdim=0.5,
-        zdim=0.5,
+        xdim=6.0,
+        zdim=3.0,
         vmin=1.5,
         vmax=2.5,
         omega_max=omega_max,
-        omega_min=omega_max / 4.0
+        omega_min=omega_min
     )
     geom2d.set_default_params()
     print("Number of grid points in X", geom2d.gridpointsX)
@@ -1145,7 +1146,7 @@ if __name__ == "__main__":
     skip_src = 1
     skip_rcv = 1
     acq2d = Acquisition2D(geometry2d=geom2d)
-    acq2d.set_default_sources_receivers(source_skip=skip_src, receiver_skip=skip_rcv)
+    acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=2.0)
 
     # Create a default Velocity 2D object
     vel_true = Velocity2D(geometry2d=geom2d)
@@ -1153,20 +1154,34 @@ if __name__ == "__main__":
     ngridpoints_x = geom2d.gridpointsX
     ngridpoints_z = geom2d.gridpointsZ
 
-    # Put Gaussian perturbation in the center
+    # Put Gaussian perturbation
+    sigma_x_gaussian = 0.4
+    sigma_z_gaussian = 0.4
     center_nx = int(ngridpoints_x / 2)
-    center_nz = int(ngridpoints_z / 2)
+    center_nz = int(ngridpoints_z / 2.5)
 
-    vel_true.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
+    vel_true.create_gaussian_perturbation(
+        dvel=0.3,
+        sigma_x=sigma_x_gaussian,
+        sigma_z=sigma_z_gaussian,
+        nx=center_nx,
+        nz=center_nz
+    )
     vel = vel_true.vel
-    vel[:, int(ngridpoints_z / 2) + 15] = 2.25
+    vel[:, center_nz + 295: center_nz + 305] = 2.25
     vel_true.vel = vel
 
-    vel_start.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
+    vel_start.create_gaussian_perturbation(
+        dvel=0.3,
+        sigma_x=sigma_x_gaussian,
+        sigma_z=sigma_z_gaussian,
+        nx=center_nx,
+        nz=center_nz
+    )
 
-    # Create a Tfwi object, with a constant starting model
+    # Create a Tfwi object
     tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_start, acquisition=acq2d)
-    # tfwilsq.set_constant_starting_model()
+
     tfwilsq.veltrue.plot(
         title="True Model",
         pad=False,
@@ -1174,7 +1189,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="Fig/veltrue-anomalyneg.pdf"
+        savefile="Fig/veltrue-anomaly.pdf"
     )
     tfwilsq.velstart.plot(
         title="Starting Model",
@@ -1183,7 +1198,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="Fig/velstart-anomalyneg.pdf"
+        savefile="Fig/velstart-anomaly.pdf"
     )
     tfwilsq.veltrue.plot_difference(
         vel_other=tfwilsq.velstart,
@@ -1194,31 +1209,27 @@ if __name__ == "__main__":
         vmin=-0.5,
         vmax=0.5,
         cmap="Greys",
-        savefile="Fig/veldiff-anomalyneg.pdf"
+        savefile="Fig/veldiff-anomaly.pdf"
     )
 
     # omega_list = np.arange(domega, omega_max, domega)
-    omega_list = np.arange(omega_max / 2, omega_max, omega_max / 16).tolist()
+    omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 20.0).tolist()
     tfwilsq.omega_list = omega_list
     if not flat_spectrum:
         tfwilsq.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
     else:
         tfwilsq.set_flat_spectrum_wavelet()
 
-    # tfwilsq.compute_matrix_factorizations()
-    # tfwilsq.compute_true_data()
-    # tfwilsq.compute_residual()
-
     inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
         epsilon=0,
         gamma=0,
-        niter=10,
+        niter=30,
         save_lsm_image=True,
         save_lsm_allimages=True,
-        lsm_image_file="Fig/lsm-image-anomalyneg-epsgam0",
+        lsm_image_file="Fig/lsm-image-anomaly-bigmodel-eps0",
         save_lsm_adjoint_image=True,
-        save_lsm_adjoint_allimages=False,
-        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomalyneg"
+        save_lsm_adjoint_allimages=True,
+        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-bigmodel"
     )
 
     print(inversion_metrics)
