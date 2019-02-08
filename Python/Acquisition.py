@@ -53,6 +53,9 @@ class Acquisition2D(object):
         TypeChecker.check_int_positive(x=source_skip)
         TypeChecker.check_int_positive(x=receiver_skip)
 
+        self.__sources = {}
+        self.__receivers = {}
+
         receivers = [
             (self.__geometry2D.ncellsX_pad + i, self.__geometry2D.ncellsZ_pad)
             for i in range(0, self.__geometry2D.ncellsX + 1, receiver_skip)
@@ -65,6 +68,9 @@ class Acquisition2D(object):
 
         TypeChecker.check_int_positive(x=source_skip)
         TypeChecker.check_int_positive(x=receiver_skip)
+
+        self.__sources = {}
+        self.__receivers = {}
 
         if max_offset is not None:
             TypeChecker.check_float_positive(x=max_offset)
