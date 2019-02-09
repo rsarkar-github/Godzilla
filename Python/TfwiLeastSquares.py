@@ -1190,8 +1190,8 @@ if __name__ == "__main__":
     acq2d.crop_sources_receivers_bounding_box(
         nx_start=center_nx - 75,
         nx_end=center_nx + 75,
-        nz_start=geom2d.ncellsX_pad,
-        nz_end=geom2d.ncellsX_pad + geom2d.ncellsX
+        nz_start=geom2d.ncellsZ_pad,
+        nz_end=geom2d.ncellsZ_pad + geom2d.ncellsZ
     )
 
     # Create a Tfwi object
@@ -1236,12 +1236,12 @@ if __name__ == "__main__":
         tfwilsq.set_flat_spectrum_wavelet()
 
     inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-        epsilon=0,
+        epsilon=0.1,
         gamma=0,
         niter=30,
         save_lsm_image=True,
         save_lsm_allimages=True,
-        lsm_image_file="Fig/lsm-image-anomaly-bigmodel-acqhole-eps0",
+        lsm_image_file="Fig/lsm-image-anomaly-bigmodel-acqhole-eps0.1",
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=False,
         lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-acqhole-bigmodel"
