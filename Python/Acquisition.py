@@ -99,6 +99,103 @@ class Acquisition2D(object):
         self.__sources = sources
         self.__receivers = receivers
 
+    def crop_receivers_bounding_box(self, nx_start, nx_end, nz_start, nz_end):
+
+        TypeChecker.check_int_bounds(
+            x=nx_start,
+            lb=self.__geometry2D.ncellsX_pad,
+            ub=self.__geometry2D.ncellsX_pad + self.__geometry2D.ncellsX
+        )
+
+        TypeChecker.check_int_bounds(
+            x=nx_end,
+            lb=nx_start,
+            ub=self.__geometry2D.ncellsX_pad + self.__geometry2D.ncellsX
+        )
+
+        TypeChecker.check_int_bounds(
+            x=nz_start,
+            lb=self.__geometry2D.ncellsZ_pad,
+            ub=self.__geometry2D.ncellsZ_pad + self.__geometry2D.ncellsZ
+        )
+
+        TypeChecker.check_int_bounds(
+            x=nz_end,
+            lb=nz_start,
+            ub=self.__geometry2D.ncellsZ_pad + self.__geometry2D.ncellsZ
+        )
+
+        sources = {}
+        receivers = {}
+        count = 0
+
+        for source_num in self.__sources.keys():
+
+            new_receivers = []
+            for receiver in self.__receivers[source_num]:
+
+                if nx_start <= receiver[0] <= nx_end and nz_start <= receiver[1] <= nz_end:
+                    continue
+                else:
+                    new_receivers.append(receiver)
+
+            if new_receivers:
+                sources[count] = self.__sources[source_num]
+                receivers[count] = new_receivers
+                count += 1
+
+        self.__sources = sources
+        self.__receivers = receivers
+
+    def crop_sources_bounding_box(self, nx_start, nx_end, nz_start, nz_end):
+
+        TypeChecker.check_int_bounds(
+            x=nx_start,
+            lb=self.__geometry2D.ncellsX_pad,
+            ub=self.__geometry2D.ncellsX_pad + self.__geometry2D.ncellsX
+        )
+
+        TypeChecker.check_int_bounds(
+            x=nx_end,
+            lb=nx_start,
+            ub=self.__geometry2D.ncellsX_pad + self.__geometry2D.ncellsX
+        )
+
+        TypeChecker.check_int_bounds(
+            x=nz_start,
+            lb=self.__geometry2D.ncellsZ_pad,
+            ub=self.__geometry2D.ncellsZ_pad + self.__geometry2D.ncellsZ
+        )
+
+        TypeChecker.check_int_bounds(
+            x=nz_end,
+            lb=nz_start,
+            ub=self.__geometry2D.ncellsZ_pad + self.__geometry2D.ncellsZ
+        )
+
+        sources = {}
+        receivers = {}
+        count = 0
+
+        for source_num in self.__sources.keys():
+
+            if nx_start <= self.__sources[source_num][0] <= nx_end \
+                    and nz_start <= self.__sources[source_num][1] <= nz_end:
+                continue
+
+            else:
+                sources[count] = self.__sources[source_num]
+                receivers[count] = self.__receivers[source_num]
+                count += 1
+
+        self.__sources = sources
+        self.__receivers = receivers
+
+    def crop_sources_receivers_bounding_box(self, nx_start, nx_end, nz_start, nz_end):
+
+        self.crop_sources_bounding_box(nx_start=nx_start, nx_end=nx_end, nz_start=nz_start, nz_end=nz_end)
+        self.crop_receivers_bounding_box(nx_start=nx_start, nx_end=nx_end, nz_start=nz_start, nz_end=nz_end)
+
     """
     # Properties
     """

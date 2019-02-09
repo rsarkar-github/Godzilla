@@ -1139,8 +1139,13 @@ if __name__ == "__main__":
         omega_min=omega_min
     )
     geom2d.set_default_params()
+
     print("Number of grid points in X", geom2d.gridpointsX)
     print("Number of grid points in Z", geom2d.gridpointsZ)
+    print("Number of cells in X", geom2d.ncellsX)
+    print("Number of cells in Z", geom2d.ncellsZ)
+    print("Number of pad cells in X", geom2d.ncellsX_pad)
+    print("Number of pad cells in Z", geom2d.ncellsZ_pad)
 
     # Create acquisition object
     skip_src = 10
@@ -1161,25 +1166,33 @@ if __name__ == "__main__":
     center_nz = int(ngridpoints_z / 2.5)
 
     vel_true.set_constant_velocity(vel=2.3)
-    #vel_true.create_gaussian_perturbation(
-    #    dvel=-0.6,
-    #    sigma_x=sigma_x_gaussian,
-    #    sigma_z=sigma_z_gaussian,
-    #    nx=center_nx,
-    #    nz=center_nz
-    #)
+    vel_true.create_gaussian_perturbation(
+        dvel=-0.6,
+        sigma_x=sigma_x_gaussian,
+        sigma_z=sigma_z_gaussian,
+        nx=center_nx,
+        nz=center_nz
+    )
     vel = vel_true.vel
     vel[:, center_nz + 195: center_nz + 205] = 2.0
     vel_true.vel = vel
 
     vel_start.set_constant_velocity(vel=2.3)
-    #vel_start.create_gaussian_perturbation(
-    #    dvel=-0.6,
-    #    sigma_x=sigma_x_gaussian,
-    #    sigma_z=sigma_z_gaussian,
-    #    nx=center_nx,
-    #    nz=center_nz
-    #)
+    vel_start.create_gaussian_perturbation(
+        dvel=-0.6,
+        sigma_x=sigma_x_gaussian,
+        sigma_z=sigma_z_gaussian,
+        nx=center_nx,
+        nz=center_nz
+    )
+
+    # Crop acquisition
+    acq2d.crop_sources_receivers_bounding_box(
+        nx_start=center_nx - 75,
+        nx_end=center_nx + 75,
+        nz_start=geom2d.ncellsX_pad,
+        nz_end=geom2d.ncellsX_pad + geom2d.ncellsX
+    )
 
     # Create a Tfwi object
     tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_start, acquisition=acq2d)
@@ -1191,7 +1204,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="Fig/veltrue-noanomaly-bigmodel.pdf"
+        savefile="Fig/veltrue-anomaly-bigmodel.pdf"
     )
     tfwilsq.velstart.plot(
         title="Starting Model",
@@ -1200,7 +1213,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="Fig/velstart-noanomaly-bigmodel.pdf"
+        savefile="Fig/velstart-anomaly-bigmodel.pdf"
     )
     tfwilsq.veltrue.plot_difference(
         vel_other=tfwilsq.velstart,
@@ -1211,7 +1224,7 @@ if __name__ == "__main__":
         vmin=-0.5,
         vmax=0.5,
         cmap="Greys",
-        savefile="Fig/veldiff-noanomaly-bigmodel.pdf"
+        savefile="Fig/veldiff-anomaly-bigmodel.pdf"
     )
 
     omega_list = np.arange(domega, omega_max, domega)
@@ -1225,13 +1238,13 @@ if __name__ == "__main__":
     inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
         epsilon=0,
         gamma=0,
-        niter=0,
+        niter=30,
         save_lsm_image=True,
         save_lsm_allimages=True,
-        lsm_image_file="Fig/lsm-image-anomaly-bigmodel-eps0",
+        lsm_image_file="Fig/lsm-image-anomaly-bigmodel-acqhole-eps0",
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=False,
-        lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-bigmodel"
+        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-acqhole-bigmodel"
     )
 
     print(inversion_metrics)
