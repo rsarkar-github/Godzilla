@@ -1146,7 +1146,7 @@ if __name__ == "__main__":
     skip_src = 10
     skip_rcv = 1
     acq2d = Acquisition2D(geometry2d=geom2d)
-    acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=0.5)
+    acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=1.5)
 
     # Create a default Velocity 2D object
     vel_true = Velocity2D(geometry2d=geom2d)
@@ -1160,8 +1160,9 @@ if __name__ == "__main__":
     center_nx = int(ngridpoints_x / 2)
     center_nz = int(ngridpoints_z / 2.5)
 
+    vel_true.set_constant_velocity(vel=2.3)
     vel_true.create_gaussian_perturbation(
-        dvel=-0.3,
+        dvel=-0.6,
         sigma_x=sigma_x_gaussian,
         sigma_z=sigma_z_gaussian,
         nx=center_nx,
@@ -1171,8 +1172,9 @@ if __name__ == "__main__":
     vel[:, center_nz + 195: center_nz + 205] = 2.0
     vel_true.vel = vel
 
+    vel_start.set_constant_velocity(vel=2.3)
     vel_start.create_gaussian_perturbation(
-        dvel=-0.3,
+        dvel=-0.6,
         sigma_x=sigma_x_gaussian,
         sigma_z=sigma_z_gaussian,
         nx=center_nx,
@@ -1185,7 +1187,7 @@ if __name__ == "__main__":
     tfwilsq.veltrue.plot(
         title="True Model",
         pad=False,
-        vmin=2.0,
+        vmin=1.5,
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
@@ -1194,7 +1196,7 @@ if __name__ == "__main__":
     tfwilsq.velstart.plot(
         title="Starting Model",
         pad=False,
-        vmin=2.0,
+        vmin=1.5,
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
@@ -1212,7 +1214,7 @@ if __name__ == "__main__":
         savefile="Fig/veldiff-anomaly-bigmodel.pdf"
     )
 
-    # omega_list = np.arange(domega, omega_max, domega)
+    omega_list = np.arange(domega, omega_max, domega)
     omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 40.0).tolist()
     tfwilsq.omega_list = omega_list
     if not flat_spectrum:
