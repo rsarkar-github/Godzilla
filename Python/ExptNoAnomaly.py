@@ -7,11 +7,11 @@ import numpy as np
 
 
 # Define frequency parameters (in Hertz)
-freq_peak_ricker = 25
-freq_max = 35
+freq_peak_ricker = 20
+freq_max = 30
 flat_spectrum = False
 omega_max = 2 * Common.pi * freq_max
-omega_min = 2 * Common.pi * freq_peak_ricker / 2.0
+omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
 dt = 0.5 / freq_max
 nt = 100
 domega = (2 * Common.pi) / (nt * dt)
@@ -97,12 +97,12 @@ else:
     tfwilsq.set_flat_spectrum_wavelet()
 
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-    epsilon=0.01,
+    epsilon=0.1,
     gamma=0,
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-image-bigmodel-40-eps0.01",
+    lsm_image_file="Fig/lsm-image-bigmodel-40-eps0.1",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
     lsm_adjoint_image_file="Fig/lsm-image-bigmodel-40"

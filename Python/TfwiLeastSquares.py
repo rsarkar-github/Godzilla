@@ -1188,8 +1188,8 @@ if __name__ == "__main__":
 
     # Crop acquisition
     acq2d.crop_sources_receivers_bounding_box(
-        nx_start=center_nx - 75,
-        nx_end=center_nx + 75,
+        nx_start=center_nx - 25,
+        nx_end=center_nx + 25,
         nz_start=geom2d.ncellsZ_pad,
         nz_end=geom2d.ncellsZ_pad + geom2d.ncellsZ
     )
@@ -1236,15 +1236,15 @@ if __name__ == "__main__":
         tfwilsq.set_flat_spectrum_wavelet()
 
     inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-        epsilon=0.1,
+        epsilon=0,
         gamma=0,
-        niter=30,
+        niter=40,
         save_lsm_image=True,
         save_lsm_allimages=True,
-        lsm_image_file="Fig/lsm-image-anomaly-bigmodel-acqhole-eps0.1",
+        lsm_image_file="Fig/lsm-image-anomaly-acqhole1-bigmodel-eps0",
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=False,
-        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-acqhole-bigmodel"
+        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-acqhole1-bigmodel"
     )
 
     print(inversion_metrics)
