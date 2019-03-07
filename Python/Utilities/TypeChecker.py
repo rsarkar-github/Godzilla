@@ -100,7 +100,8 @@ def check_float_positive(x):
 
     return True
 
-# Check if lb <= int <= ub
+
+# Check if lb <= float <= ub
 def check_float_bounds(x, lb, ub):
 
     str1 = ", ".join([str(types) for types in (float, int)])
@@ -109,5 +110,31 @@ def check_float_bounds(x, lb, ub):
 
     if not lb <= x <= ub:
         raise ValueError("Value of x :" + str(x) + " , Expected value : " + str(lb) + " <= x <= " + str(ub))
+
+    return True
+
+
+# Check if lb <= float
+def check_float_lower_bound(x, lb):
+
+    str1 = ", ".join([str(types) for types in (float, int)])
+    if not isinstance(x, (float, int)):
+        raise TypeError("Object type : " + str(type(x)) + " , Expected type : " + str1)
+
+    if not lb <= x:
+        raise ValueError("Value of x :" + str(x) + " , Expected value : " + str(lb) + " <= x")
+
+    return True
+
+
+# Check if float <= ub
+def check_float_upper_bound(x, ub):
+
+    str1 = ", ".join([str(types) for types in (float, int)])
+    if not isinstance(x, (float, int)):
+        raise TypeError("Object type : " + str(type(x)) + " , Expected type : " + str1)
+
+    if not x <= ub:
+        raise ValueError("Value of x :" + str(x) + " , Expected value : " + " x <= " + str(ub))
 
     return True

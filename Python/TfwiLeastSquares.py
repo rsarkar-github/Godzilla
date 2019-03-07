@@ -91,6 +91,20 @@ class TfwiLeastSquares2D(object):
         ]
         self.__run_cleanup(flag=6)
 
+    def apply_frequency_taper(self, omega_low, omega_high, omega1, omega2):
+
+        self.__wavelet = [
+            WaveletTools.apply_spectrum_taper(
+                value=self.__wavelet[index],
+                omega=omega,
+                omega_low=omega_low,
+                omega_high=omega_high,
+                omega1=omega1,
+                omega2=omega2
+            ) for index, omega in enumerate(self.__omega_list)
+        ]
+        self.__run_cleanup(flag=6)
+
     def set_flat_spectrum_wavelet(self):
 
         self.__wavelet = [np.complex64(1.0) for _ in self.__omega_list]

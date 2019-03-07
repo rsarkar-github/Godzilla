@@ -12,6 +12,7 @@ freq_max = 30
 flat_spectrum = False
 omega_max = 2 * Common.pi * freq_max
 omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
+taper_pct = 0.1
 dt = 0.5 / freq_max
 nt = 100
 domega = (2 * Common.pi) / (nt * dt)
@@ -96,16 +97,23 @@ if not flat_spectrum:
 else:
     tfwilsq.set_flat_spectrum_wavelet()
 
+tfwilsq.apply_frequency_taper(
+    omega_low=omega_min,
+    omega_high=omega_max,
+    omega1=omega_min + (omega_max - omega_min) * taper_pct,
+    omega2=omega_max - (omega_max - omega_min) * taper_pct
+)
+
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     epsilon=0.1,
     gamma=0,
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-image-bigmodel-40-eps0.1",
+    lsm_image_file="Fig/lsm-image-bigmodel-40-taper0.1-eps0.1",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-image-bigmodel-40"
+    lsm_adjoint_image_file="Fig/lsm-image-bigmodel-40-taper0.1"
 )
 
 print(inversion_metrics)
