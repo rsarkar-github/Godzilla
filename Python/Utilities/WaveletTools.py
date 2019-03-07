@@ -33,7 +33,7 @@ def ricker_wavelet_coefficient(omega, omega_peak, scale=1e6):
 
 def apply_spectrum_taper(value, omega, omega_low, omega_high, omega1, omega2):
 
-    TypeChecker.check(x=value, expected_type=(np.complex64, float, int))
+    TypeChecker.check(x=value, expected_type=(np.complex64, np.complex128, float, int))
     TypeChecker.check_float_positive(x=omega)
     TypeChecker.check_float_positive(x=omega_low)
     TypeChecker.check_float_lower_bound(x=omega_high, lb=omega_low)
