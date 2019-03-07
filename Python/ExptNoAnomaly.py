@@ -12,7 +12,7 @@ freq_max = 30
 flat_spectrum = False
 omega_max = 2 * Common.pi * freq_max
 omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
-taper_pct = 0.1
+taper_pct = 0.2
 dt = 0.5 / freq_max
 nt = 100
 domega = (2 * Common.pi) / (nt * dt)
@@ -90,7 +90,7 @@ tfwilsq.veltrue.plot_difference(
     savefile="Fig/veldiff-bigmodel.pdf"
 )
 
-omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 40.0).tolist()
+omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 60.0).tolist()
 tfwilsq.omega_list = omega_list
 if not flat_spectrum:
     tfwilsq.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
@@ -110,10 +110,10 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-image-bigmodel-40-taper0.1-eps0.1",
+    lsm_image_file="Fig/lsm-image-bigmodel-60-taper0.2-eps0.1",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-image-bigmodel-40-taper0.1"
+    lsm_adjoint_image_file="Fig/lsm-image-bigmodel-60-taper0.2"
 )
 
 print(inversion_metrics)
