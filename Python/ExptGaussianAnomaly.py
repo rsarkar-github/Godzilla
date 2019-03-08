@@ -18,6 +18,9 @@ nt = 100
 domega = (2 * Common.pi) / (nt * dt)
 delay = 0.1
 
+# Type of thickness
+thickness = 0
+
 # Create geometry object
 geom2d = CreateGeometry2D(
     xdim=3.0,
@@ -63,6 +66,15 @@ vel_true.create_gaussian_perturbation(
     nz=center_nz
 )
 vel = vel_true.vel
+
+# Thin, Medium or Thick
+if thickness == 0:
+    vel[:, center_nz + 199: center_nz + 200] = 2.0
+if thickness == 1:
+    vel[:, center_nz + 195: center_nz + 205] = 2.0
+if thickness == 2:
+    vel[:, center_nz + 165: center_nz + 205] = 2.0
+vel_true.vel = vel
 vel[:, center_nz + 195: center_nz + 205] = 2.0
 vel_true.vel = vel
 

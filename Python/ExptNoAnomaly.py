@@ -18,6 +18,9 @@ nt = 100
 domega = (2 * Common.pi) / (nt * dt)
 delay = 0.1
 
+# Type of thickness
+thickness = 0
+
 # Create geometry object
 geom2d = CreateGeometry2D(
     xdim=3.0,
@@ -52,7 +55,14 @@ ngridpoints_z = geom2d.gridpointsZ
 center_nz = int(ngridpoints_z / 2.5)
 vel_true.set_constant_velocity(vel=2.3)
 vel = vel_true.vel
-vel[:, center_nz + 195: center_nz + 205] = 2.0
+
+# Thin, Medium or Thick
+if thickness == 0:
+    vel[:, center_nz + 199: center_nz + 200] = 2.0
+if thickness == 1:
+    vel[:, center_nz + 195: center_nz + 205] = 2.0
+if thickness == 2:
+    vel[:, center_nz + 165: center_nz + 205] = 2.0
 vel_true.vel = vel
 
 vel_start.set_constant_velocity(vel=2.3)
@@ -67,7 +77,7 @@ tfwilsq.veltrue.plot(
     vmax=2.3,
     xlabel="X grid points",
     ylabel="Z grid points",
-    savefile="Fig/veltrue-bigmodel.pdf"
+    savefile="Fig/veltrue-noanomaly.pdf"
 )
 tfwilsq.velstart.plot(
     title="Starting Model",
@@ -76,7 +86,7 @@ tfwilsq.velstart.plot(
     vmax=2.3,
     xlabel="X grid points",
     ylabel="Z grid points",
-    savefile="Fig/velstart-bigmodel.pdf"
+    savefile="Fig/velstart-noanomaly.pdf"
 )
 tfwilsq.veltrue.plot_difference(
     vel_other=tfwilsq.velstart,
@@ -87,10 +97,10 @@ tfwilsq.veltrue.plot_difference(
     vmin=-0.5,
     vmax=0.5,
     cmap="Greys",
-    savefile="Fig/veldiff-bigmodel.pdf"
+    savefile="Fig/veldiff-noanomaly.pdf"
 )
 
-omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 60.0).tolist()
+omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 40.0).tolist()
 tfwilsq.omega_list = omega_list
 if not flat_spectrum:
     tfwilsq.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
@@ -110,10 +120,10 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-image-bigmodel-60-taper0.2-eps0.1",
+    lsm_image_file="Fig/lsm-inverted-image-noanomaly-thin40-taper0.2-eps0.1",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-image-bigmodel-60-taper0.2"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-thin40-taper0.2"
 )
 
 print(inversion_metrics)
