@@ -75,8 +75,6 @@ if thickness == 1:
 if thickness == 2:
     vel[:, center_nz + 165: center_nz + 205] = 2.0
 vel_true.vel = vel
-vel[:, center_nz + 195: center_nz + 205] = 2.0
-vel_true.vel = vel
 
 vel_start.set_constant_velocity(vel=2.3)
 vel_start.create_gaussian_perturbation(
