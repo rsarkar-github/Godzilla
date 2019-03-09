@@ -10,7 +10,7 @@ import numpy as np
 freq_peak_ricker = 20
 freq_max = 30
 flat_spectrum = False
-gaussian_spectrum = False
+gaussian_spectrum = True
 omega_max = 2 * Common.pi * freq_max
 omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
 omega_mean = 2 * Common.pi * freq_peak_ricker

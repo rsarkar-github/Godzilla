@@ -26,9 +26,24 @@ def ricker_wavelet_coefficient(omega, omega_peak, scale=1e6):
 
     TypeChecker.check_float_positive(x=omega)
     TypeChecker.check_float_positive(x=omega_peak)
+    TypeChecker.check_float_positive(x=scale)
 
     amp = 2.0 * (omega ** 2.0) / (np.sqrt(math.pi) * (omega_peak ** 3.0)) * np.exp(-(omega / omega_peak) ** 2)
     return scale * np.complex64(amp)
+
+
+def gaussian_spectrum_coefficient(omega, omega_mean, omega_std, scale=1e6):
+
+    TypeChecker.check_float_positive(x=omega)
+    TypeChecker.check_float_positive(x=omega_mean)
+    TypeChecker.check_float_positive(x=omega_std)
+    TypeChecker.check_float_positive(x=scale)
+
+    f = (2 * math.pi * omega_std * omega_std) ** (-0.5)
+    f1 = (omega - omega_mean) * (omega - omega_mean) / (2 * omega_std * omega_std)
+
+    amp = scale * f * np.exp(-f1)
+    return amp
 
 
 def apply_spectrum_taper(value, omega, omega_low, omega_high, omega1, omega2):
