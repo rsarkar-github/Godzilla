@@ -10,16 +10,16 @@ import numpy as np
 freq_peak_ricker = 20
 freq_max = 30
 flat_spectrum = False
+gaussian_spectrum = False
 omega_max = 2 * Common.pi * freq_max
 omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
+omega_mean = 2 * Common.pi * freq_peak_ricker
+omega_std = (omega_max - omega_min) * 0.15
 taper_pct = 0.2
 dt = 0.5 / freq_max
 nt = 100
 domega = (2 * Common.pi) / (nt * dt)
 delay = 0.1
-
-# Type of thickness
-thickness = 0
 
 # Create geometry object
 geom2d = CreateGeometry2D(
@@ -66,14 +66,7 @@ vel_true.create_gaussian_perturbation(
     nz=center_nz
 )
 vel = vel_true.vel
-
-# Thin, Medium or Thick
-if thickness == 0:
-    vel[:, center_nz + 199: center_nz + 200] = 2.0
-if thickness == 1:
-    vel[:, center_nz + 195: center_nz + 205] = 2.0
-if thickness == 2:
-    vel[:, center_nz + 165: center_nz + 205] = 2.0
+vel[:, center_nz + 199: center_nz + 200] = 2.0
 vel_true.vel = vel
 
 vel_start.set_constant_velocity(vel=2.3)
@@ -120,8 +113,12 @@ tfwilsq.veltrue.plot_difference(
 
 omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 40.0).tolist()
 tfwilsq.omega_list = omega_list
+
 if not flat_spectrum:
-    tfwilsq.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
+    if not gaussian_spectrum:
+        tfwilsq.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
+    else:
+        tfwilsq.set_gaussian_wavelet(omega_mean=omega_mean, omega_std=omega_std)
 else:
     tfwilsq.set_flat_spectrum_wavelet()
 
@@ -138,10 +135,10 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-anomaly-40-taper0.2-eps0.1",
+    lsm_image_file="Fig/lsm-inverted-image-anomaly-thin40-taper0.2-eps0.1",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-40-taper0.2"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-thin40-taper0.2"
 )
 
 print(inversion_metrics)

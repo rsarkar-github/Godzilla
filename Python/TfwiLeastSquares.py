@@ -91,6 +91,32 @@ class TfwiLeastSquares2D(object):
         ]
         self.__run_cleanup(flag=6)
 
+    def set_flat_spectrum_wavelet(self):
+
+        self.__wavelet = [np.complex64(1.0) for _ in self.__omega_list]
+        self.__run_cleanup(flag=6)
+
+    def set_gaussian_wavelet(self, omega_mean=None, omega_std=None):
+
+        if omega_mean is None:
+            omega_mean = self.__geometry2D.omega_max / 2.0
+        else:
+            TypeChecker.check_float_positive(x=omega_mean)
+
+        if omega_std is None:
+            omega_std = self.__geometry2D.omega_max / 4.0
+        else:
+            TypeChecker.check_float_positive(x=omega_std)
+
+        self.__wavelet = [
+            WaveletTools.gaussian_spectrum_coefficient(
+                omega=omega,
+                omega_mean=omega_mean,
+                omega_std=omega_std
+            ) for omega in self.__omega_list
+        ]
+        self.__run_cleanup(flag=6)
+
     def apply_frequency_taper(self, omega_low, omega_high, omega1, omega2):
 
         self.__wavelet = [
@@ -103,11 +129,6 @@ class TfwiLeastSquares2D(object):
                 omega2=omega2
             ) for index, omega in enumerate(self.__omega_list)
         ]
-        self.__run_cleanup(flag=6)
-
-    def set_flat_spectrum_wavelet(self):
-
-        self.__wavelet = [np.complex64(1.0) for _ in self.__omega_list]
         self.__run_cleanup(flag=6)
 
     def compute_matrix_factorizations(self):
