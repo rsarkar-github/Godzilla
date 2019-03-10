@@ -7,15 +7,14 @@ import numpy as np
 
 
 # Define frequency parameters (in Hertz)
-freq_peak_ricker = 18
-freq_max = 30
-freq_min = 6.67
+freq_peak_ricker = 20
+freq_max = 35
 flat_spectrum = False
 gaussian_spectrum = True
 omega_max = 2 * Common.pi * freq_max
-omega_min = 2 * Common.pi * freq_min
+omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
 omega_mean = 2 * Common.pi * freq_peak_ricker
-omega_std = (omega_max - omega_min) * 0.3
+omega_std = (omega_max - omega_min) * 0.25
 taper_pct = 0.1
 dt = 0.5 / freq_max
 nt = 100
@@ -94,7 +93,7 @@ tfwilsq.veltrue.plot_difference(
     savefile="Fig/veldiff-noanomaly.pdf"
 )
 
-omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 40.0).tolist()
+omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
 tfwilsq.omega_list = omega_list
 
 if not flat_spectrum:
@@ -118,10 +117,10 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-noanomaly-40-gstd0.3-taper0.1-eps0.05",
+    lsm_image_file="Fig/lsm-inverted-image-noanomaly-bb50-gstd0.25-taper0.1-eps0.05",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-40-gstd0.3-taper0.1"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-bb50-gstd0.25-taper0.1"
 )
 
 print(inversion_metrics)
