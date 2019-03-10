@@ -7,15 +7,16 @@ import numpy as np
 
 
 # Define frequency parameters (in Hertz)
-freq_peak_ricker = 20
+freq_peak_ricker = 18
 freq_max = 30
+freq_min = 6.67
 flat_spectrum = False
-gaussian_spectrum = False
+gaussian_spectrum = True
 omega_max = 2 * Common.pi * freq_max
-omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
+omega_min = 2 * Common.pi * freq_min
 omega_mean = 2 * Common.pi * freq_peak_ricker
-omega_std = (omega_max - omega_min) * 0.15
-taper_pct = 0.2
+omega_std = (omega_max - omega_min) * 0.3
+taper_pct = 0.1
 dt = 0.5 / freq_max
 nt = 100
 domega = (2 * Common.pi) / (nt * dt)
@@ -130,15 +131,15 @@ tfwilsq.apply_frequency_taper(
 )
 
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-    epsilon=0.1,
+    epsilon=0.05,
     gamma=0,
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-anomaly-thin40-taper0.2-eps0.1",
+    lsm_image_file="Fig/lsm-inverted-image-anomaly-40-gstd0.3-taper0.1-eps0.05",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-thin40-taper0.2"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-40-gstd0.3-taper0.1"
 )
 
 print(inversion_metrics)
