@@ -27,7 +27,7 @@ geom2d = CreateGeometry2D(
     xdim=3.0,
     zdim=2.0,
     vmin=1.5,
-    vmax=2.5,
+    vmax=3.0,
     omega_max=omega_max,
     omega_min=omega_min
 )
@@ -53,14 +53,14 @@ ngridpoints_x = geom2d.gridpointsX
 ngridpoints_z = geom2d.gridpointsZ
 
 # Put Gaussian perturbation
-sigma_x_gaussian = 0.2
-sigma_z_gaussian = 0.2
+sigma_x_gaussian = 0.25
+sigma_z_gaussian = 0.25
 center_nx = int(ngridpoints_x / 2)
 center_nz = int(ngridpoints_z / 2.5)
 
-vel_true.set_constant_velocity(vel=2.3)
+vel_true.set_constant_velocity(vel=3.0)
 vel_true.create_gaussian_perturbation(
-    dvel=-0.6,
+    dvel=-1.5,
     sigma_x=sigma_x_gaussian,
     sigma_z=sigma_z_gaussian,
     nx=center_nx,
@@ -70,9 +70,9 @@ vel = vel_true.vel
 vel[:, center_nz + 199: center_nz + 200] = 2.0
 vel_true.vel = vel
 
-vel_start.set_constant_velocity(vel=2.3)
+vel_start.set_constant_velocity(vel=3.0)
 vel_start.create_gaussian_perturbation(
-    dvel=-0.6,
+    dvel=-1.5,
     sigma_x=sigma_x_gaussian,
     sigma_z=sigma_z_gaussian,
     nx=center_nx,
@@ -86,7 +86,7 @@ tfwilsq.veltrue.plot(
     title="True Model",
     pad=False,
     vmin=1.5,
-    vmax=2.3,
+    vmax=3.0,
     xlabel="X grid points",
     ylabel="Z grid points",
     savefile="Fig/veltrue-anomaly.pdf"
@@ -95,7 +95,7 @@ tfwilsq.velstart.plot(
     title="Starting Model",
     pad=False,
     vmin=1.5,
-    vmax=2.3,
+    vmax=3.0,
     xlabel="X grid points",
     ylabel="Z grid points",
     savefile="Fig/velstart-anomaly.pdf"
@@ -136,10 +136,10 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-anomaly-40-gstd0.3-taper0.1-eps0.1",
+    lsm_image_file="Fig/lsm-inverted-image-anomaly0.25-eps0.1",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-40-gstd0.3-taper0.1"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly0.25"
 )
 
 print(inversion_metrics)
