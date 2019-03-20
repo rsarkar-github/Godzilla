@@ -113,12 +113,12 @@ tfwilsq.apply_frequency_taper(
 )
 
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-    epsilon=0.05,
+    epsilon=0.1,
     gamma=0,
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-noanomaly-40-gstd0.3-taper0.1-eps0.05",
+    lsm_image_file="Fig/lsm-inverted-image-noanomaly-40-gstd0.3-taper0.1-eps0.1",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
     lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-40-gstd0.3-taper0.1"
