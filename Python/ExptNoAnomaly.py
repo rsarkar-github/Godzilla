@@ -27,7 +27,7 @@ geom2d = CreateGeometry2D(
     xdim=3.0,
     zdim=2.0,
     vmin=1.5,
-    vmax=2.5,
+    vmax=3.0,
     omega_max=omega_max,
     omega_min=omega_min
 )
@@ -44,7 +44,7 @@ print("Number of pad cells in Z", geom2d.ncellsZ_pad)
 skip_src = 10
 skip_rcv = 1
 acq2d = Acquisition2D(geometry2d=geom2d)
-acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=1.5)
+acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=2.0)
 
 # Create a default Velocity 2D object
 vel_true = Velocity2D(geometry2d=geom2d)
@@ -54,12 +54,12 @@ ngridpoints_z = geom2d.gridpointsZ
 
 # Put perturbation
 center_nz = int(ngridpoints_z / 2.5)
-vel_true.set_constant_velocity(vel=2.3)
+vel_true.set_constant_velocity(vel=3.0)
 vel = vel_true.vel
 vel[:, center_nz + 199: center_nz + 200] = 2.0
 vel_true.vel = vel
 
-vel_start.set_constant_velocity(vel=2.3)
+vel_start.set_constant_velocity(vel=3.0)
 
 # Create a Tfwi object
 tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_start, acquisition=acq2d)
@@ -68,7 +68,7 @@ tfwilsq.veltrue.plot(
     title="True Model",
     pad=False,
     vmin=1.5,
-    vmax=2.3,
+    vmax=3.0,
     xlabel="X grid points",
     ylabel="Z grid points",
     savefile="Fig/veltrue-noanomaly.pdf"
@@ -77,7 +77,7 @@ tfwilsq.velstart.plot(
     title="Starting Model",
     pad=False,
     vmin=1.5,
-    vmax=2.3,
+    vmax=3.0,
     xlabel="X grid points",
     ylabel="Z grid points",
     savefile="Fig/velstart-noanomaly.pdf"
@@ -94,7 +94,7 @@ tfwilsq.veltrue.plot_difference(
     savefile="Fig/veldiff-noanomaly.pdf"
 )
 
-omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 40.0).tolist()
+omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
 tfwilsq.omega_list = omega_list
 
 if not flat_spectrum:
@@ -113,15 +113,17 @@ tfwilsq.apply_frequency_taper(
 )
 
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-    epsilon=0.1,
+    epsilon=0.0,
     gamma=0,
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-noanomaly-40-gstd0.3-taper0.1-eps0.1",
+    lsm_image_file="Fig/lsm-inverted-image-noanomaly-maxoff2.0-eps0.0",
+    lsm_image_data_file="Data/lsm-inverted-image-noanomaly-maxoff2.0-eps0.0",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-40-gstd0.3-taper0.1"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-maxoff2.0",
+    lsm_adjoint_image_data_file="Data/lsm-adjoint-image-noanomaly-maxoff2.0"
 )
 
 print(inversion_metrics)

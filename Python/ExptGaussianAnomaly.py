@@ -136,10 +136,12 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image50-anomaly0.3-maxoff2.0-eps0.2",
+    lsm_image_file="Fig/lsm-inverted-image-anomaly0.3-maxoff2.0-eps0.2",
+    lsm_image_data_file="Data/lsm-inverted-image-anomaly0.3-maxoff2.0-eps0.2",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image50-anomaly0.3-maxoff2.0"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly0.3-maxoff2.0",
+    lsm_adjoint_image_data_file="Data/lsm-adjoint-image-anomaly0.3-maxoff2.0"
 )
 
 print(inversion_metrics)

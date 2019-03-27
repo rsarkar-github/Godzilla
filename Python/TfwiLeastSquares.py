@@ -195,9 +195,11 @@ class TfwiLeastSquares2D(object):
             save_lsm_image=True,
             save_lsm_allimages=False,
             lsm_image_file="lsm_image",
+            lsm_image_data_file="lsm_image_data",
             save_lsm_adjoint_image=True,
             save_lsm_adjoint_allimages=False,
-            lsm_adjoint_image_file="lsm_adjoint_image"
+            lsm_adjoint_image_file="lsm_adjoint_image",
+            lsm_adjoint_image_data_file="lsm_adjoint_image_data"
     ):
 
         print("Starting the conjugate gradient least squares migration...\n")
@@ -258,6 +260,12 @@ class TfwiLeastSquares2D(object):
                     savefile=lsm_adjoint_image_file + "-" + str(nomega) + ".pdf"
                 )
 
+            vec1 = np.reshape(
+                a=rhs,
+                newshape=(len(self.__omega_list), self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1)
+            )
+            np.savez(lsm_adjoint_image_data_file, vec1)
+
         # Plot adjoint image
         if save_lsm_adjoint_image:
             lsm_adjoint = np.zeros(shape=(nx_nopad * nz_nopad,), dtype=np.complex64)
@@ -271,6 +279,12 @@ class TfwiLeastSquares2D(object):
                 cmap="Greys",
                 savefile=lsm_adjoint_image_file + ".pdf"
             )
+
+            vec1 = np.reshape(
+                a=lsm_adjoint,
+                newshape=(self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1)
+            )
+            np.savez(lsm_adjoint_image_data_file + "_stack", vec1)
 
         ####################################################################################################
         # Inversion begins here
@@ -410,6 +424,12 @@ class TfwiLeastSquares2D(object):
                     savefile=lsm_image_file + "-" + str(nomega) + ".pdf"
                 )
 
+            vec1 = np.reshape(
+                a=x0,
+                newshape=(len(self.__omega_list), self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1)
+            )
+            np.savez(lsm_image_data_file, vec1)
+
         # Plot inverted image
         if save_lsm_image:
             lsm = np.zeros(shape=(nx_nopad * nz_nopad,), dtype=np.complex64)
@@ -423,6 +443,12 @@ class TfwiLeastSquares2D(object):
                 cmap="Greys",
                 savefile=lsm_image_file + ".pdf"
             )
+
+            vec1 = np.reshape(
+                a=lsm,
+                newshape=(self.__geometry2D.ncellsZ + 1, self.__geometry2D.ncellsX + 1)
+            )
+            np.savez(lsm_image_data_file + "_stack", vec1)
 
         return x0, metrics
 
