@@ -44,7 +44,7 @@ print("Number of pad cells in Z", geom2d.ncellsZ_pad)
 skip_src = 10
 skip_rcv = 1
 acq2d = Acquisition2D(geometry2d=geom2d)
-acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=1.5)
+acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=2.0)
 
 # Create a default Velocity 2D object
 vel_true = Velocity2D(geometry2d=geom2d)
@@ -53,8 +53,8 @@ ngridpoints_x = geom2d.gridpointsX
 ngridpoints_z = geom2d.gridpointsZ
 
 # Put Gaussian perturbation
-sigma_x_gaussian = 0.25
-sigma_z_gaussian = 0.25
+sigma_x_gaussian = 0.3
+sigma_z_gaussian = 0.3
 center_nx = int(ngridpoints_x / 2)
 center_nz = int(ngridpoints_z / 2.5)
 
@@ -112,7 +112,7 @@ tfwilsq.veltrue.plot_difference(
     savefile="Fig/veldiff-anomaly.pdf"
 )
 
-omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 40.0).tolist()
+omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
 tfwilsq.omega_list = omega_list
 
 if not flat_spectrum:
@@ -131,15 +131,15 @@ tfwilsq.apply_frequency_taper(
 )
 
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-    epsilon=0.1,
+    epsilon=0.2,
     gamma=0,
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-anomaly0.25-eps0.1",
+    lsm_image_file="Fig/lsm-inverted-image50-anomaly0.3-maxoff2.0-eps0.2",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly0.25"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image50-anomaly0.3-maxoff2.0"
 )
 
 print(inversion_metrics)
