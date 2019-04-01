@@ -39,6 +39,10 @@ print("Number of cells in X", geom2d.ncellsX)
 print("Number of cells in Z", geom2d.ncellsZ)
 print("Number of pad cells in X", geom2d.ncellsX_pad)
 print("Number of pad cells in Z", geom2d.ncellsZ_pad)
+print("Size in X", geom2d.dimX, " km")
+print("Size in Z", geom2d.dimZ, " km")
+print("Grid spacing in X", geom2d.dx, " km")
+print("Grid spacing in Z", geom2d.dz, " km")
 
 # Create acquisition object
 skip_src = 10
@@ -96,8 +100,8 @@ tfwilsq.veltrue.plot(
     pad=False,
     vmin=1.5,
     vmax=3.0,
-    xlabel="X grid points",
-    ylabel="Z grid points",
+    xlabel="X [km]",
+    ylabel="Z [km]",
     savefile="Fig/veltrue-anomaly.pdf"
 )
 tfwilsq.velstart.plot(
@@ -105,16 +109,16 @@ tfwilsq.velstart.plot(
     pad=False,
     vmin=1.5,
     vmax=3.0,
-    xlabel="X grid points",
-    ylabel="Z grid points",
+    xlabel="X [km]",
+    ylabel="Z [km]",
     savefile="Fig/velstart-anomaly.pdf"
 )
 tfwilsq.veltrue.plot_difference(
     vel_other=tfwilsq.velstart,
     pad=False,
     title="Model Difference",
-    xlabel="X grid points",
-    ylabel="Z grid points",
+    xlabel="X [km]",
+    ylabel="Z [km]",
     vmin=-0.5,
     vmax=0.5,
     cmap="Greys",

@@ -109,6 +109,7 @@ class Velocity2D(object):
             title="Velocity Difference",
             xlabel="X",
             ylabel="Z",
+            show_colorbar=True,
             colorlabel="km/s",
             vmin="",
             vmax="",
@@ -135,11 +136,29 @@ class Velocity2D(object):
 
             plt.figure()
             plt.imshow(np.transpose(vel_diff), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
-            cb = plt.colorbar()
-            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.gca().set_aspect("equal")
+
+            if show_colorbar:
+                cb = plt.colorbar()
+                cb.set_label(colorlabel, labelpad=-25, y=1.05, rotation=0)
+
             plt.xlabel(xlabel)
             plt.ylabel(ylabel)
             plt.title(title)
+
+            xlim = plt.xlim()
+            ylim = plt.ylim()
+
+            locs, _ = plt.xticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dx) for item in locs]
+            plt.xticks(locs, labels)
+
+            locs, _ = plt.yticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dz) for item in locs]
+            plt.yticks(locs, labels)
+
+            plt.xlim(xlim)
+            plt.ylim(ylim)
 
             if savefile is not "":
                 plt.savefig(savefile, bbox_inches="tight")
@@ -164,11 +183,29 @@ class Velocity2D(object):
 
             plt.figure()
             plt.imshow(np.transpose(vel_diff), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
-            cb = plt.colorbar()
-            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.gca().set_aspect("equal")
+
+            if show_colorbar:
+                cb = plt.colorbar()
+                cb.set_label(colorlabel, labelpad=-25, y=1.05, rotation=0)
+
             plt.xlabel(xlabel)
             plt.ylabel(ylabel)
             plt.title(title)
+
+            xlim = plt.xlim()
+            ylim = plt.ylim()
+
+            locs, _ = plt.xticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dx) for item in locs]
+            plt.xticks(locs, labels)
+
+            locs, _ = plt.yticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dz) for item in locs]
+            plt.yticks(locs, labels)
+
+            plt.xlim(xlim)
+            plt.ylim(ylim)
 
             if savefile is not "":
                 plt.savefig(savefile, bbox_inches="tight")
@@ -182,6 +219,7 @@ class Velocity2D(object):
             pad=True,
             xlabel="X",
             ylabel="Z",
+            show_colorbar=True,
             colorlabel="km/s",
             vmin="",
             vmax="",
@@ -200,11 +238,29 @@ class Velocity2D(object):
 
             plt.figure()
             plt.imshow(np.transpose(self.__vel), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
-            cb = plt.colorbar()
-            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.gca().set_aspect("equal")
+
+            if show_colorbar:
+                cb = plt.colorbar()
+                cb.set_label(colorlabel, labelpad=-25, y=1.05, rotation=0)
+
             plt.xlabel(xlabel)
             plt.ylabel(ylabel)
             plt.title(title)
+
+            xlim = plt.xlim()
+            ylim = plt.ylim()
+
+            locs, _ = plt.xticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dx) for item in locs]
+            plt.xticks(locs, labels)
+
+            locs, _ = plt.yticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dz) for item in locs]
+            plt.yticks(locs, labels)
+
+            plt.xlim(xlim)
+            plt.ylim(ylim)
 
             if savefile is not "":
                 plt.savefig(savefile, bbox_inches="tight")
@@ -225,11 +281,29 @@ class Velocity2D(object):
 
             plt.figure()
             plt.imshow(np.transpose(vel_nopad), origin="upper", vmin=vmin, vmax=vmax, cmap=cmap)
-            cb = plt.colorbar()
-            cb.set_label(colorlabel, labelpad=-40, y=1.05, rotation=0)
+            plt.gca().set_aspect("equal")
+
+            if show_colorbar:
+                cb = plt.colorbar()
+                cb.set_label(colorlabel, labelpad=-25, y=1.05, rotation=0)
+
             plt.xlabel(xlabel)
             plt.ylabel(ylabel)
             plt.title(title)
+
+            xlim = plt.xlim()
+            ylim = plt.ylim()
+
+            locs, _ = plt.xticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dx) for item in locs]
+            plt.xticks(locs, labels)
+
+            locs, _ = plt.yticks()
+            labels = ["{:4.2f}".format(item * self.__geometry2D.dz) for item in locs]
+            plt.yticks(locs, labels)
+
+            plt.xlim(xlim)
+            plt.ylim(ylim)
 
             if savefile is not "":
                 plt.savefig(savefile, bbox_inches="tight")

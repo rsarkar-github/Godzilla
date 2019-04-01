@@ -24,8 +24,8 @@ delay = 0.1
 
 # Create geometry object
 geom2d = CreateGeometry2D(
-    xdim=3.0,
-    zdim=2.0,
+    xdim=1.5,
+    zdim=1.0,
     vmin=1.5,
     vmax=3.0,
     omega_max=omega_max,
@@ -45,10 +45,10 @@ print("Grid spacing in X", geom2d.dx, " km")
 print("Grid spacing in Z", geom2d.dz, " km")
 
 # Create acquisition object
-skip_src = 10
+skip_src = 5
 skip_rcv = 1
 acq2d = Acquisition2D(geometry2d=geom2d)
-acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=2.0)
+acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=1.5)
 
 # Create a default Velocity 2D object
 vel_true = Velocity2D(geometry2d=geom2d)
@@ -56,14 +56,26 @@ vel_start = Velocity2D(geometry2d=geom2d)
 ngridpoints_x = geom2d.gridpointsX
 ngridpoints_z = geom2d.gridpointsZ
 
-# Put perturbation
-center_nz = int(ngridpoints_z / 2.5)
-vel_true.set_constant_velocity(vel=3.0)
-vel = vel_true.vel
-vel[:, center_nz + 199: center_nz + 200] = 2.0
-vel_true.vel = vel
-
+# Create starting velocity
 vel_start.set_constant_velocity(vel=3.0)
+
+# Put Gaussian perturbation in true model
+sigma_x_gaussian = 0.15
+sigma_z_gaussian = 0.15
+center_nx = int(ngridpoints_x / 2)
+center_nz = int(ngridpoints_z / 2.5)
+
+vel_true.set_constant_velocity(vel=3.0)
+vel_true.create_gaussian_perturbation(
+    dvel=-1.5,
+    sigma_x=sigma_x_gaussian,
+    sigma_z=sigma_z_gaussian,
+    nx=center_nx,
+    nz=center_nz
+)
+vel = vel_true.vel
+vel[:, center_nz + 99: center_nz + 100] = 2.0
+vel_true.vel = vel
 
 # Create a Tfwi object
 tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_start, acquisition=acq2d)
@@ -75,7 +87,7 @@ tfwilsq.veltrue.plot(
     vmax=3.0,
     xlabel="X [km]",
     ylabel="Z [km]",
-    savefile="Fig/veltrue-noanomaly.pdf"
+    savefile="Fig/veltrue-anomaly.pdf"
 )
 tfwilsq.velstart.plot(
     title="Starting Model",
@@ -84,7 +96,7 @@ tfwilsq.velstart.plot(
     vmax=3.0,
     xlabel="X [km]",
     ylabel="Z [km]",
-    savefile="Fig/velstart-noanomaly.pdf"
+    savefile="Fig/velstart-anomaly.pdf"
 )
 tfwilsq.veltrue.plot_difference(
     vel_other=tfwilsq.velstart,
@@ -95,7 +107,7 @@ tfwilsq.veltrue.plot_difference(
     vmin=-0.5,
     vmax=0.5,
     cmap="Greys",
-    savefile="Fig/veldiff-noanomaly.pdf"
+    savefile="Fig/veldiff-anomaly.pdf"
 )
 
 omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
@@ -122,12 +134,12 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-noanomaly-maxoff2.0-eps0.0",
-    lsm_image_data_file="Data/lsm-inverted-image-noanomaly-maxoff2.0-eps0.0",
+    lsm_image_file="Fig/lsm-inverted-image-gacb-eps0.0",
+    lsm_image_data_file="Data/lsm-inverted-image-gacb-eps0.0",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-maxoff2.0",
-    lsm_adjoint_image_data_file="Data/lsm-adjoint-image-noanomaly-maxoff2.0"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-gacb",
+    lsm_adjoint_image_data_file="Data/lsm-adjoint-image-gacb"
 )
 
 print(inversion_metrics)
