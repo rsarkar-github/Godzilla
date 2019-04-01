@@ -47,7 +47,7 @@ acq2d = Acquisition2D(geometry2d=geom2d)
 acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=2.0)
 
 # Create centered acquisition hole
-acqhole_width = 0.5
+acqhole_width = 1.0
 acq2d.crop_sources_receivers_bounding_box(
     nx_start=int(0.5 * geom2d.ncellsX) - int(0.5 * acqhole_width / geom2d.dx),
     nx_end=int(0.5 * geom2d.ncellsX) + int(0.5 * acqhole_width / geom2d.dx),
@@ -145,12 +145,12 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-anomaly0.3-maxoff2.0-hole0.5-eps0.2",
-    lsm_image_data_file="Data/lsm-inverted-image-anomaly0.3-maxoff2.0-hole0.5-eps0.2",
+    lsm_image_file="Fig/lsm-inverted-image-anomaly0.3-maxoff2.0-hole1.0-eps0.2",
+    lsm_image_data_file="Data/lsm-inverted-image-anomaly0.3-maxoff2.0-hole1.0-eps0.2",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly0.3-maxoff2.0-hole0.5",
-    lsm_adjoint_image_data_file="Data/lsm-adjoint-image-anomaly0.3-maxoff2.0-hole0.5"
+    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly0.3-maxoff2.0-hole1.0",
+    lsm_adjoint_image_data_file="Data/lsm-adjoint-image-anomaly0.3-maxoff2.0-hole1.0"
 )
 
 print(inversion_metrics)
