@@ -24,8 +24,8 @@ delay = 0.1
 
 # Create geometry object
 geom2d = CreateGeometry2D(
-    xdim=1.5,
-    zdim=1.0,
+    xdim=1.0,
+    zdim=0.75,
     vmin=1.5,
     vmax=3.0,
     omega_max=omega_max,
@@ -45,10 +45,10 @@ print("Grid spacing in X", geom2d.dx, " km")
 print("Grid spacing in Z", geom2d.dz, " km")
 
 # Create acquisition object
-skip_src = 5
+skip_src = 10
 skip_rcv = 1
 acq2d = Acquisition2D(geometry2d=geom2d)
-acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=1.5)
+acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=1.0)
 
 # Create a default Velocity 2D object
 vel_true = Velocity2D(geometry2d=geom2d)
@@ -60,8 +60,8 @@ ngridpoints_z = geom2d.gridpointsZ
 vel_start.set_constant_velocity(vel=3.0)
 
 # Put Gaussian perturbation in true model
-sigma_x_gaussian = 0.15
-sigma_z_gaussian = 0.15
+sigma_x_gaussian = 0.1
+sigma_z_gaussian = 0.1
 center_nx = int(ngridpoints_x / 2)
 center_nz = int(ngridpoints_z / 2.5)
 
@@ -74,7 +74,7 @@ vel_true.create_gaussian_perturbation(
     nz=center_nz
 )
 vel = vel_true.vel
-vel[:, center_nz + 99: center_nz + 100] = 2.0
+vel[:, center_nz + 69: center_nz + 70] = 2.0
 vel_true.vel = vel
 
 # Create a Tfwi object
