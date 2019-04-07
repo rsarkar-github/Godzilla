@@ -58,9 +58,11 @@ class TfwiLeastSquares2D(object):
         ################################################################################################################
         # Objects which are purely internal
         self.__matfac_velstart = None
-        self.__matfac_velstart_t = None
+        self.__matfac_velstart_h = None
         self.__true_data = None
         self.__residual = None
+        self.__epsilon = 0.0
+        self.__gamma = 0.0
 
     def set_constant_starting_model(self, value=None):
 
@@ -138,7 +140,7 @@ class TfwiLeastSquares2D(object):
 
         # Initialize list for pre-computed LU factors
         self.__matfac_velstart = []
-        self.__matfac_velstart_t = []
+        self.__matfac_velstart_h = []
 
         # Loop over frequencies
         print("Looping over frequencies...\n")
@@ -154,7 +156,7 @@ class TfwiLeastSquares2D(object):
             mat = helmholtz_velstart.create_matrix(omega)
             matfac_lu = splu(mat)
             mat = helmholtz_velstart.create_matrix(omega, conjugate_flag=True)
-            matfac_lu_t = splu(mat)
+            matfac_lu_h = splu(mat)
             time_fac_end = time.time()
 
             print("Matrix factorized. Time for factorization of matrix and its transpose = ",
@@ -162,7 +164,7 @@ class TfwiLeastSquares2D(object):
             cum_time_matfac += (time_fac_end - time_fac_start)
 
             self.__matfac_velstart.append(matfac_lu)
-            self.__matfac_velstart_t.append(matfac_lu_t)
+            self.__matfac_velstart_h.append(matfac_lu_h)
 
         # Print total time for matrix factorization
         print("Matrix factorization for ", len(self.__omega_list), " frequencies took ", cum_time_matfac, "s\n\n")
@@ -188,10 +190,10 @@ class TfwiLeastSquares2D(object):
 
     def perform_lsm_cg(
             self,
-            epsilon=1.0,
-            gamma=1.0,
+            epsilon=0.0,
+            gamma=0.0,
             init_model=None,
-            niter=1000,
+            niter=50,
             save_lsm_image=True,
             save_lsm_allimages=False,
             lsm_image_file="lsm_image",
@@ -205,12 +207,16 @@ class TfwiLeastSquares2D(object):
         print("Starting the conjugate gradient least squares migration...\n")
 
         ####################################################################################################
+        # Set epsilon and gamma
+        ####################################################################################################
+        self.__epsilon = epsilon
+        self.__gamma = gamma
+
+        ####################################################################################################
         # Get quantities needed throughout the computation
         ####################################################################################################
 
         # Get grid point info
-        nx_solver = self.__geometry2D.gridpointsX - 2
-        nz_solver = self.__geometry2D.gridpointsZ - 2
         nx_nopad = self.__geometry2D.ncellsX + 1
         nz_nopad = self.__geometry2D.ncellsZ + 1
         num_omega = len(self.__omega_list)
@@ -224,8 +230,8 @@ class TfwiLeastSquares2D(object):
 
         print("Starting the pre-compute phase...\n")
 
-        if self.__matfac_velstart is None or self.__matfac_velstart_t is None:
-            print("self.__matfac_velstart or self.__matfac_velstart_t is None...")
+        if self.__matfac_velstart is None or self.__matfac_velstart_h is None:
+            print("self.__matfac_velstart or self.__matfac_velstart_h is None...")
             print("Computing matrix factorizations")
             self.compute_matrix_factorizations()
             print("Finished computing matrix factorizations")
@@ -290,109 +296,6 @@ class TfwiLeastSquares2D(object):
         # Inversion begins here
         ####################################################################################################
 
-        # Linear operator
-        def matrix_apply(vector):
-
-            # Get velocity on modeling grid
-            vel_cube = self.__velstart.vel[1:(nx_solver + 1), 1:(nz_solver + 1)] ** 3
-            vel_cube = vel_cube.flatten()
-
-            # Shot Receiver information needed
-            num_src, start_rcv_index, _, num_rcv = self.__get_shot_receiver_info()
-
-            # Initialize output vector
-            matrix_times_vector = np.zeros(
-                shape=(num_omega * nx_nopad * nz_nopad,),
-                dtype=np.complex64
-            )
-
-            # Add modeling term
-            b = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
-            b1 = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
-
-            for nomega_ in range(num_omega):
-
-                # Extract rhs
-                self.__nopad_grid_2_modeling_grid(
-                    vec_nopad_grid=vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad],
-                    vec_model_grid=b1,
-                    add_flag=False
-                )
-
-                # Loop over shots
-                for nshot in range(num_src):
-
-                    # Get relative index of shot wrt Helmholtz grid
-                    shot_rel_index_x = self.__acquisition.sources[nshot][0] - 1
-                    shot_rel_index_z = self.__acquisition.sources[nshot][1] - 1
-                    shot_grid_index = (nx_solver * shot_rel_index_z) + shot_rel_index_x
-
-                    # Solve for primary wave field
-                    b = b * 0
-                    b[shot_grid_index] = self.__wavelet[nomega_]
-                    u = self.__matfac_velstart[nomega_].solve(rhs=b)
-
-                    # Multiply primary wavefield with 2 * omega^2 / c^3
-                    u = u * (2.0 * self.__omega_list[nomega_] * self.__omega_list[nomega_])
-                    u = u / vel_cube
-
-                    # Multiply with rhs
-                    b = u * b1
-
-                    # Solve the Helmholtz equation
-                    b = self.__matfac_velstart[nomega_].solve(rhs=b)
-
-                    # Backproject
-                    data = self.__restriction_operator(
-                        rcv_indices=self.__acquisition.receivers[nshot], b=b, nx=nx_solver
-                    )
-                    b = b * 0
-                    for i, rcv_index in enumerate(self.__acquisition.receivers[nshot]):
-                        receiver_rel_index_x = rcv_index[0] - 1
-                        receiver_rel_index_z = rcv_index[1] - 1
-                        receiver_grid_index = (nx_solver * receiver_rel_index_z) + receiver_rel_index_x
-                        b[receiver_grid_index] = data[i]
-
-                    # Solve the Helmholtz equation (Hermitian conjugate)
-                    b = self.__matfac_velstart_t[nomega_].solve(rhs=b)
-
-                    # Multiply with conjugate of primary wavefield
-                    b = b * np.conjugate(u)
-
-                    # Add to result
-                    self.__modeling_grid_2_nopad_grid(
-                        vec_model_grid=b,
-                        vec_nopad_grid=matrix_times_vector[
-                                       nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad
-                                       ],
-                        add_flag=True
-                    )
-
-            # Garbage collect
-            gc.collect()
-
-            # Add regularization term
-            f1 = (epsilon ** 2) / (abs(self.__omega_list[1] - self.__omega_list[0]) ** 2)
-            f2 = 2 * f1 + gamma ** 2
-            f3 = f1 + gamma ** 2
-
-            matrix_times_vector[0: nx_nopad * nz_nopad] += \
-                f3 * vector[0: nx_nopad * nz_nopad] - \
-                f1 * vector[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
-
-            for nomega_ in range(1, num_omega - 1):
-                matrix_times_vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
-                    f2 * vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
-                    f1 * vector[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
-                    f1 * vector[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
-
-            matrix_times_vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
-                f3 * vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
-                f1 * vector[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
-
-            # Return answer
-            return matrix_times_vector
-
         # Set starting solution
         if init_model is None:
             x0 = rhs * 0
@@ -402,8 +305,8 @@ class TfwiLeastSquares2D(object):
         print("Starting the inversion phase...\n")
 
         # Perform CG (conjugate gradient)
-        x0, metrics = LinearSolvers.conjugate_gradients(
-            linear_operator=matrix_apply,
+        x0, metrics = LinearSolvers.conjugate_gradient(
+            linear_operator=self.__apply_normal_equation_operator,
             rhs=rhs,
             x0=x0,
             niter=niter
@@ -774,7 +677,7 @@ class TfwiLeastSquares2D(object):
                     start_index=start_rcv_index[nshot],
                     residual=residual
                 )
-                b = self.__matfac_velstart_t[nomega].solve(rhs=b)
+                b = self.__matfac_velstart_h[nomega].solve(rhs=b)
 
                 # Multiply with adjoint of primary wavefield
                 b = b * np.conjugate(u)
@@ -815,7 +718,7 @@ class TfwiLeastSquares2D(object):
     def __modeling_grid_2_nopad_grid(self, vec_model_grid, vec_nopad_grid, add_flag=False):
 
         if not add_flag:
-            vec_nopad_grid = vec_nopad_grid * 0
+            vec_nopad_grid *= 0
 
         # Get model grid point info, pad info, nopad grid info
         nx_model = self.__geometry2D.gridpointsX - 2
@@ -836,7 +739,7 @@ class TfwiLeastSquares2D(object):
     def __nopad_grid_2_modeling_grid(self, vec_nopad_grid, vec_model_grid, add_flag=False):
 
         if not add_flag:
-            vec_model_grid = vec_model_grid * 0
+            vec_model_grid *= 0
 
         # Get model grid point info, pad info, nopad grid info
         nx_model = self.__geometry2D.gridpointsX - 2
@@ -872,7 +775,117 @@ class TfwiLeastSquares2D(object):
 
         return backprojection
 
-    def __apply_forward(self, vector):
+    def __apply_normal_equation_operator(self, vector_in, vector_out, add_flag=False):
+
+        if not add_flag:
+            vector_out *= 0
+
+        # Get grid point info
+        nx_solver = self.__geometry2D.gridpointsX - 2
+        nz_solver = self.__geometry2D.gridpointsZ - 2
+        nx_nopad = self.__geometry2D.ncellsX + 1
+        nz_nopad = self.__geometry2D.ncellsZ + 1
+        num_omega = len(self.__omega_list)
+
+        # Get velocity on modeling grid
+        vel_cube = self.__velstart.vel[1:(nx_solver + 1), 1:(nz_solver + 1)] ** 3
+        vel_cube = vel_cube.flatten()
+
+        # Shot Receiver information needed
+        num_src, start_rcv_index, _, num_rcv = self.__get_shot_receiver_info()
+
+        # Add modeling term
+        u = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
+        b = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
+        b1 = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
+
+        for nomega in range(num_omega):
+
+            # Extract rhs
+            self.__nopad_grid_2_modeling_grid(
+                vec_nopad_grid=vector_in[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad],
+                vec_model_grid=b,
+                add_flag=False
+            )
+
+            # Multiply with 2 * omega^2 / c^3
+            b1 *= 0
+            b1 += 2.0 * self.__omega_list[nomega] * self.__omega_list[nomega]
+            b1 /= vel_cube
+
+            # Loop over shots
+            for nshot in range(num_src):
+
+                # Get relative index of shot wrt Helmholtz grid
+                shot_rel_index_x = self.__acquisition.sources[nshot][0] - 1
+                shot_rel_index_z = self.__acquisition.sources[nshot][1] - 1
+                shot_grid_index = (nx_solver * shot_rel_index_z) + shot_rel_index_x
+
+                # Solve for primary wave field
+                u *= 0
+                u[shot_grid_index] = self.__wavelet[nomega]
+                u = self.__matfac_velstart[nomega].solve(rhs=u)
+
+                # Multiply with b1 * u
+                u *= b1
+                b *= u
+
+                # Solve the Helmholtz equation
+                b = self.__matfac_velstart[nomega].solve(rhs=b)
+
+                # Backproject
+                data = self.__restriction_operator(
+                    rcv_indices=self.__acquisition.receivers[nshot], b=b, nx=nx_solver
+                )
+                b *= 0
+                for i, rcv_index in enumerate(self.__acquisition.receivers[nshot]):
+                    receiver_rel_index_x = rcv_index[0] - 1
+                    receiver_rel_index_z = rcv_index[1] - 1
+                    receiver_grid_index = (nx_solver * receiver_rel_index_z) + receiver_rel_index_x
+                    b[receiver_grid_index] = data[i]
+
+                # Solve the Helmholtz equation (Hermitian conjugate)
+                b = self.__matfac_velstart_h[nomega].solve(rhs=b)
+
+                # Multiply with conjugate of primary wavefield
+                b *= np.conjugate(u)
+
+                # Add to result
+                self.__modeling_grid_2_nopad_grid(
+                    vec_model_grid=b,
+                    vec_nopad_grid=vector_out[
+                                   nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad
+                                   ],
+                    add_flag=True
+                )
+
+        # Garbage collect
+        del u, b, b1
+        gc.collect()
+
+        # Add regularization term
+        f1 = (self.__epsilon ** 2) / (abs(self.__omega_list[1] - self.__omega_list[0]) ** 2)
+        f2 = 2 * f1 + self.__gamma ** 2
+        f3 = f1 + self.__gamma ** 2
+
+        vector_out[0: nx_nopad * nz_nopad] += \
+            f3 * vector_in[0: nx_nopad * nz_nopad] - \
+            f1 * vector_in[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
+
+        for nomega_ in range(1, num_omega - 1):
+            vector_out[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
+                f2 * vector_in[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
+                f1 * vector_in[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
+                f1 * vector_in[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
+
+        vector_out[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
+            f3 * vector_in[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
+            f1 * vector_in[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
+
+    def __apply_forward(self, vector_in, vector_out, add_flag=False):
+
+        if not add_flag:
+            vector_out *= 0
 
         # Get grid point info
         nx_solver = self.__geometry2D.gridpointsX - 2
@@ -882,9 +895,6 @@ class TfwiLeastSquares2D(object):
 
         # Shot Receiver information
         num_src, start_rcv_index, end_rcv_index, num_rcv = self.__get_shot_receiver_info()
-
-        # Allocate space for storing true data
-        vector_out = np.zeros(shape=(len(self.__omega_list) * num_rcv,), dtype=np.complex64)
 
         # Get velocity on modeling grid
         vel_cube = self.__velstart.vel[1:(nx_solver + 1), 1:(nz_solver + 1)] ** 3
@@ -896,16 +906,16 @@ class TfwiLeastSquares2D(object):
 
         for nomega, omega in enumerate(self.__omega_list):
 
-            # Extract rhs
+            # Extract extended model
             self.__nopad_grid_2_modeling_grid(
-                vec_nopad_grid=vector[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad],
+                vec_nopad_grid=vector_in[nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad],
                 vec_model_grid=b,
                 add_flag=False
             )
 
             # Multiply with 2 * omega^2 / c^3
-            b = b * (2.0 * self.__omega_list[nomega] * self.__omega_list[nomega])
-            b = b / vel_cube
+            b *= 2.0 * self.__omega_list[nomega] * self.__omega_list[nomega]
+            b /= vel_cube
 
             # Loop over shots
             for nshot in range(num_src):
@@ -916,22 +926,100 @@ class TfwiLeastSquares2D(object):
                 shot_grid_index = (nx_solver * shot_rel_index_z) + shot_rel_index_x
 
                 # Solve for primary wave field
-                u = u * 0
+                u *= 0
                 u[shot_grid_index] = self.__wavelet[nomega]
                 u = self.__matfac_velstart[nomega].solve(rhs=u)
 
                 # Multiply with b
-                b = u * b
+                u *= b
 
                 # Solve the Helmholtz equation
-                b = self.__matfac_velstart[nomega].solve(rhs=b)
+                u = self.__matfac_velstart[nomega].solve(rhs=u)
 
                 # Sample wave field at receivers
                 start = nomega * num_rcv + start_rcv_index[nshot]
                 end = nomega * num_rcv + end_rcv_index[nshot]
-                vector_out[start: end] = self.__restriction_operator(
-                    rcv_indices=self.__acquisition.receivers[nshot], b=b, nx=nx_solver
+                vector_out[start: end] += self.__restriction_operator(
+                    rcv_indices=self.__acquisition.receivers[nshot], b=u, nx=nx_solver
                 )
+
+        # Garbage collect
+        gc.collect()
+
+    def __apply_adjoint(self, vector_in, vector_out, add_flag=False):
+
+        if not add_flag:
+            vector_out *= 0
+
+        # Get grid point info
+        nx_solver = self.__geometry2D.gridpointsX - 2
+        nz_solver = self.__geometry2D.gridpointsZ - 2
+        nx_nopad = self.__geometry2D.ncellsX + 1
+        nz_nopad = self.__geometry2D.ncellsZ + 1
+
+        # Shot Receiver information
+        num_src, start_rcv_index, end_rcv_index, num_rcv = self.__get_shot_receiver_info()
+
+        # Get velocity on modeling grid
+        vel_cube = self.__velstart.vel[1:(nx_solver + 1), 1:(nz_solver + 1)] ** 3
+        vel_cube = vel_cube.flatten()
+
+        # Initialize vectors
+        u = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
+        b = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
+        b1 = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
+
+        for nomega, omega in enumerate(self.__omega_list):
+
+            # Multiply with 2 * omega^2 / c^3
+            b *= 0
+            b += 2.0 * self.__omega_list[nomega] * self.__omega_list[nomega]
+            b /= vel_cube
+
+            # Loop over shots
+            for nshot in range(num_src):
+
+                # Get relative index of shot wrt Helmholtz grid
+                shot_rel_index_x = self.__acquisition.sources[nshot][0] - 1
+                shot_rel_index_z = self.__acquisition.sources[nshot][1] - 1
+                shot_grid_index = (nx_solver * shot_rel_index_z) + shot_rel_index_x
+
+                # Solve for primary wave field
+                u *= 0
+                u[shot_grid_index] = self.__wavelet[nomega]
+                u = self.__matfac_velstart[nomega].solve(rhs=u)
+
+                u = b * np.conjugate(u)
+
+                # Backproject
+                start = nomega * num_rcv + start_rcv_index[nshot]
+                end = nomega * num_rcv + end_rcv_index[nshot]
+                data = vector_in[start: end]
+
+                b1 *= 0
+                for i, rcv_index in enumerate(self.__acquisition.receivers[nshot]):
+                    receiver_rel_index_x = rcv_index[0] - 1
+                    receiver_rel_index_z = rcv_index[1] - 1
+                    receiver_grid_index = (nx_solver * receiver_rel_index_z) + receiver_rel_index_x
+                    b1[receiver_grid_index] = data[i]
+
+                # Solve the Helmholtz equation (Hermitian conjugate)
+                b1 = self.__matfac_velstart_h[nomega].solve(rhs=b1)
+
+                # Multiply by u
+                b1 *= u
+
+                # Add to result
+                self.__modeling_grid_2_nopad_grid(
+                    vec_model_grid=b1,
+                    vec_nopad_grid=vector_out[
+                                   nomega * nx_nopad * nz_nopad: (nomega + 1) * nx_nopad * nz_nopad
+                                   ],
+                    add_flag=True
+                )
+
+        # Garbage collect
+        gc.collect()
 
     """
     # Methods below need to be checked thoroughly
@@ -1002,17 +1090,19 @@ class TfwiLeastSquares2D(object):
             print("self.__matfac_velstart already deleted.")
 
         try:
-            del self.__matfac_velstart_t
+            del self.__matfac_velstart_h
         except AttributeError:
-            print("self.__matfac_velstart_t already deleted.")
+            print("self.__matfac_velstart_h already deleted.")
 
         collected = gc.collect()
         print("Garbage collector: collected %d objects." % collected)
 
         self.__matfac_velstart = None
-        self.__matfac_velstart_t = None
+        self.__matfac_velstart_h = None
         self.__true_data = None
         self.__residual = None
+        self.__epsilon = 0.0
+        self.__gamma = 0.0
 
     def __plot_nopad_vec_real(
             self,

@@ -16,7 +16,7 @@ TODO:
 """
 
 
-def conjugate_gradients(linear_operator, rhs, x0, niter, printobj=False):
+def conjugate_gradient(linear_operator, rhs, x0, niter, printobj=False):
 
     TypeChecker.check_int_positive(x=niter)
 
@@ -30,8 +30,13 @@ def conjugate_gradients(linear_operator, rhs, x0, niter, printobj=False):
     rhs_new = rhs / fac
     x = x0 / fac
 
+    # Define temporary variables
+    y = x * 0
+    matrix_times_p = x * 0
+
     # Calculate initial residual, and residual norm
-    r = rhs_new - linear_operator(x)
+    linear_operator(x, y)
+    r = rhs_new - y
     r_norm = np.linalg.norm(x=r)
     if r_norm < 1e-12:
         return x0, [r_norm]
@@ -43,7 +48,8 @@ def conjugate_gradients(linear_operator, rhs, x0, niter, printobj=False):
     # Initialize residual array, iteration array
     residual = [r_norm]
     if printobj:
-        objective = [np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new))]
+        linear_operator(x, y)
+        objective = [np.real(0.5 * np.vdot(x, y) - np.vdot(x, rhs_new))]
 
     # Run CG iterations
     for num_iter in range(niter):
@@ -63,7 +69,7 @@ def conjugate_gradients(linear_operator, rhs, x0, niter, printobj=False):
             )
 
         # Compute A*p and alpha
-        matrix_times_p = linear_operator(p)
+        linear_operator(p, matrix_times_p)
         alpha = r_norm_sq / np.vdot(p, matrix_times_p)
 
         # Update x0, residual
@@ -86,7 +92,8 @@ def conjugate_gradients(linear_operator, rhs, x0, niter, printobj=False):
         # Update residual array, iteration array
         residual.append(r_norm_new)
         if printobj:
-            objective.append(np.real(0.5 * np.vdot(x, linear_operator(x)) - np.vdot(x, rhs_new)))
+            linear_operator(x, y)
+            objective.append(np.real(0.5 * np.vdot(x, y) - np.vdot(x, rhs_new)))
 
         t2 = time.time()
         print("Iteration took ", t2 - t1, " s\n")
@@ -103,8 +110,7 @@ if __name__ == "__main__":
     dim = 30
 
     a = np.zeros((dim, dim), dtype=np.complex64)
-    a += np.random.rand(dim, dim).astype(dtype=np.complex64) \
-         + 1j * np.random.rand(dim, dim).astype(dtype=np.complex64)
+    a += np.random.rand(dim, dim).astype(dtype=np.complex64) + 1j * np.random.rand(dim, dim).astype(dtype=np.complex64)
     q, _ = np.linalg.qr(a)
     d = np.random.uniform(low=1, high=2, size=(dim,)).astype(dtype=np.complex64)
 
@@ -116,11 +122,13 @@ if __name__ == "__main__":
     x0 = np.zeros((dim,), dtype=np.complex64)
 
     # The operator
-    def linop(x):
-        return np.dot(mat, x)
+    def linop(x, y, add_flag=False):
+        if not add_flag:
+            y *= 0
+        y += np.dot(mat, x)
 
     # Solve
-    x0, res = conjugate_gradients(linear_operator=linop, rhs=b, x0=x0, niter=10)
+    x0, res = conjugate_gradient(linear_operator=linop, rhs=b, x0=x0, niter=10, printobj=True)
 
     # Print solution
     print("\nTrue solution:")
