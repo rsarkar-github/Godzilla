@@ -146,7 +146,7 @@ tfwilsq.apply_frequency_taper(
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     epsilon=0.2,
     gamma=0,
-    niter=5,
+    niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
     lsm_image_file="Fig/lsm-inverted-image-anomaly0.3-maxoff2.0-hole1.0-eps0.2",

@@ -131,7 +131,7 @@ tfwilsq.apply_frequency_taper(
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     epsilon=0.0,
     gamma=0,
-    niter=30,
+    niter=10,
     save_lsm_image=True,
     save_lsm_allimages=True,
     lsm_image_file="Fig/lsm-inverted-image-gacb-eps0.0",
