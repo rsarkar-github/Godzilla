@@ -110,7 +110,7 @@ tfwilsq.veltrue.plot_difference(
     savefile="Fig/veldiff-anomaly.pdf"
 )
 
-omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 10.0).tolist()
+omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
 tfwilsq.omega_list = omega_list
 
 if not flat_spectrum:
@@ -131,7 +131,7 @@ tfwilsq.apply_frequency_taper(
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     epsilon=0.0,
     gamma=0,
-    niter=10,
+    niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
     lsm_image_file="Fig/lsm-inverted-image-gacb-eps0.0",
