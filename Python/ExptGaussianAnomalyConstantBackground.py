@@ -110,7 +110,7 @@ tfwilsq.veltrue.plot_difference(
     savefile="Fig/veldiff-anomaly.pdf"
 )
 
-omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
+omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 10.0).tolist()
 tfwilsq.omega_list = omega_list
 
 if not flat_spectrum:

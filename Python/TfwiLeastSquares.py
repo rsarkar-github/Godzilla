@@ -775,7 +775,7 @@ class TfwiLeastSquares2D(object):
 
         return backprojection
 
-    def __apply_normal_equation_operator(self, vector, matrix_times_vector, add_flag=False):
+    def __apply_normal_equation_operator(self, vector_in, vector_out, add_flag=False):
 
         # Get grid point info
         nx_solver = self.__geometry2D.gridpointsX - 2
@@ -799,7 +799,7 @@ class TfwiLeastSquares2D(object):
 
             # Extract rhs
             self.__nopad_grid_2_modeling_grid(
-                vec_nopad_grid=vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad],
+                vec_nopad_grid=vector_in[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad],
                 vec_model_grid=b1,
                 add_flag=False
             )
@@ -846,11 +846,9 @@ class TfwiLeastSquares2D(object):
 
                 # Add to result
                 self.__modeling_grid_2_nopad_grid(
-                        vec_model_grid=b,
-                        vec_nopad_grid=matrix_times_vector[
-                                       nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad
-                                       ],
-                        add_flag=True
+                    vec_model_grid=b,
+                    vec_nopad_grid=vector_out[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad],
+                    add_flag=True
                 )
 
         # Garbage collect
@@ -861,19 +859,19 @@ class TfwiLeastSquares2D(object):
         f2 = 2 * f1 + self.__gamma ** 2
         f3 = f1 + self.__gamma ** 2
 
-        matrix_times_vector[0: nx_nopad * nz_nopad] += \
-            f3 * vector[0: nx_nopad * nz_nopad] - \
-            f1 * vector[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
+        vector_out[0: nx_nopad * nz_nopad] += \
+            f3 * vector_in[0: nx_nopad * nz_nopad] - \
+            f1 * vector_in[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
 
         for nomega_ in range(1, num_omega - 1):
-            matrix_times_vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
-                f2 * vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
-                f1 * vector[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
-                f1 * vector[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
+            vector_out[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
+                f2 * vector_in[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
+                f1 * vector_in[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
+                f1 * vector_in[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
 
-        matrix_times_vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
-            f3 * vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
-            f1 * vector[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
+        vector_out[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
+            f3 * vector_in[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
+            f1 * vector_in[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
 
     def __aapply_normal_equation_operator(self, vector_in, vector_out, add_flag=False):
 
