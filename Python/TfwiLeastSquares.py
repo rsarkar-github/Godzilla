@@ -889,6 +889,9 @@ class TfwiLeastSquares2D(object):
 
     def __apply_normal_equation_operator(self, vector_in, vector_out, add_flag=False):
 
+        if not add_flag:
+            vector_out *= 0
+
         # Get grid point info
         nx_solver = self.__geometry2D.gridpointsX - 2
         nz_solver = self.__geometry2D.gridpointsZ - 2
