@@ -809,9 +809,9 @@ class TfwiLeastSquares2D(object):
             )
 
             # Multiply with 2 * omega^2 / c^3
-            b1 *= 0
-            b1 += 2.0 * self.__omega_list[nomega] * self.__omega_list[nomega]
-            b1 /= vel_cube
+            b1 = b1 * 0
+            b1 = b1 + 2.0 * self.__omega_list[nomega] * self.__omega_list[nomega]
+            b1 = b1 / vel_cube
 
             # Loop over shots
             for nshot in range(num_src):
@@ -863,24 +863,24 @@ class TfwiLeastSquares2D(object):
         del u, b, b1
         gc.collect()
 
-        # Add regularization term
-        f1 = (self.__epsilon ** 2) / (abs(self.__omega_list[1] - self.__omega_list[0]) ** 2)
-        f2 = 2 * f1 + self.__gamma ** 2
-        f3 = f1 + self.__gamma ** 2
-
-        vector_out[0: nx_nopad * nz_nopad] += \
-            f3 * vector_in[0: nx_nopad * nz_nopad] - \
-            f1 * vector_in[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
-
-        for nomega_ in range(1, num_omega - 1):
-            vector_out[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
-                f2 * vector_in[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
-                f1 * vector_in[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
-                f1 * vector_in[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
-
-        vector_out[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
-            f3 * vector_in[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
-            f1 * vector_in[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
+        # # Add regularization term
+        # f1 = (self.__epsilon ** 2) / (abs(self.__omega_list[1] - self.__omega_list[0]) ** 2)
+        # f2 = 2 * f1 + self.__gamma ** 2
+        # f3 = f1 + self.__gamma ** 2
+        #
+        # vector_out[0: nx_nopad * nz_nopad] += \
+        #     f3 * vector_in[0: nx_nopad * nz_nopad] - \
+        #     f1 * vector_in[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
+        #
+        # for nomega_ in range(1, num_omega - 1):
+        #     vector_out[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
+        #         f2 * vector_in[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
+        #         f1 * vector_in[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
+        #         f1 * vector_in[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
+        #
+        # vector_out[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
+        #     f3 * vector_in[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
+        #     f1 * vector_in[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
 
     def __apply_forward(self, vector_in, vector_out, add_flag=False):
 
