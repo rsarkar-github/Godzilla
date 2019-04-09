@@ -410,19 +410,19 @@ class TfwiLeastSquares2D(object):
         print("Starting the inversion phase...\n")
 
         # Perform CG (conjugate gradient)
-        # x0, metrics = LinearSolvers.conjugate_gradient(
-        #     linear_operator=self.__apply_normal_equation_operator,
-        #     rhs=rhs,
-        #     x0=x0,
-        #     niter=niter
-        # )
-
-        x0, metrics = LinearSolvers.conjugate_gradients(
-            linear_operator=matrix_apply,
+        x0, metrics = LinearSolvers.conjugate_gradient(
+            linear_operator=self.__apply_normal_equation_operator,
             rhs=rhs,
             x0=x0,
             niter=niter
         )
+
+        # x0, metrics = LinearSolvers.conjugate_gradients(
+        #     linear_operator=matrix_apply,
+        #     rhs=rhs,
+        #     x0=x0,
+        #     niter=niter
+        # )
 
         # Plot inverted images for QC
         if save_lsm_allimages:
