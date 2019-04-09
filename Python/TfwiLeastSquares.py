@@ -791,12 +791,6 @@ class TfwiLeastSquares2D(object):
         # Shot Receiver information needed
         num_src, start_rcv_index, _, num_rcv = self.__get_shot_receiver_info()
 
-        # # Initialize output vector
-        # matrix_times_vector = np.zeros(
-        #     shape=(num_omega * nx_nopad * nz_nopad,),
-        #     dtype=np.complex64
-        # )
-
         # Add modeling term
         b = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
         b1 = np.zeros(shape=(nx_solver * nz_solver,), dtype=np.complex64)
@@ -862,27 +856,24 @@ class TfwiLeastSquares2D(object):
         # Garbage collect
         gc.collect()
 
-        # # Add regularization term
-        # f1 = (self.__epsilon ** 2) / (abs(self.__omega_list[1] - self.__omega_list[0]) ** 2)
-        # f2 = 2 * f1 + self.__gamma ** 2
-        # f3 = f1 + self.__gamma ** 2
-        #
-        # matrix_times_vector[0: nx_nopad * nz_nopad] += \
-        #     f3 * vector[0: nx_nopad * nz_nopad] - \
-        #     f1 * vector[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
-        #
-        # for nomega_ in range(1, num_omega - 1):
-        #     matrix_times_vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
-        #         f2 * vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
-        #         f1 * vector[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
-        #         f1 * vector[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
-        #
-        # matrix_times_vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
-        #     f3 * vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
-        #     f1 * vector[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
-        #
-        # # Return answer
-        # return matrix_times_vector
+        # Add regularization term
+        f1 = (self.__epsilon ** 2) / (abs(self.__omega_list[1] - self.__omega_list[0]) ** 2)
+        f2 = 2 * f1 + self.__gamma ** 2
+        f3 = f1 + self.__gamma ** 2
+
+        matrix_times_vector[0: nx_nopad * nz_nopad] += \
+            f3 * vector[0: nx_nopad * nz_nopad] - \
+            f1 * vector[nx_nopad * nz_nopad: 2 * nx_nopad * nz_nopad]
+
+        for nomega_ in range(1, num_omega - 1):
+            matrix_times_vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] += \
+                f2 * vector[nomega_ * nx_nopad * nz_nopad: (nomega_ + 1) * nx_nopad * nz_nopad] - \
+                f1 * vector[(nomega_ - 1) * nx_nopad * nz_nopad: nomega_ * nx_nopad * nz_nopad] - \
+                f1 * vector[(nomega_ + 1) * nx_nopad * nz_nopad: (nomega_ + 2) * nx_nopad * nz_nopad]
+
+        matrix_times_vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] += \
+            f3 * vector[(num_omega - 1) * nx_nopad * nz_nopad: num_omega * nx_nopad * nz_nopad] - \
+            f1 * vector[(num_omega - 2) * nx_nopad * nz_nopad: (num_omega - 1) * nx_nopad * nz_nopad]
 
     def __aapply_normal_equation_operator(self, vector_in, vector_out, add_flag=False):
 
