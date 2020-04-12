@@ -4,10 +4,10 @@ Created on Mon May 07 09:30:00 2018
 @author: rahul
 """
 
-from Common import Common
-from Velocity import Velocity2D
-from CreateGeometry import CreateGeometry2D
-from CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
+from ..CommonTools.Common import Common
+from ..CommonTools.Velocity import Velocity2D
+from ..CommonTools.CreateGeometry import CreateGeometry2D
+from ..Inversion.CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
 from scipy.sparse.linalg import splu
 import numpy as np
 import time
@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 
 # Global parameters
-ncells_list = range(50, 1000, 50)
+ncells_list = range(50, 150, 50)
 nfac = 5
 nsolve = 10
 
@@ -54,8 +54,6 @@ for cells in ncells_list:
         ncells_z_pad=75,
         check=False
     )
-    geom2d.set_default_sources()
-    geom2d.set_default_receivers()
 
     # Get number of grid points
     gridpoints = (geom2d.gridpointsX - 2) * (geom2d.gridpointsZ - 2)
@@ -123,7 +121,7 @@ ax[0].set_title(
     fontweight="normal",
     fontname="Times New Roman"
 )
-plt.savefig("Helmholtz-Performance-Metrics.pdf", bbox_inches="tight")
+plt.savefig(Common.filepath_base + "Fig/Helmholtz-Performance-Metrics.pdf", bbox_inches="tight")
 
 # Plot figures
 # Normal plot 10000 shots
@@ -151,7 +149,7 @@ ax[0].set_title(
     fontweight="normal",
     fontname="Times New Roman"
 )
-plt.savefig("Helmholtz-Performance-Metrics-10000-Shots.pdf", bbox_inches="tight")
+plt.savefig(Common.filepath_base + "Fig/Helmholtz-Performance-Metrics-10000-Shots.pdf", bbox_inches="tight")
 
 # Semilogy plot
 fig = plt.figure()
@@ -178,7 +176,7 @@ ax[0].set_title(
     fontweight="normal",
     fontname="Times New Roman"
 )
-plt.savefig("Helmholtz-Performance-Metrics-Semilog.pdf", bbox_inches="tight")
+plt.savefig(Common.filepath_base + "Fig/Helmholtz-Performance-Metrics-Semilog.pdf", bbox_inches="tight")
 
 # Log-Log plot
 fig = plt.figure()
@@ -205,4 +203,4 @@ ax[0].set_title(
     fontweight="normal",
     fontname="Times New Roman"
 )
-plt.savefig("Helmholtz-Performance-Metrics-LogLog.pdf", bbox_inches="tight")
+plt.savefig(Common.filepath_base + "Fig/Helmholtz-Performance-Metrics-LogLog.pdf", bbox_inches="tight")

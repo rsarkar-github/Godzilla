@@ -1,8 +1,8 @@
-from Common import*
-from CreateGeometry import CreateGeometry2D
-from Acquisition import Acquisition2D
-from Velocity import Velocity2D
-from TfwiLeastSquares import TfwiLeastSquares2D
+from ..CommonTools.Common import*
+from ..CommonTools.CreateGeometry import CreateGeometry2D
+from ..CommonTools.Acquisition import Acquisition2D
+from ..CommonTools.Velocity import Velocity2D
+from ..Inversion.TfwiLeastSquares import TfwiLeastSquares2D
 import numpy as np
 
 
@@ -93,7 +93,7 @@ tfwilsq.veltrue.plot(
     vmax=3.0,
     xlabel="X [km]",
     ylabel="Z [km]",
-    savefile="Fig/veltrue-anomaly.pdf"
+    savefile=Common.filepath_base + "Fig/veltrue-anomaly.pdf"
 )
 tfwilsq.velstart.plot(
     title="Starting Model",
@@ -102,7 +102,7 @@ tfwilsq.velstart.plot(
     vmax=3.0,
     xlabel="X [km]",
     ylabel="Z [km]",
-    savefile="Fig/velstart-anomaly.pdf"
+    savefile=Common.filepath_base + "Fig/velstart-anomaly.pdf"
 )
 tfwilsq.veltrue.plot_difference(
     vel_other=tfwilsq.velstart,
@@ -113,7 +113,7 @@ tfwilsq.veltrue.plot_difference(
     vmin=-0.5,
     vmax=0.5,
     cmap="Greys",
-    savefile="Fig/veldiff-anomaly.pdf"
+    savefile=Common.filepath_base + "Fig/veldiff-anomaly.pdf"
 )
 
 omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
@@ -140,12 +140,12 @@ inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-anomaly0.3-maxoff2.0-eps0.0",
-    lsm_image_data_file="Data/lsm-inverted-image-anomaly0.3-maxoff2.0-eps0.0",
+    lsm_image_file=Common.filepath_base + "Fig/lsm-inverted-image-anomaly0.3-maxoff2.0-eps0.0",
+    lsm_image_data_file=Common.filepath_base + "Data/lsm-inverted-image-anomaly0.3-maxoff2.0-eps0.0",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly0.3-maxoff2.0",
-    lsm_adjoint_image_data_file="Data/lsm-adjoint-image-anomaly0.3-maxoff2.0"
+    lsm_adjoint_image_file=Common.filepath_base + "Fig/lsm-adjoint-image-anomaly0.3-maxoff2.0",
+    lsm_adjoint_image_data_file=Common.filepath_base + "Data/lsm-adjoint-image-anomaly0.3-maxoff2.0"
 )
 
 print(inversion_metrics)

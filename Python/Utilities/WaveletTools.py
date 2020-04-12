@@ -4,7 +4,7 @@ Created on Thu Jan 31 12:11:15 2019
 
 @author: rahul
 """
-from Utilities import TypeChecker
+from . import TypeChecker
 import math
 import numpy as np
 

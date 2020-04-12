@@ -3,10 +3,10 @@
 Created on Mon Apr 22 17:04:30 2017
 @author: rahul
 """
-from Common import*
-from Velocity import Velocity2D
-from CreateGeometry import CreateGeometry2D
-from Utilities import TypeChecker
+from ..CommonTools.Common import*
+from ..CommonTools.Velocity import Velocity2D
+from ..CommonTools.CreateGeometry import CreateGeometry2D
+from ...Utilities import TypeChecker
 from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import splu
 import copy

@@ -1,5 +1,6 @@
-from TfwiLeastSquares import Tfwi2D
-from Velocity import*
+from ..Inversion.TfwiLeastSquares import TfwiLeastSquares2D
+from ..CommonTools.Acquisition import Acquisition2D
+from ..CommonTools.Velocity import*
 
 
 # Define frequency parameters (in Hertz)
@@ -27,10 +28,12 @@ geom2d.set_params(
     ncells_z_pad=75,
     check=False
 )
+
+# Create default acquisition object
 skip_src = 1
 skip_rcv = 1
-geom2d.set_default_sources(skip=skip_src)
-geom2d.set_default_receivers(skip=skip_rcv)
+acq2d = Acquisition2D(geometry2d=geom2d)
+acq2d.set_default_sources_receivers(source_skip=skip_src, receiver_skip=skip_rcv)
 
 # Create a default Velocity 2D object
 vel_true = Velocity2D(geometry2d=geom2d)
@@ -43,17 +46,17 @@ center_nz = int(ngridpoints_z / 2)
 vel_true.create_gaussian_perturbation(dvel=0.3, sigma_x=0.03, sigma_z=0.03, nx=center_nx, nz=center_nz)
 
 # Create a Tfwi object, with a constant starting model
-tfwi = Tfwi2D(veltrue=vel_true)
-tfwi.set_constant_starting_model()
+tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_true, acquisition=acq2d)
+tfwilsq.set_constant_starting_model()
 
 nomega = [2, 4, 8, 16]
 for ii in nomega:
     omega_list = np.arange(omega_max / ii, omega_max + omega_max / ii, omega_max / ii)
-    tfwi.set_omega_list(omega_list=omega_list)
-    tfwi.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
+    tfwilsq.omega_list = omega_list
+    tfwilsq.set_ricker_wavelet(omega_peak=2.0 * Common.pi * freq_peak_ricker)
 
-    tfwi.perform_lsm_cg(
+    tfwilsq.perform_lsm_cg(
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=False,
-        lsm_adjoint_image_file="lsm-adjoint-image-" + str(ii)
+        lsm_adjoint_image_file=Common.filepath_base + "Fig/lsm-adjoint-image-" + str(ii)
     )

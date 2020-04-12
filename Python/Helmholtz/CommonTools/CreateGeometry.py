@@ -3,7 +3,7 @@
 Created on Mon Apr 22 17:04:30 2017
 @author: rahul
 """
-from Common import*
+from .Common import*
 
 
 class CreateGeometry2D(object):

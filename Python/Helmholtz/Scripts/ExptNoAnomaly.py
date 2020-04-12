@@ -1,20 +1,21 @@
-from Common import*
-from CreateGeometry import CreateGeometry2D
-from Acquisition import Acquisition2D
-from Velocity import Velocity2D
-from TfwiLeastSquares import TfwiLeastSquares2D
+from ..CommonTools.Common import*
+from ..CommonTools.CreateGeometry import CreateGeometry2D
+from ..CommonTools.Acquisition import Acquisition2D
+from ..CommonTools.Velocity import Velocity2D
+from ..Inversion.TfwiLeastSquares import TfwiLeastSquares2D
 import numpy as np
 
 
 # Define frequency parameters (in Hertz)
-freq_peak_ricker = 20
-freq_max = 35
+freq_peak_ricker = 18
+freq_max = 30
+freq_min = 6.67
 flat_spectrum = False
 gaussian_spectrum = True
 omega_max = 2 * Common.pi * freq_max
-omega_min = 2 * Common.pi * freq_peak_ricker / 3.0
+omega_min = 2 * Common.pi * freq_min
 omega_mean = 2 * Common.pi * freq_peak_ricker
-omega_std = (omega_max - omega_min) * 0.25
+omega_std = (omega_max - omega_min) * 0.3
 taper_pct = 0.1
 dt = 0.5 / freq_max
 nt = 100
@@ -26,7 +27,7 @@ geom2d = CreateGeometry2D(
     xdim=3.0,
     zdim=2.0,
     vmin=1.5,
-    vmax=2.5,
+    vmax=3.0,
     omega_max=omega_max,
     omega_min=omega_min
 )
@@ -38,12 +39,16 @@ print("Number of cells in X", geom2d.ncellsX)
 print("Number of cells in Z", geom2d.ncellsZ)
 print("Number of pad cells in X", geom2d.ncellsX_pad)
 print("Number of pad cells in Z", geom2d.ncellsZ_pad)
+print("Size in X", geom2d.dimX, " km")
+print("Size in Z", geom2d.dimZ, " km")
+print("Grid spacing in X", geom2d.dx, " km")
+print("Grid spacing in Z", geom2d.dz, " km")
 
 # Create acquisition object
 skip_src = 10
 skip_rcv = 1
 acq2d = Acquisition2D(geometry2d=geom2d)
-acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=1.5)
+acq2d.set_split_spread_acquisition(source_skip=skip_src, receiver_skip=skip_rcv, max_offset=2.0)
 
 # Create a default Velocity 2D object
 vel_true = Velocity2D(geometry2d=geom2d)
@@ -53,12 +58,12 @@ ngridpoints_z = geom2d.gridpointsZ
 
 # Put perturbation
 center_nz = int(ngridpoints_z / 2.5)
-vel_true.set_constant_velocity(vel=2.3)
+vel_true.set_constant_velocity(vel=3.0)
 vel = vel_true.vel
 vel[:, center_nz + 199: center_nz + 200] = 2.0
 vel_true.vel = vel
 
-vel_start.set_constant_velocity(vel=2.3)
+vel_start.set_constant_velocity(vel=3.0)
 
 # Create a Tfwi object
 tfwilsq = TfwiLeastSquares2D(veltrue=vel_true, velstart=vel_start, acquisition=acq2d)
@@ -67,30 +72,30 @@ tfwilsq.veltrue.plot(
     title="True Model",
     pad=False,
     vmin=1.5,
-    vmax=2.3,
-    xlabel="X grid points",
-    ylabel="Z grid points",
-    savefile="Fig/veltrue-noanomaly.pdf"
+    vmax=3.0,
+    xlabel="X [km]",
+    ylabel="Z [km]",
+    savefile=Common.filepath_base + "Fig/veltrue-noanomaly.pdf"
 )
 tfwilsq.velstart.plot(
     title="Starting Model",
     pad=False,
     vmin=1.5,
-    vmax=2.3,
-    xlabel="X grid points",
-    ylabel="Z grid points",
-    savefile="Fig/velstart-noanomaly.pdf"
+    vmax=3.0,
+    xlabel="X [km]",
+    ylabel="Z [km]",
+    savefile=Common.filepath_base + "Fig/velstart-noanomaly.pdf"
 )
 tfwilsq.veltrue.plot_difference(
     vel_other=tfwilsq.velstart,
     pad=False,
     title="Model Difference",
-    xlabel="X grid points",
-    ylabel="Z grid points",
+    xlabel="X [km]",
+    ylabel="Z [km]",
     vmin=-0.5,
     vmax=0.5,
     cmap="Greys",
-    savefile="Fig/veldiff-noanomaly.pdf"
+    savefile=Common.filepath_base + "Fig/veldiff-noanomaly.pdf"
 )
 
 omega_list = np.arange(omega_min, omega_max, (omega_max - omega_min) / 50.0).tolist()
@@ -112,15 +117,17 @@ tfwilsq.apply_frequency_taper(
 )
 
 inverted_model, inversion_metrics = tfwilsq.perform_lsm_cg(
-    epsilon=0.05,
+    epsilon=0.0,
     gamma=0,
     niter=30,
     save_lsm_image=True,
     save_lsm_allimages=True,
-    lsm_image_file="Fig/lsm-inverted-image-noanomaly-bb50-gstd0.25-taper0.1-eps0.05",
+    lsm_image_file=Common.filepath_base + "Fig/lsm-inverted-image-noanomaly-maxoff2.0-eps0.0",
+    lsm_image_data_file=Common.filepath_base + "Data/lsm-inverted-image-noanomaly-maxoff2.0-eps0.0",
     save_lsm_adjoint_image=True,
     save_lsm_adjoint_allimages=False,
-    lsm_adjoint_image_file="Fig/lsm-adjoint-image-noanomaly-bb50-gstd0.25-taper0.1"
+    lsm_adjoint_image_file=Common.filepath_base + "Fig/lsm-adjoint-image-noanomaly-maxoff2.0",
+    lsm_adjoint_image_data_file=Common.filepath_base + "Data/lsm-adjoint-image-noanomaly-maxoff2.0"
 )
 
 print(inversion_metrics)

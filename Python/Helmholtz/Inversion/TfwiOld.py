@@ -3,11 +3,10 @@
 Created on Mon Apr 23 17:04:30 2017
 @author: rahul
 """
-from Common import*
-from CreateGeometry import CreateGeometry2D
-from Velocity import Velocity2D
-from CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
-from Utilities import TypeChecker
+from CommonTools.Common import*
+from CommonTools.CreateGeometry import CreateGeometry2D
+from CommonTools.Velocity import Velocity2D
+from Helmholtz.Inversion.CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
 import copy
 import numpy as np
 import time

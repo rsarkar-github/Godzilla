@@ -3,9 +3,8 @@
 Created on Wed Jan 30 17:04:30 2017
 @author: rahul
 """
-from Common import*
-from CreateGeometry import CreateGeometry2D
-from Utilities import TypeChecker
+from .CreateGeometry import CreateGeometry2D
+from ...Utilities import TypeChecker
 
 
 class Acquisition2D(object):

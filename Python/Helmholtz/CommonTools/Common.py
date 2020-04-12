@@ -25,3 +25,5 @@ class Common(object):
     pi = math.pi                    # Math constant pi
 
     vel = 1.0                       # Default velocity in km/s
+
+    filepath_base = "Python/Helmholtz/"

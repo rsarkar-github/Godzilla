@@ -3,12 +3,12 @@
 Created on Wed Jan 30 17:04:30 2019
 @author: rahul
 """
-from Common import*
-from CreateGeometry import CreateGeometry2D
-from Acquisition import Acquisition2D
-from Velocity import Velocity2D
-from CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
-from Utilities import TypeChecker, WaveletTools, LinearSolvers
+from ..CommonTools.Common import*
+from ..CommonTools.CreateGeometry import CreateGeometry2D
+from ..CommonTools.Acquisition import Acquisition2D
+from ..CommonTools.Velocity import Velocity2D
+from .CreateMatrixHelmholtz import CreateMatrixHelmholtz2D
+from ...Utilities import TypeChecker, WaveletTools, LinearSolvers
 from scipy.sparse.linalg import splu
 import numpy as np
 import copy
@@ -196,12 +196,12 @@ class TfwiLeastSquares2D(object):
             niter=50,
             save_lsm_image=True,
             save_lsm_allimages=False,
-            lsm_image_file="lsm_image",
-            lsm_image_data_file="lsm_image_data",
+            lsm_image_file=Common.filepath_base + "Fig/lsm_image",
+            lsm_image_data_file=Common.filepath_base + "Data/lsm_image_data",
             save_lsm_adjoint_image=True,
             save_lsm_adjoint_allimages=False,
-            lsm_adjoint_image_file="lsm_adjoint_image",
-            lsm_adjoint_image_data_file="lsm_adjoint_image_data"
+            lsm_adjoint_image_file=Common.filepath_base + "Fig/lsm_adjoint_image",
+            lsm_adjoint_image_data_file=Common.filepath_base + "Data/lsm_adjoint_image_data"
     ):
 
         print("Starting the conjugate gradient least squares migration...\n")
@@ -513,7 +513,8 @@ class TfwiLeastSquares2D(object):
 
         return num_src, start, end, total_length
 
-    def __restriction_operator(self, rcv_indices, b, nx):
+    @staticmethod
+    def __restriction_operator(rcv_indices, b, nx):
 
         num_rcv = len(rcv_indices)
         sampled_b = np.zeros(shape=(num_rcv,), dtype=np.complex64)
@@ -1407,7 +1408,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="Fig/veltrue-anomaly-bigmodel.pdf"
+        savefile=Common.filepath_base + "Fig/veltrue-anomaly-bigmodel.pdf"
     )
     tfwilsq.velstart.plot(
         title="Starting Model",
@@ -1416,7 +1417,7 @@ if __name__ == "__main__":
         vmax=2.3,
         xlabel="X grid points",
         ylabel="Z grid points",
-        savefile="Fig/velstart-anomaly-bigmodel.pdf"
+        savefile=Common.filepath_base + "Fig/velstart-anomaly-bigmodel.pdf"
     )
     tfwilsq.veltrue.plot_difference(
         vel_other=tfwilsq.velstart,
@@ -1427,7 +1428,7 @@ if __name__ == "__main__":
         vmin=-0.5,
         vmax=0.5,
         cmap="Greys",
-        savefile="Fig/veldiff-anomaly-bigmodel.pdf"
+        savefile=Common.filepath_base + "Fig/veldiff-anomaly-bigmodel.pdf"
     )
 
     omega_list = np.arange(domega, omega_max, domega)
@@ -1444,10 +1445,10 @@ if __name__ == "__main__":
         niter=40,
         save_lsm_image=True,
         save_lsm_allimages=True,
-        lsm_image_file="Fig/lsm-image-anomaly-acqhole1-bigmodel-eps0",
+        lsm_image_file=Common.filepath_base + "Fig/lsm-image-anomaly-acqhole1-bigmodel-eps0",
         save_lsm_adjoint_image=True,
         save_lsm_adjoint_allimages=False,
-        lsm_adjoint_image_file="Fig/lsm-adjoint-image-anomaly-acqhole1-bigmodel"
+        lsm_adjoint_image_file=Common.filepath_base + "Fig/lsm-adjoint-image-anomaly-acqhole1-bigmodel"
     )
 
     print(inversion_metrics)
