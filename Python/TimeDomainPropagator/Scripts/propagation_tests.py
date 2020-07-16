@@ -4,8 +4,8 @@ import time
 
 
 # Set parameters
-nz = 500
-nx = 500
+nz = 400
+nx = 400
 nt_ = 1000
 
 dx_ = 15
