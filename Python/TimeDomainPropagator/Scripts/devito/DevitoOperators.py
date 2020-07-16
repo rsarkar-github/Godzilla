@@ -131,7 +131,10 @@ def born_hessian(model_pert_in, model_pert_out, src_coords, vel, geometry, solve
         )
 
 
-def td_born_forward_op(model, geometry, time_order, space_order):
+def td_born_forward_op(model, geometry, time_order, space_order, nt=None):
+
+    if nt is None:
+        nt = geometry.nt
 
     # Define the wavefields with the size of the model and the time dimension
     u0 = TimeFunction(
@@ -139,21 +142,21 @@ def td_born_forward_op(model, geometry, time_order, space_order):
         grid=model.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
     u = TimeFunction(
         name='u',
         grid=model.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
     dm = TimeFunction(
         name='dm',
         grid=model.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
 
     # Define the wave equation
@@ -174,7 +177,7 @@ def td_born_forward_op(model, geometry, time_order, space_order):
     return Operator([stencil] + rec_term, subs=model.spacing_map)
 
 
-def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, params):
+def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, params, dt=None):
     """
     @Params
     model_pert: float32 numpy array of size (Nt, Nx, Nz)
@@ -199,7 +202,8 @@ def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, pa
     time_order = params["to"]
 
     offset = nbl + space_order
-    dt = vel.critical_dt
+    if dt is None:
+        dt = vel.critical_dt
 
     # Create padded model perturbation with halo
     model_pert_padded = np.zeros((nt, nx + 2 * offset, nz + 2 * offset), dtype=np.float32)
@@ -208,7 +212,7 @@ def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, pa
     model_pert_padded[:, offset:nx + offset, offset:nz + offset] = model_pert
 
     # Create time dependent Born modeling operator
-    op = td_born_forward_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order)
+    op = td_born_forward_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order, nt=nt)
 
     # Second derivative filter stencil
     laplacian_filter = np.asarray([1, -2, 1], dtype=np.float32) / (dt ** 2.0)
@@ -218,7 +222,7 @@ def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, pa
         grid=vel.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
 
     # Perform Born modeling
@@ -235,10 +239,13 @@ def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, pa
             output=u0.data_with_halo[:, :, :],
             mode='nearest'
         )
-        op.apply(u0=u0, u=u, dm=model_pert_padded, born_data_rec=born_data[i, :, :], dt=vel.critical_dt)
+        op.apply(u0=u0, u=u, dm=model_pert_padded, born_data_rec=born_data[i, :, :], dt=dt)
 
 
-def td_born_adjoint_op(model, geometry, time_order, space_order):
+def td_born_adjoint_op(model, geometry, time_order, space_order, nt=None):
+
+    if nt is None:
+        nt = geometry.nt
 
     # Define the wavefields with the size of the model and the time dimension
     u = TimeFunction(
@@ -246,7 +253,7 @@ def td_born_adjoint_op(model, geometry, time_order, space_order):
         grid=model.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
 
     # Define the wave equation
@@ -263,12 +270,12 @@ def td_born_adjoint_op(model, geometry, time_order, space_order):
         coordinates=geometry.rec_positions
     )
     dt = model.critical_dt
-    rec_term = born_data_rec.inject(field=u.backward, expr=born_data_rec * dt ** 2 / model.m)
+    rec_term = born_data_rec.inject(field=u.backward, expr=born_data_rec * (dt ** 2) / model.m)
 
     return Operator([stencil] + rec_term, subs=model.spacing_map)
 
 
-def td_born_adjoint(born_data, model_pert, src_coords, vel, geometry, solver, params):
+def td_born_adjoint(born_data, model_pert, src_coords, vel, geometry, solver, params, dt=None):
     """
     @Params
     born_data: float32 numpy array of size (Ns, Nt, Nr).
@@ -288,11 +295,13 @@ def td_born_adjoint(born_data, model_pert, src_coords, vel, geometry, solver, pa
     nx = params["Nx"]
     nz = params["Nz"]
     ns = params["Ns"]
+    nt = params["Nt"]
     space_order = params["so"]
     time_order = params["to"]
 
     offset = nbl + space_order
-    dt = vel.critical_dt
+    if dt is None:
+        dt = vel.critical_dt
 
     # Allocate time function to store adjoint wavefield
     u = TimeFunction(
@@ -300,11 +309,11 @@ def td_born_adjoint(born_data, model_pert, src_coords, vel, geometry, solver, pa
         grid=vel.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
 
     # Create time dependent Born modeling operator
-    op = td_born_adjoint_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order)
+    op = td_born_adjoint_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order, nt=nt)
 
     # Second derivative filter stencil
     laplacian_filter = np.asarray([1, -2, 1], dtype=np.float32) / (dt ** 2.0)
@@ -323,7 +332,7 @@ def td_born_adjoint(born_data, model_pert, src_coords, vel, geometry, solver, pa
             output=u0.data_with_halo[:, :, :],
             mode='nearest'
         )
-        op.apply(u=u, born_data_rec=born_data[i, :, :], dt=vel.critical_dt)
+        op.apply(u=u, born_data_rec=born_data[i, :, :], dt=dt)
 
         # Add to model_pert
         model_pert += \
@@ -331,7 +340,7 @@ def td_born_adjoint(born_data, model_pert, src_coords, vel, geometry, solver, pa
             u0.data_with_halo[:, offset:nx + offset, offset:nz + offset]
 
 
-def td_born_hessian(model_pert_in, model_pert_out, src_coords, vel, geometry, solver, params):
+def td_born_hessian(model_pert_in, model_pert_out, src_coords, vel, geometry, solver, params, dt=None):
     """
     @Params
     model_pert_in: float32 numpy array of size (Nx, Nz).
@@ -357,7 +366,8 @@ def td_born_hessian(model_pert_in, model_pert_out, src_coords, vel, geometry, so
     time_order = params["to"]
 
     offset = nbl + space_order
-    dt = vel.critical_dt
+    if dt is None:
+        dt = vel.critical_dt
 
     # Create padded model perturbation with halo and copy model_pert_in into model_pert_padded
     model_pert_padded = np.zeros((nt, nx + 2 * offset, nz + 2 * offset), dtype=np.float32)
@@ -371,14 +381,14 @@ def td_born_hessian(model_pert_in, model_pert_out, src_coords, vel, geometry, so
         grid=vel.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
     u2 = TimeFunction(
         name='u',
         grid=vel.grid,
         time_order=time_order,
         space_order=space_order,
-        save=geometry.nt
+        save=nt
     )
 
     # Second derivative filter stencil
@@ -411,10 +421,10 @@ def td_born_hessian(model_pert_in, model_pert_out, src_coords, vel, geometry, so
             output=u0.data_with_halo[:, :, :],
             mode='nearest'
         )
-        op_fwd.apply(u0=u0, u=u1, dm=model_pert_padded, born_data_rec=born_data[0, :, :], dt=vel.critical_dt)
+        op_fwd.apply(u0=u0, u=u1, dm=model_pert_padded, born_data_rec=born_data[0, :, :], dt=dt)
 
         # Create adjoint image
-        op_adjoint.apply(u=u2, born_data_rec=born_data[0, :, :], dt=vel.critical_dt)
+        op_adjoint.apply(u=u2, born_data_rec=born_data[0, :, :], dt=dt)
 
         # Add to model_pert_out
         model_pert_out += \
