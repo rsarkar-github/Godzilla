@@ -99,7 +99,7 @@ t_end = time.time()
 print("\nCreate adjoint image took ", t_end - t_start, " sec")
 
 # Run the inversion
-niter = 50
+niter = 100
 dm_invert, resid = conjugate_gradient(
     hessian_wrap,
     rhs=dm_adjoint_image,

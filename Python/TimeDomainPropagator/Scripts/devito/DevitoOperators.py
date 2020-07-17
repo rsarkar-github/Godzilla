@@ -9,6 +9,33 @@ from devito import TimeFunction, Operator, Eq, solve
 from examples.seismic import PointSource
 
 
+def wave_propagator_forward(data, src_coords, vel, geometry, solver, params):
+    """
+    @Params
+    data: float32 numpy array of size (Ns, Nt, Nr). This will be the output. Assumed to be zeros.
+    src_coords: float32 numpy array of size (Ns, 2) with the source coordinates.
+    vel: velocity model object (The object should be the same type as returned by create_model() function)
+    geometry: geometry object
+    solver: solver object
+    params: python dict of parameters
+
+    Note: The receiver coordinates are not needed since it is assumed that they remain fixed for all sources.
+    So the receiver information should already be available to the solver object.
+    """
+
+    # Get number of sources
+    Ns = params["Ns"]
+
+    # Perform forward modeling
+    for i in range(Ns):
+        # Update source location
+        geometry.src_positions[0, :] = src_coords[i, :]
+
+        # Get forward modeled data for the current shot and update data array appropriately
+        d, _, _ = solver.forward(vp=vel.vp)
+        data[i, :, :] += d.data
+
+
 def born_forward(model_pert, born_data, src_coords, vel, geometry, solver, params):
     """
     @Params
@@ -172,7 +199,7 @@ def td_born_forward_op(model, geometry, time_order, space_order, nt=None):
         time_range=geometry.time_axis,
         coordinates=geometry.rec_positions
     )
-    rec_term = born_data_rec.interpolate(expr=u.forward)
+    rec_term = born_data_rec.interpolate(expr=u)
 
     return Operator([stencil] + rec_term, subs=model.spacing_map)
 
