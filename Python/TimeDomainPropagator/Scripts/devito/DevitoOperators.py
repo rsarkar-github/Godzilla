@@ -5,7 +5,7 @@ sys.path.append(devito_examples_dir)
 import numpy as np
 from scipy import ndimage as spim
 
-from devito import TimeFunction, Operator, Eq, solve
+from devito import TimeFunction, Operator, Eq, solve, Constant
 from examples.seismic import PointSource
 
 
@@ -158,10 +158,9 @@ def born_hessian(model_pert_in, model_pert_out, src_coords, vel, geometry, solve
         )
 
 
-def td_born_forward_op(model, geometry, time_order, space_order, nt=None):
+def td_born_forward_op(model, geometry, time_order, space_order):
 
-    if nt is None:
-        nt = geometry.nt
+    nt = geometry.nt
 
     # Define the wavefields with the size of the model and the time dimension
     u0 = TimeFunction(
@@ -239,7 +238,7 @@ def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, pa
     model_pert_padded[:, offset:nx + offset, offset:nz + offset] = model_pert
 
     # Create time dependent Born modeling operator
-    op = td_born_forward_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order, nt=nt)
+    op = td_born_forward_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order)
 
     # Second derivative filter stencil
     laplacian_filter = np.asarray([1, -2, 1], dtype=np.float32) / (dt ** 2.0)
@@ -269,10 +268,9 @@ def td_born_forward(model_pert, born_data, src_coords, vel, geometry, solver, pa
         op.apply(u0=u0, u=u, dm=model_pert_padded, born_data_rec=born_data[i, :, :], dt=dt)
 
 
-def td_born_adjoint_op(model, geometry, time_order, space_order, nt=None):
+def td_born_adjoint_op(model, geometry, time_order, space_order):
 
-    if nt is None:
-        nt = geometry.nt
+    nt = geometry.nt
 
     # Define the wavefields with the size of the model and the time dimension
     u = TimeFunction(
@@ -296,7 +294,7 @@ def td_born_adjoint_op(model, geometry, time_order, space_order, nt=None):
         time_range=geometry.time_axis,
         coordinates=geometry.rec_positions
     )
-    dt = model.critical_dt
+    dt = Constant(name='dt')
     rec_term = born_data_rec.inject(field=u.backward, expr=born_data_rec * (dt ** 2) / model.m)
 
     return Operator([stencil] + rec_term, subs=model.spacing_map)
@@ -340,7 +338,7 @@ def td_born_adjoint(born_data, model_pert, src_coords, vel, geometry, solver, pa
     )
 
     # Create time dependent Born modeling operator
-    op = td_born_adjoint_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order, nt=nt)
+    op = td_born_adjoint_op(model=vel, geometry=geometry, time_order=time_order, space_order=space_order)
 
     # Second derivative filter stencil
     laplacian_filter = np.asarray([1, -2, 1], dtype=np.float32) / (dt ** 2.0)
