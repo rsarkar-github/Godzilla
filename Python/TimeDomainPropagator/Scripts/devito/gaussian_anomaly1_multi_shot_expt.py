@@ -11,7 +11,6 @@ from examples.seismic.acoustic import AcousticWaveSolver
 from examples.seismic import AcquisitionGeometry
 
 import numpy as np
-import scipy as sp
 from scipy import ndimage
 import time
 import os
@@ -82,7 +81,6 @@ del n0, n1, t, sigma_big, sigma_small, amplitude_big, amplitude_small, big_gauss
 # Create models
 v1_prime = create_model(shape=(params1["Nx"], params1["Nz"]))
 v1_prime.vp.data[:, :] = v1.vp.data + dv
-params1_prime = params1.copy()
 
 
 ######################################################################
@@ -112,25 +110,22 @@ rec_coord[:, 1] = rec_depth
 
 # Create the geometry objects for background velocity models
 src_dummy = np.empty((1, 2))
-
 src_dummy[0, :] = src_coord[int(src_coord.shape[0] / 2), :]
-geometry = AcquisitionGeometry(v1, rec_coord, src_dummy, t0, tn, f0=f0, src_type='Ricker')
-geometry_prime = AcquisitionGeometry(v1_prime, rec_coord, src_dummy, t0, tn, f0=f0, src_type='Ricker')
+geometry = AcquisitionGeometry(v1_prime, rec_coord, src_dummy, t0, tn, f0=f0, src_type='Ricker')
 params1["Nt"] = geometry.nt
-params1_prime["Nt"] = geometry_prime.nt
-del src_dummy
 
 # Define a solver object
-solver = AcousticWaveSolver(v1, geometry, space_order=params1["so"])
-solver_prime = AcousticWaveSolver(v1_prime, geometry_prime, space_order=params1["so"])
+solver = AcousticWaveSolver(v1_prime, geometry, space_order=params1["so"])
 
 ##################################################################################################
 # This part of the code generates the forward data using the two models and computes the residual
 ##################################################################################################
 
+dt = v1_prime.critical_dt
+
 # Allocate numpy arrays to store data
 data = np.zeros(shape=(params1["Ns"], params1["Nt"], params1["Nr"]), dtype=np.float32)
-data_prime = np.zeros(shape=(params1_prime["Ns"], params1_prime["Nt"], params1_prime["Nr"]), dtype=np.float32)
+data_prime = data * 0
 
 # Call wave_propagator_forward with appropriate arguments
 t_start = time.time()
@@ -150,48 +145,19 @@ DevitoOperators.wave_propagator_forward(
     data=data_prime,
     src_coords=src_coord,
     vel=v1_prime,
-    geometry=geometry_prime,
-    solver=solver_prime,
-    params=params1_prime
+    geometry=geometry,
+    solver=solver,
+    params=params1
 )
 t_end = time.time()
 print("\n Time to model shots for v1_prime took ", t_end - t_start, " sec.")
 
 # Calculate residuals
-t_start = time.time()
-
-res = data * 0
-
-t_in_grid = np.linspace(0, 1, params1_prime["Nt"])
-rec_in_grid = np.linspace(0, 1, params1_prime["Nr"])
-t_out_grid = np.linspace(0, 1, params1["Nt"])
-rec_out_grid = np.linspace(0, 1, params1["Nr"])
-for i in range(params1["Ns"]):
-    interp_func = sp.interpolate.interp2d(x=t_in_grid, y=rec_in_grid, z=data_prime[i, :, :].T, kind="cubic")
-    res[i, :, :] = interp_func(t_out_grid, rec_out_grid).T
-
-res -= data
-
-t_end = time.time()
-print("\n Time to interpolate took ", t_end - t_start, " sec.")
-print("\n Data generation complete.")
-
+res = data - data_prime
 
 ##################################################################################################
 # This part of the code performs the inversion
 ##################################################################################################
-
-#-------------------------------------------------------------------------------------------------
-# This part is a hack to avoid interpolation errors
-tn = 2500.          # Use only 2.5 s of data in the inversion
-src_dummy = np.empty((1, 2))
-src_dummy[0, :] = src_coord[int(src_coord.shape[0] / 2), :]
-geometry = AcquisitionGeometry(v1, rec_coord, src_dummy, t0, tn, f0=f0, src_type='Ricker')
-solver = AcousticWaveSolver(v1, geometry, space_order=params1["so"])
-params1["Nt"] = geometry.nt
-res = res[:, 0:params1["Nt"], :]
-del src_dummy
-#-------------------------------------------------------------------------------------------------
 
 # Create wrapper for time dependent Born Hessian
 def hessian_wrap(model_pert_in, model_pert_out):
@@ -209,7 +175,8 @@ def hessian_wrap(model_pert_in, model_pert_out):
         vel=v1,
         geometry=geometry,
         solver=solver,
-        params=params1
+        params=params1,
+        dt=dt
     )
 
 # Create rhs for inversion
@@ -222,7 +189,8 @@ DevitoOperators.td_born_adjoint(
     vel=v1,
     geometry=geometry,
     solver=solver,
-    params=params1
+    params=params1,
+    dt=dt
 )
 t_end = time.time()
 print("\nCreate adjoint image took ", t_end - t_start, " sec")
