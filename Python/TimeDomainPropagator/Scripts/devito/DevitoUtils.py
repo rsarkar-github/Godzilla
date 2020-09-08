@@ -78,15 +78,26 @@ def plot_image(model, source=None, receiver=None, colorbar=True, colormap='jet',
     plt.show()
 
 
-def plot_image_tx(image, x0, xn, t0, tn, scale=None, colorbar=True, clip=1.0):
+def plot_image_tx(image, x0, xn, t0, tn, scale=None, colorbar=True,
+                  clip=1.0, tlabel=None, xlabel=None, grid="off", aspect="auto"):
 
     if scale is None:
         scale = np.max(np.abs(image))
     extent = [1e-3 * x0, 1e-3 * xn, 1e-3 * tn, 1e-3 * t0]
 
-    plot = plt.imshow(image, aspect="auto", vmin=-clip * scale, vmax=clip * scale, cmap="Greys", extent=extent)
-    plt.xlabel('X position (km)')
-    plt.ylabel('Time (s)')
+    plot = plt.imshow(image, aspect=aspect, vmin=-clip * scale, vmax=clip * scale, cmap="Greys", extent=extent)
+    if grid == "on":
+        plt.grid()
+
+    if xlabel is None:
+        plt.xlabel('X position (km)')
+    else:
+        plt.xlabel(xlabel)
+
+    if tlabel is None:
+        plt.ylabel('Time (s)')
+    else:
+        plt.ylabel(tlabel)
 
     # Create aligned colorbar on the right
     if colorbar:
