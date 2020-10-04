@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import pickle
+import time
 import numpy as np
 
 devito_examples_dir = "/homes/sep/rahul/devito/examples/"
@@ -70,6 +71,18 @@ class TypeChecker(object):
 
         return True
 
+    @staticmethod
+    def check_float_bounds(x, lb, ub):
+
+        str1 = ", ".join([str(types) for types in (float, int)])
+        if not isinstance(x, (float, int)):
+            raise TypeError("Object type : " + str(type(x)) + " , Expected types : " + str1)
+
+        if not lb <= x <= ub:
+            raise ValueError("Value of x :" + str(x) + " , Expected value : " + str(lb) + " <= x <= " + str(ub))
+
+        return True
+
 
 class AcousticSolver(object):
     """
@@ -79,7 +92,7 @@ class AcousticSolver(object):
     def __init__(self, model, dt, nt, time_order, space_order, wavelet):
         """
         model:
-            Physical model with domain parameters.
+            Physical model with domain parameters (Vp in km/s).
         dt:
             Time sampling interval. (in ms)
         nt:
@@ -344,11 +357,11 @@ class Fwi2d(object):
 
         @Params
         model:
-            Starting model (numpy float array of shape Nx x Nz).
+            Starting model in km/s (numpy float array of shape Nx x Nz).
         src_coords:
-            Source coordinates (numpy float array of shape Ns x 2).
+            Source coordinates in m (numpy float array of shape Ns x 2).
         rec_coords:
-            Receiver coordinates (numpy float array of shape Nr x 2).
+            Receiver coordinates in m (numpy float array of shape Nr x 2).
         data:
             Ns x Nt x Nr (Nt is same as the propagation grid). This is the true recorded data.
         params:
@@ -372,12 +385,15 @@ class Fwi2d(object):
             - "dz" (float): grid size in Z direction (in meters)
             - "so" (int): space order for space derivative computation
             - "to" (int): time order for time derivative computation
+            - "vmin" (float): minimum velocity (in km/s)
+            - "vmax" (float): maximum velocity (in km/s)
 
         Note: kwargs may currently contain the following keys (other keys will not have any effect)
             - "save_data_model" (bool): Flag to indicate if intermediate modeled data and models will be saved
             - "nsave_data_model" (int): Frequency at which intermediate modeled data and models will be saved
             - "output_dir" (str): Directory where to write all files
             - "stepper" (str): Stepper type for model update
+            - "backtrack_limit" (int): Maximum number of backtracking iterations for linesearch algorithms
         """
 
         # -----------------------------------------------------
@@ -389,7 +405,6 @@ class Fwi2d(object):
         self.__ns = params["Ns"]
         self.__nr = params["Nr"]
         self.__npad = params["Npad"]
-        self.__npad_total = self.__npad + self.__space_order
 
         self.__dt = params["dt"]
         self.__dx = params["dx"]
@@ -398,6 +413,10 @@ class Fwi2d(object):
         self.__space_order = params["so"]
         self.__time_order = params["to"]
 
+        self.__vmin = params["vmin"]
+        self.__vmax = params["vmax"]
+
+        self.__npad_total = self.__npad + self.__space_order
         self.__obj_init = None
 
         TypeChecker.check_int_positive(x=self.__nx)
@@ -411,17 +430,19 @@ class Fwi2d(object):
         TypeChecker.check_float_positive(x=self.__dz)
         TypeChecker.check_int_bounds(x=self.__space_order, lb=2, ub=10)
         TypeChecker.check_int_bounds(x=self.__time_order, lb=2, ub=4)
+        TypeChecker.check_float_bounds(x=self.__vmin, lb=1.0, ub=4.5)
+        TypeChecker.check_float_bounds(x=self.__vmax, lb=self.__vmin, ub=4.5)
         # -----------------------------------------------------
 
         # -----------------------------------------------------
         # Do some checks on the inputs here and instantiate remaining class members
 
         self.__starting_model = model
-        self.__src_coords = src_coords
-        self.__rec_coords = rec_coords
+        self.__src_coords = np.copy(src_coords)
+        self.__rec_coords = np.copy(rec_coords)
         self.__data = data
         self.__max_iter = max_iter
-        self.__wavelet = wavelet
+        self.__wavelet = np.copy(wavelet)
         self.__run_checks_input()
         # -----------------------------------------------------
 
@@ -435,13 +456,16 @@ class Fwi2d(object):
             self.__nsave_data_model = kwargs.pop("nsave_data_model", 1)
             TypeChecker.check_int_positive(x=self.__nsave_data_model)
 
-        self.__output_dir = kwargs.pop("output_dir", Path().absolute())
+        self.__output_dir = kwargs.pop("output_dir", str(Path().absolute()))
         TypeChecker.check(x=self.__output_dir, expected_type=(str,))
         Path(self.__output_dir).mkdir(parents=True, exist_ok=True)
 
         self.__stepper = kwargs.pop("stepper", "parabolic")
         if self.__stepper not in ["parabolic"]:
             raise ValueError("Only parabolic stepper is currently supported.")
+
+        self.__backtrack_limit = kwargs.pop("backtrack_limit", 10)
+        TypeChecker.check_int_positive(x=self.__backtrack_limit)
         # -----------------------------------------------------
 
         # -----------------------------------------------------
@@ -525,7 +549,7 @@ class Fwi2d(object):
                 data_current[nshot, :, :] = rec.data
 
                 # Calculate residual and update, and update objective function
-                rec.data[:] -= self.__data
+                rec.data[:] -= self.__data[nshot, :, :]
                 obj += np.linalg.norm(rec.data) ** 2
 
             return obj, data_current
@@ -547,21 +571,27 @@ class Fwi2d(object):
                 data_current[nshot, :, :] = rec.data
 
                 # Calculate residual and update, and update objective function
-                rec.data[:] -= self.__data
+                rec.data[:] -= self.__data[nshot, :, :]
                 obj += np.linalg.norm(rec.data) ** 2
 
                 # Calculate gradient and update
                 grad.data_with_halo[:] *= 0
                 if slsq:
                     grad, _ = self.__solver.gradient_slsq(rec=rec, u=u, grad=grad)
-                    grad_total += grad.data
+                    grad_total += grad.data_with_halo[
+                                  self.__npad_total: self.__npad_total + self.__nx,
+                                  self.__npad_total: self.__npad_total + self.__nz
+                                  ]
                 else:
                     grad, _ = self.__solver.gradient(rec=rec, u=u, grad=grad)
-                    grad_total += grad.data
+                    grad_total += grad.data_with_halo[
+                                  self.__npad_total: self.__npad_total + self.__nx,
+                                  self.__npad_total: self.__npad_total + self.__nz
+                                  ]
 
             return grad_total, obj, data_current
 
-    def run(self, slsq, num_iter=None):
+    def run(self, slsq=False, num_iter=None):
         """
         Run Fwi
 
@@ -573,30 +603,73 @@ class Fwi2d(object):
             Number of iterations to run (optional, mainly for interactive control)
         """
 
+        TypeChecker.check(x=slsq, expected_type=(bool,))
         if num_iter is None:
             num_iter = self.__max_iter
         else:
             TypeChecker.check_int_bounds(x=num_iter, lb=1, ub=self.__max_iter)
 
+        # Define trial alpha value (gets updated after first iteration)
+        last_alpha = 1.0
+
         for niter in range(num_iter):
 
+            # -----------------------------------------------------
+            # Print iteration number
+
+            print("/" * 40)
+            print("/" * 40)
+            print("Starting Fwi iteration ", niter)
+            print("-" * 40, "\n")
+            # -----------------------------------------------------
+
+            # -----------------------------------------------------
             # Calculate gradient
+
+            print("Calculating gradient")
+            t1 = time.time()
             grad, obj, data_current = self.calculate_fwi_obj_grad(mode=1, slsq=slsq)
+            t2 = time.time()
+            print("Gradient calculation took ", "{:6.2f}".format(t2 - t1), " s")
+            print("Current objective function: ", obj)
+            # -----------------------------------------------------
+
+            # -----------------------------------------------------
+            # Start line search
+
             if niter == 0:
                 self.__obj_init = obj
 
-            # Stepper
-            last_alpha = 1.0
+            print("\n")
+            print("Starting line search")
+            print("-" * 40)
+            t1 = time.time()
+
             if self.__stepper == "parabolic":
                 if niter == 0:
-                    last_alpha, _, _ = self.parabolic_stepper(grad=grad, phi0=obj, slsq=slsq)
+                    last_alpha, _, status = self.parabolic_stepper(
+                        grad=grad,
+                        phi0=obj,
+                        slsq=slsq,
+                        backtrack_limit=self.__backtrack_limit
+                    )
                 else:
-                    last_alpha, _, _ = self.parabolic_stepper(grad=grad, phi0=obj, alpha0=last_alpha, slsq=slsq)
+                    last_alpha, _, status = self.parabolic_stepper(
+                        grad=grad,
+                        phi0=obj,
+                        alpha0=last_alpha,
+                        slsq=slsq,
+                        backtrack_limit=self.__backtrack_limit
+                    )
+
+            t2 = time.time()
+            print("Line search took ", "{:6.2f}".format(t2 - t1), " s", "\n\n")
+            # -----------------------------------------------------
 
     # -----------------------------------------------------
     # Line search steppers
 
-    def parabolic_stepper(self, grad, phi0=None, alpha0=None, slsq=False):
+    def parabolic_stepper(self, grad, phi0=None, alpha0=None, slsq=False, backtrack_limit=10):
         """
         This is the parabolic line search stepper.
 
@@ -614,13 +687,23 @@ class Fwi2d(object):
         slsq:
             If True, update in slowness squared.
             If False, update in velocity.
+        backtrack_limit:
+            Maximum backtracking iterations
 
         @Returns
-        (step_length, updated_model, obj)
+        (step_length, obj, flag)
+        flag:
+            If True, line search succeeded.
+            If False, line search failed.
         """
 
         # Save current model (velocity)
-        m0 = np.copy(self.__vel.vp.data)
+        m0 = np.copy(
+            self.__vel.vp.data_with_halo[
+                self.__npad_total: self.__npad_total + self.__nx,
+                self.__npad_total: self.__npad_total + self.__nz
+            ]
+        )
 
         # Calculate initial objective function if not passed to function
         if phi0 is None:
@@ -631,16 +714,22 @@ class Fwi2d(object):
             alpha0 = 1.0 / np.linalg.norm(grad)
 
         # Perform parabolic line search
-        while 1:
+        nbacktrack = 0
+        alpha = alpha0
+
+        while nbacktrack < backtrack_limit:
+
+            print("\nBacktracking iteration ", nbacktrack)
+            print("Trial step length = ", alpha)
 
             # Set c1, c2
             c1 = 1.0
             c2 = 2.0
 
             # Compute phi1, phi2
-            self.__update_model(model_init=m0, pert=-c1 * alpha0 * grad, slsq=slsq)
+            self.__update_model(model_init=m0, pert=-c1 * alpha * grad, slsq=slsq)
             phi1, _ = self.calculate_fwi_obj_grad(mode=0, slsq=slsq)
-            self.__update_model(model_init=m0, pert=-c2 * alpha0 * grad, slsq=slsq)
+            self.__update_model(model_init=m0, pert=-c2 * alpha * grad, slsq=slsq)
             phi2, _ = self.calculate_fwi_obj_grad(mode=0, slsq=slsq)
 
             # Fit parabola and compite c_opt
@@ -648,7 +737,7 @@ class Fwi2d(object):
                 (c2 * (phi1 - phi0) + c1 * (phi0 - phi2))
 
             # Compute phi_opt
-            self.__update_model(model_init=m0, pert=-c_opt * alpha0 * grad, slsq=slsq)
+            self.__update_model(model_init=m0, pert=-c_opt * alpha * grad, slsq=slsq)
             phi_opt, _ = self.calculate_fwi_obj_grad(mode=0, slsq=slsq)
 
             # Select update
@@ -665,18 +754,51 @@ class Fwi2d(object):
                     c = c1
                     phi = phi1
 
-            alpha = alpha0 * c
+            alpha_opt = alpha * c
 
             # Check if update smaller than initial objective
             if phi < phi0:
-                model_new = self.__update_model(model_init=m0, pert=-alpha * grad, slsq=slsq)
-                return alpha, model_new, phi
+                print("Parabolic search succeeded")
+                print("Optimal step length = ", alpha_opt, ", Optimal objective function = ", phi)
+                self.__update_model(model_init=m0, pert=-alpha_opt * grad, slsq=slsq)
+                return alpha_opt, phi, True
+
             else:
-                alpha0 = alpha0 * 0.5
+                print("Parabolic search failed")
+                print(
+                    "After parabolic search step length = ", alpha_opt,
+                    ", After parabolic search objective function = ", phi
+                )
+                nbacktrack += 1
+                alpha = alpha * 0.5
+
+        print(
+            "\nParabolic search failed with: Initial trial step length = ", alpha0,
+            ", Backtracking iteration limit = ", backtrack_limit
+        )
+        print("Model unchanged.")
+
+        return alpha0, phi0, False
 
     @property
     def vel(self):
         return self.__vel
+
+    @property
+    def data(self):
+        return self.__data
+
+    @data.setter
+    def data(self, data):
+        self.__data = data
+
+    @property
+    def wavelet(self):
+        return self.__wavelet
+
+    @wavelet.setter
+    def wavelet(self, wavelet):
+        self.__wavelet = np.copy(wavelet)
 
     @staticmethod
     def create_model(shape=(200, 200), spacing=(10., 10.), npad=75, space_order=4):
@@ -697,7 +819,6 @@ class Fwi2d(object):
             space_order=space_order,
             grid=None,
             nlayers=1,
-            bcs='damp'
         )
 
     # -----------------------------------------------------
@@ -731,13 +852,23 @@ class Fwi2d(object):
             self.__npad_total: self.__nz + self.__npad_total
         ] = field
 
-        field_extend[0: self.__npad_total, :] = field_extend[self.__npad_total, :]
-        field_extend[self.__nx + self.__npad_total: self.__nx + 2 * self.__npad_total, :] = \
-            field_extend[self.__nx + self.__npad_total - 1, :]
+        field_extend[0: self.__npad_total, :] = np.reshape(
+            field_extend[self.__npad_total, :],
+            newshape=(1, self.__nz + 2 * self.__npad_total)
+        )
+        field_extend[self.__nx + self.__npad_total: self.__nx + 2 * self.__npad_total, :] = np.reshape(
+            field_extend[self.__nx + self.__npad_total - 1, :],
+            newshape=(1, self.__nz + 2 * self.__npad_total)
+        )
 
-        field_extend[:, 0: self.__npad_total] = field_extend[:, self.__npad_total]
-        field_extend[:, self.__nz + self.__npad_total: self.__nz + 2 * self.__npad_total] = \
-            field_extend[:, self.__nz + self.__npad_total - 1]
+        field_extend[:, 0: self.__npad_total] = np.reshape(
+            field_extend[:, self.__npad_total],
+            newshape=(self.__nx + 2 * self.__npad_total, 1)
+        )
+        field_extend[:, self.__nz + self.__npad_total: self.__nz + 2 * self.__npad_total] = np.reshape(
+            field_extend[:, self.__nz + self.__npad_total - 1],
+            newshape=(self.__nx + 2 * self.__npad_total, 1)
+        )
 
         return field_extend
 
@@ -763,11 +894,9 @@ class Fwi2d(object):
 
         if not slsq:
             field_padded = self.__pad_field(field=model_init + pert)
-            self.__vel.vp.data_with_halo[:] = field_padded
+            self.__vel.vp.data_with_halo[:] = np.clip(field_padded, a_min=self.__vmin, a_max=self.__vmax)
 
         else:
             slowness_squared = model_init ** (-2.0)
             field_padded = self.__pad_field(field=slowness_squared + pert)
-            self.__vel.vp.data_with_halo[:] = field_padded ** (-0.5)
-
-        return self.__vel.vp.data
+            self.__vel.vp.data_with_halo[:] = np.clip(field_padded ** (-0.5), a_min=self.__vmin, a_max=self.__vmax)

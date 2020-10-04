@@ -26,7 +26,6 @@ def create_model(shape=(200, 200)):
         nbl=75,
         grid=None,
         nlayers=1,
-        bcs='damp'
     )
 
 
