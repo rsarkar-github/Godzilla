@@ -2,6 +2,7 @@ import numpy as np
 import time
 import numba
 from ...Utilities import TypeChecker
+import matplotlib.pyplot as plt
 
 
 class TruncatedKernelConstantVel3d:
@@ -199,7 +200,7 @@ class TruncatedKernelConstantVel3d:
         # Calculate grid spacing d
         # Calculate grid of wavenumbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
-        self._kgrid = np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
+        self._kgrid = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins, self._num_bins), dtype=self._precision)
@@ -380,7 +381,7 @@ class TruncatedKernelConstantVel2d:
         # Calculate grid spacing d
         # Calculate grid of wavenumbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
-        self._kgrid = np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
+        self._kgrid = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins), dtype=self._precision)
@@ -393,14 +394,28 @@ class TruncatedKernelConstantVel2d:
 if __name__ == "__main__":
 
     n_ = 101
-    k_ = 1.0
+    k_ = 150.0
     precision_ = np.complex64
 
     op = TruncatedKernelConstantVel3d(n=n_, k=k_, precision=precision_)
     u_ = np.zeros(shape=(n_, n_, n_), dtype=precision_)
+    u_[int(n_/2), int(n_/2), int(n_/2)] = 1.0
     output_ = u_ * 0
 
     start_t_ = time.time()
     op.convolve_kernel(u=u_, output=output_)
     end_t_ = time.time()
-    print("Total time to execute main: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+    print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+
+    scale = 1e-6
+    plt.imshow(np.real(output_[int(n_/2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.grid(True)
+    plt.title("Real")
+    plt.colorbar()
+    plt.show()
+
+    plt.imshow(np.imag(output_[int(n_ / 2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.grid(True)
+    plt.title("Imag")
+    plt.colorbar()
+    plt.show()
