@@ -1,4 +1,3 @@
-from . import TypeChecker
 import sys
 from pathlib import Path
 import pickle
@@ -14,6 +13,64 @@ from devito.tools import memoized_meth
 from examples.seismic import PointSource, TimeAxis, demo_model
 
 
+class TypeChecker(object):
+    """
+    A class for all TypeChecker functions needed to support the Fwi2d class
+    """
+
+    @staticmethod
+    def check(x, expected_type, f=(lambda y: (True, True, ""))):
+
+        str1 = ", ".join([str(types) for types in expected_type])
+        if not isinstance(x, expected_type):
+            raise TypeError("Object type : " + str(type(x)) + " , Expected types : " + str1)
+
+        type_check, value_check, msg = f(x)
+
+        if not type_check:
+            raise TypeError(msg)
+        if not value_check:
+            raise ValueError(msg)
+
+        return True
+
+    @staticmethod
+    def check_int_positive(x):
+
+        str1 = ", ".join([str(types) for types in (int,)])
+        if not isinstance(x, int):
+            raise TypeError("Object type : " + str(type(x)) + " , Expected type : " + str1)
+
+        if x <= 0:
+            raise ValueError("Value of x :" + str(x) + " , Expected value : x > 0")
+
+        return True
+
+    @staticmethod
+    def check_int_bounds(x, lb, ub):
+
+        str1 = ", ".join([str(types) for types in (int,)])
+        if not isinstance(x, int):
+            raise TypeError("Object type : " + str(type(x)) + " , Expected type : " + str1)
+
+        if not lb <= x <= ub:
+            raise ValueError("Value of x :" + str(x) + " , Expected value : " + str(lb) + " <= x <= " + str(ub))
+
+        return True
+
+    @staticmethod
+    def check_float_positive(x):
+
+        str1 = ", ".join([str(types) for types in (float, int)])
+        if not isinstance(x, (float, int)):
+            raise TypeError("Object type : " + str(type(x)) + " , Expected types : " + str1)
+
+        if x <= 0:
+            raise ValueError("Value of x :" + str(x) + " , Expected value : x > 0")
+
+        return True
+
+
 class AcousticSolver(object):
     """
     An acoustic solver class
@@ -24,7 +81,7 @@ class AcousticSolver(object):
         model:
             Physical model with domain parameters.
         dt:
-            Time sampling interval.
+            Time sampling interval. (in ms)
         nt:
             Number of time samples in modeling.
         time_order:
@@ -310,7 +367,7 @@ class Fwi2d(object):
             - "Ns" (int): number of shots
             - "Nr" (int): number of receivers
             - "Npad" (int): number of grid points for padding
-            - "dt" (float): time step (in sec)
+            - "dt" (float): time step (in ms)
             - "dx" (float): grid size in X direction (in meters)
             - "dz" (float): grid size in Z direction (in meters)
             - "so" (int): space order for space derivative computation
@@ -340,6 +397,8 @@ class Fwi2d(object):
 
         self.__space_order = params["so"]
         self.__time_order = params["to"]
+
+        self.__obj_init = None
 
         TypeChecker.check_int_positive(x=self.__nx)
         TypeChecker.check_int_positive(x=self.__nz)
