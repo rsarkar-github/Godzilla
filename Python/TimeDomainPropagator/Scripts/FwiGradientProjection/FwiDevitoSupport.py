@@ -300,19 +300,27 @@ class Fwi2d(object):
             Maximum number of iterations to run.
         wavelet:
             Numpy float array of shape Nt x 1.
+        **kwargs:
+            Extra arguments (optional).
 
         Note: params contains the following keys
-            - "Nx": grid points in X direction
-            - "Nz": grid points in Z direction
-            - "Nt": grid points in time
-            - "Ns": number of shots
-            - "Nr": number of receivers
-            - "Npad": number of grid points for padding
-            - "dt": time step (in sec)
-            - "dx": grid size in X direction (in meters)
-            - "dz": grid size in Z direction (in meters)
-            - "so": space order for space derivative computation
-            - "to": time order for time derivative computation
+            - "Nx" (int): grid points in X direction
+            - "Nz" (int): grid points in Z direction
+            - "Nt" (int): grid points in time
+            - "Ns" (int): number of shots
+            - "Nr" (int): number of receivers
+            - "Npad" (int): number of grid points for padding
+            - "dt" (float): time step (in sec)
+            - "dx" (float): grid size in X direction (in meters)
+            - "dz" (float): grid size in Z direction (in meters)
+            - "so" (int): space order for space derivative computation
+            - "to" (int): time order for time derivative computation
+
+        Note: kwargs may currently contain the following keys (other keys will not have any effect)
+            - "save_data_model" (bool): Flag to indicate if intermediate modeled data and models will be saved
+            - "nsave_data_model" (int): Frequency at which intermediate modeled data and models will be saved
+            - "output_dir" (str): Directory where to write all files
+            - "stepper" (str): Stepper type for model update
         """
 
         # -----------------------------------------------------
@@ -361,13 +369,15 @@ class Fwi2d(object):
         # -----------------------------------------------------
         # Read in paramaters from kwargs
 
-        self.__save_residual_model = False or kwargs.pop("save_residual_model", False)
+        self.__save_data_model = kwargs.pop("save_data_model", False)
+        TypeChecker.check(x=self.__save_data_model, expected_type=(bool,))
 
-        if self.__save_residual_model:
-            self.__nsave_residual_model = kwargs.pop("nsave_residual_model", 1)
-            TypeChecker.check_int_positive(x=self.__nsave_residual_model)
+        if self.__save_data_model:
+            self.__nsave_data_model = kwargs.pop("nsave_data_model", 1)
+            TypeChecker.check_int_positive(x=self.__nsave_data_model)
 
         self.__output_dir = kwargs.pop("output_dir", Path().absolute())
+        TypeChecker.check(x=self.__output_dir, expected_type=(str,))
         Path(self.__output_dir).mkdir(parents=True, exist_ok=True)
 
         self.__stepper = kwargs.pop("stepper", "parabolic")
