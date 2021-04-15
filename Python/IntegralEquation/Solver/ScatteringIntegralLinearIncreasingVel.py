@@ -87,47 +87,48 @@ class TruncatedKernelLinearIncreasingVel3d:
         # Copy into output appropriately
         output += temparray[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)]
 
-    @staticmethod
-    @numba.njit
-    def numba_accelerated_green_func_calc(green_func, num_bins, nz, m, kx, ky, z, r, k):
-
-        j = np.complex(0, 1)
-        nu = j * np.sqrt(k - 0.25)
-        cutoff = np.sqrt(2.0)
-
-        for j1 in numba.prange(nz):
-            for j2 in range(nz):
-
-                r1 = (cutoff / m) * r
-                f1 = z[j1] * z[j2]
-                f2 = f1 ** 0.5
-                utilde = 1.0 + (0.5 / f1) * (r1 ** 2.0 + (z[j1] - z[j2]) ** 2.0)
-                utildesq = utilde ** 2.0
-                f1 = (utildesq - 1.0) ** 0.5
-                galpha = ((utilde + f1) ** (-1.0 * nu)) / (f1 * f2)
-
-                for i1 in range(num_bins):
-                    for i2 in range(num_bins):
-                        kabs = (kx[i1, i2] ** 2 + ky[i1, i2] ** 2) ** 0.5
-                        bessel0 = sp.j0(kabs * r1)
-                        green_func[j1, j2, i1, i2] = (1.0 / (m * cutoff)) * np.sum(r1 * bessel0 * galpha)
+    # @staticmethod
+    # def numba_accelerated_green_func_calc(green_func, num_bins, nz, m, kx, ky, z, r, k):
+    #
+    #     j = np.complex(0, 1)
+    #     nu = j * np.sqrt(k - 0.25)
+    #     cutoff = np.sqrt(2.0)
+    #
+    #     r1 = (cutoff / m) * r
+    #
+    #     for j1 in range(nz):
+    #         for j2 in range(nz):
+    #
+    #             if j1 != j2:
+    #                 f1 = z[j1] * z[j2]
+    #                 f2 = f1 ** 0.5
+    #                 utilde = 1.0 + (0.5 / f1) * (r1 ** 2.0 + (z[j1] - z[j2]) ** 2.0)
+    #                 utildesq = utilde ** 2.0
+    #                 f1 = (utildesq - 1.0) ** 0.5
+    #                 galpha = ((utilde + f1) ** (-1.0 * nu)) / (f1 * f2)
+    #
+    #                 for i1 in range(num_bins):
+    #                     for i2 in range(num_bins):
+    #                         green_func[j1, j2, i1, i2] = (1.0 / (m * cutoff)) * np.sum(r1 * bessel0 * galpha)
 
     def __calculate_green_func(self):
         t1 = time.time()
+        print("Starting Green's Functioncalculation ")
 
         kx, ky = np.meshgrid(self._kgrid, self._kgrid, indexing="ij")
+        kabs = (kx ** 2 + ky ** 2) * 0.5
         r = np.linspace(start=0.0, stop=1.0, num=self._m, endpoint=False)
-        self.numba_accelerated_green_func_calc(
-            green_func=self._green_func,
-            num_bins=self._num_bins,
-            nz=self._nz,
-            m=self._m,
-            kx=kx,
-            ky=ky,
-            z=self._zgrid,
-            r=r,
-            k=self._k
-        )
+        # self.numba_accelerated_green_func_calc(
+        #     green_func=self._green_func,
+        #     num_bins=self._num_bins,
+        #     nz=self._nz,
+        #     m=self._m,
+        #     kx=kx,
+        #     ky=ky,
+        #     z=self._zgrid,
+        #     r=r,
+        #     k=self._k
+        # )
         self._green_func = np.fft.fftshift(self._green_func, axes=(2, 3))
 
         t2 = time.time()
@@ -165,7 +166,6 @@ class TruncatedKernelLinearIncreasingVel3d:
 
 
 if __name__ == "__main__":
-    print("a")
 
     n_ = 101
     nz_ = 101
@@ -184,24 +184,3 @@ if __name__ == "__main__":
         m=m_,
         precision=precision_
     )
-    # u_ = np.zeros(shape=(n_, n_, n_), dtype=precision_)
-    # u_[int(n_/2), int(n_/2), int(n_/2)] = 1.0
-    # output_ = u_ * 0
-    #
-    # start_t_ = time.time()
-    # op.convolve_kernel(u=u_, output=output_)
-    # end_t_ = time.time()
-    # print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
-    #
-    # scale = 1e-6
-    # plt.imshow(np.real(output_[int(n_/2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
-    # plt.grid(True)
-    # plt.title("Real")
-    # plt.colorbar()
-    # plt.show()
-    #
-    # plt.imshow(np.imag(output_[int(n_ / 2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
-    # plt.grid(True)
-    # plt.title("Imag")
-    # plt.colorbar()
-    # plt.show()
