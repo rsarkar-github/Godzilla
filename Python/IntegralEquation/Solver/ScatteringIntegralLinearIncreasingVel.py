@@ -178,8 +178,8 @@ class TruncatedKernelLinearIncreasingVel3d:
 
 if __name__ == "__main__":
 
-    n_ = 51
-    nz_ = 50
+    n_ = 125
+    nz_ = 125
     k_ = 50.0
     a_ = 0.8
     b_ = 1.8
