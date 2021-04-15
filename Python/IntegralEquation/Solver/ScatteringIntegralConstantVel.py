@@ -2,6 +2,7 @@ import numpy as np
 import time
 import numba
 from ...Utilities import TypeChecker
+# import TypeChecker
 import matplotlib.pyplot as plt
 
 
@@ -201,6 +202,7 @@ class TruncatedKernelConstantVel3d:
         # Calculate grid of wavenumbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
         self._kgrid = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
+        print(self._kgrid)
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins, self._num_bins), dtype=self._precision)
