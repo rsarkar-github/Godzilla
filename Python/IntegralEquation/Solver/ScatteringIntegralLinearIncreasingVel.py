@@ -49,6 +49,8 @@ class TruncatedKernelLinearIncreasingVel3d:
         self._m = m
         self._precision = precision
 
+        self._cutoff = np.sqrt(2.0)
+
         # Run class initializer
         self.__initialize_class()
 
@@ -87,29 +89,37 @@ class TruncatedKernelLinearIncreasingVel3d:
         # Copy into output appropriately
         output += temparray[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)]
 
-    # @staticmethod
-    # def numba_accelerated_green_func_calc(green_func, num_bins, nz, m, kx, ky, z, r, k):
-    #
-    #     j = np.complex(0, 1)
-    #     nu = j * np.sqrt(k - 0.25)
-    #     cutoff = np.sqrt(2.0)
-    #
-    #     r1 = (cutoff / m) * r
-    #
-    #     for j1 in range(nz):
-    #         for j2 in range(nz):
-    #
-    #             if j1 != j2:
-    #                 f1 = z[j1] * z[j2]
-    #                 f2 = f1 ** 0.5
-    #                 utilde = 1.0 + (0.5 / f1) * (r1 ** 2.0 + (z[j1] - z[j2]) ** 2.0)
-    #                 utildesq = utilde ** 2.0
-    #                 f1 = (utildesq - 1.0) ** 0.5
-    #                 galpha = ((utilde + f1) ** (-1.0 * nu)) / (f1 * f2)
-    #
-    #                 for i1 in range(num_bins):
-    #                     for i2 in range(num_bins):
-    #                         green_func[j1, j2, i1, i2] = (1.0 / (m * cutoff)) * np.sum(r1 * bessel0 * galpha)
+    @staticmethod
+    def numba_accelerated_calc(green_func, nz, m, z, r, bessel0, k):
+
+        j = np.complex(0, 1)
+        nu = j * np.sqrt(k - 0.25)
+        cutoff = np.sqrt(2.0)
+        r_scaled = (cutoff / m) * np.reshape(r, newshape=(m, 1, 1))
+        r_copy = np.reshape(r, newshape=(m, 1, 1))
+
+        print("Total z slices = ", nz, "\n")
+        for j1 in range(nz):
+
+            print("Slice number = ", j1 + 1)
+            for j2 in range(j1, nz):
+
+                if j1 != j2:
+                    f1 = z[j1] * z[j2]
+                    utilde = 1.0 + (0.5 / f1) * (r_scaled ** 2.0 + (z[j1] - z[j2]) ** 2.0)
+                    utildesq = utilde ** 2.0
+                    f2 = (utildesq - 1.0) ** 0.5
+                    galpha = ((utilde + f2) ** (-1.0 * nu)) / (f2 * (f1 ** 0.5))
+                    green_func[j1, j2, :, :] = (1.0 / (m * cutoff)) * np.sum((r_scaled * galpha) * bessel0)
+                    green_func[j2, j1, :, :] = green_func[j1, j2, :, :]
+
+                else:
+                    f1 = z[j1]
+                    utilde = (2.0 / (f1 ** 2) + (r_copy ** 2) / (f1 ** 4)) ** 0.5
+                    galpha_times_r_num = (1 + (r_copy ** 2) / (f1 ** 2) + r_copy * utilde) ** (-1 * nu)
+                    galpha_times_r = galpha_times_r_num / (f1 * utilde)
+                    green_func[j1, j2, :, :] = np.sum(galpha_times_r * bessel0) / m
+                    green_func[j2, j1, :, :] = green_func[j1, j2, :, :]
 
     def __calculate_green_func(self):
         t1 = time.time()
@@ -118,17 +128,18 @@ class TruncatedKernelLinearIncreasingVel3d:
         kx, ky = np.meshgrid(self._kgrid, self._kgrid, indexing="ij")
         kabs = (kx ** 2 + ky ** 2) * 0.5
         r = np.linspace(start=0.0, stop=1.0, num=self._m, endpoint=False)
-        # self.numba_accelerated_green_func_calc(
-        #     green_func=self._green_func,
-        #     num_bins=self._num_bins,
-        #     nz=self._nz,
-        #     m=self._m,
-        #     kx=kx,
-        #     ky=ky,
-        #     z=self._zgrid,
-        #     r=r,
-        #     k=self._k
-        # )
+        r1 = (self._cutoff / self._m) * np.reshape(r, newshape=(self._m, 1, 1))
+        bessel0 = sp.j0(r1 * kabs)
+
+        self.numba_accelerated_calc(
+            green_func=self._green_func,
+            nz=self._nz,
+            m=self._m,
+            z=self._zgrid,
+            r=r,
+            bessel0=bessel0,
+            k=self._k
+        )
         self._green_func = np.fft.fftshift(self._green_func, axes=(2, 3))
 
         t2 = time.time()
@@ -167,8 +178,8 @@ class TruncatedKernelLinearIncreasingVel3d:
 
 if __name__ == "__main__":
 
-    n_ = 101
-    nz_ = 101
+    n_ = 51
+    nz_ = 50
     k_ = 50.0
     a_ = 0.8
     b_ = 1.8
