@@ -67,6 +67,11 @@ vel = Velocity2D(geometry2d=geom2d)
 vel.set_constant_velocity(vel=2.0)
 vel.vel[cells_pad: cells_pad+n, cells_pad: cells_pad+n] = vel1
 
+vel.vel[cells_pad: cells_pad+n, 0:cells_pad] = np.reshape(vel1[:, 0], newshape=(n, 1))
+vel.vel[cells_pad: cells_pad+n, cells_pad+n:2*cells_pad+n] = np.reshape(vel1[:, n-1], newshape=(n, 1))
+vel.vel[0: cells_pad, :] = vel.vel[cells_pad, :]
+vel.vel[cells_pad+n:2*cells_pad+n, :] = vel.vel[cells_pad+n-1, :]
+
 mat_helmholtz2d = CreateMatrixHelmholtz2D(velocity2d=vel, pml_damping=Common.pml_damping)
 mat = mat_helmholtz2d.create_matrix(omega=10.0 * np.pi)
 
@@ -74,7 +79,7 @@ ngridx = vel.geometry2D.gridpointsX - 2
 ngridz = vel.geometry2D.gridpointsZ - 2
 b = np.zeros(shape=(ngridx * ngridz), dtype=np.complex64)
 b = np.reshape(b, newshape=(ngridx, ngridz))
-b[int(ngridx / 2), cells_pad] = 1
+b[int(ngridx / 2), cells_pad + int(n / 8)] = 1
 b = np.reshape(b, newshape=(ngridx * ngridz))
 
 mat1 = splu(mat)
@@ -105,6 +110,11 @@ vel = Velocity2D(geometry2d=geom2d)
 vel.set_constant_velocity(vel=2.0)
 vel.vel[cells_pad: cells_pad+n, cells_pad: cells_pad+n] = vel1
 
+vel.vel[cells_pad: cells_pad+n, 0:cells_pad] = np.reshape(vel1[:, 0], newshape=(n, 1))
+vel.vel[cells_pad: cells_pad+n, cells_pad+n:2*cells_pad+n] = np.reshape(vel1[:, n-1], newshape=(n, 1))
+vel.vel[0: cells_pad, :] = vel.vel[cells_pad, :]
+vel.vel[cells_pad+n:2*cells_pad+n, :] = vel.vel[cells_pad+n-1, :]
+
 mat_helmholtz2d = CreateMatrixHelmholtz2D(velocity2d=vel, pml_damping=Common.pml_damping)
 mat = mat_helmholtz2d.create_matrix(omega=10.0 * np.pi)
 
@@ -112,7 +122,7 @@ ngridx = vel.geometry2D.gridpointsX - 2
 ngridz = vel.geometry2D.gridpointsZ - 2
 b = np.zeros(shape=(ngridx * ngridz), dtype=np.complex64)
 b = np.reshape(b, newshape=(ngridx, ngridz))
-b[int(ngridx / 2), cells_pad] = 1
+b[cells_pad + int(n / 4), int(ngridz / 2 + 3 * n / 8)] = 1
 b = np.reshape(b, newshape=(ngridx * ngridz))
 
 mat1 = splu(mat)
@@ -140,6 +150,11 @@ vel = Velocity2D(geometry2d=geom2d)
 vel.set_constant_velocity(vel=2.0)
 vel.vel[cells_pad: cells_pad+n, cells_pad: cells_pad+n] = vel1
 
+vel.vel[cells_pad: cells_pad+n, 0:cells_pad] = np.reshape(vel1[:, 0], newshape=(n, 1))
+vel.vel[cells_pad: cells_pad+n, cells_pad+n:2*cells_pad+n] = np.reshape(vel1[:, n-1], newshape=(n, 1))
+vel.vel[0: cells_pad, :] = vel.vel[cells_pad, :]
+vel.vel[cells_pad+n:2*cells_pad+n, :] = vel.vel[cells_pad+n-1, :]
+
 mat_helmholtz2d = CreateMatrixHelmholtz2D(velocity2d=vel, pml_damping=Common.pml_damping)
 mat = mat_helmholtz2d.create_matrix(omega=10.0 * np.pi)
 
@@ -147,7 +162,7 @@ ngridx = vel.geometry2D.gridpointsX - 2
 ngridz = vel.geometry2D.gridpointsZ - 2
 b = np.zeros(shape=(ngridx * ngridz), dtype=np.complex64)
 b = np.reshape(b, newshape=(ngridx, ngridz))
-b[int(ngridx / 2), cells_pad] = 1
+b[int(ngridx / 2 + 3 * n /8), int(ngridz / 2 + 3 * n /8)] = 1
 b = np.reshape(b, newshape=(ngridx * ngridz))
 
 mat1 = splu(mat)
@@ -164,33 +179,38 @@ plt.grid(True)
 plt.title("Real")
 plt.show()
 
-# No perturbation
-vel1 = vel_bkg + 0
-
-vel = Velocity2D(geometry2d=geom2d)
-vel.set_constant_velocity(vel=2.0)
-vel.vel[cells_pad: cells_pad+n, cells_pad: cells_pad+n] = vel1
-
-mat_helmholtz2d = CreateMatrixHelmholtz2D(velocity2d=vel, pml_damping=Common.pml_damping)
-mat = mat_helmholtz2d.create_matrix(omega=10.0 * np.pi)
-
-ngridx = vel.geometry2D.gridpointsX - 2
-ngridz = vel.geometry2D.gridpointsZ - 2
-b = np.zeros(shape=(ngridx * ngridz), dtype=np.complex64)
-b = np.reshape(b, newshape=(ngridx, ngridz))
-b[int(ngridx / 2), cells_pad] = 1
-b = np.reshape(b, newshape=(ngridx * ngridz))
-
-mat1 = splu(mat)
-x = mat1.solve(b)
-x = np.reshape(x, newshape=(ngridx, ngridz))
-x = x[cells_pad-1: cells_pad-1+n, cells_pad-1: cells_pad-1+n]
-
-np.savez("Python/Helmholtz/Data/linearvel_nopert.npz", x)
-x = np.load("Python/Helmholtz/Data/linearvel_nopert.npz")["arr_0"]
-
-scale = 1e-4
-plt.imshow(np.real(x).T, cmap="Greys", vmin=-scale, vmax=scale)
-plt.grid(True)
-plt.title("Real")
-plt.show()
+# # No perturbation
+# vel1 = vel_bkg + 0
+#
+# vel = Velocity2D(geometry2d=geom2d)
+# vel.set_constant_velocity(vel=2.0)
+# vel.vel[cells_pad: cells_pad+n, cells_pad: cells_pad+n] = vel1
+#
+# vel.vel[cells_pad: cells_pad+n, 0:cells_pad] = np.reshape(vel1[:, 0], newshape=(n, 1))
+# vel.vel[cells_pad: cells_pad+n, cells_pad+n:2*cells_pad+n] = np.reshape(vel1[:, n-1], newshape=(n, 1))
+# vel.vel[0: cells_pad, :] = vel.vel[cells_pad, :]
+# vel.vel[cells_pad+n:2*cells_pad+n, :] = vel.vel[cells_pad+n-1, :]
+#
+# mat_helmholtz2d = CreateMatrixHelmholtz2D(velocity2d=vel, pml_damping=Common.pml_damping)
+# mat = mat_helmholtz2d.create_matrix(omega=10.0 * np.pi)
+#
+# ngridx = vel.geometry2D.gridpointsX - 2
+# ngridz = vel.geometry2D.gridpointsZ - 2
+# b = np.zeros(shape=(ngridx * ngridz), dtype=np.complex64)
+# b = np.reshape(b, newshape=(ngridx, ngridz))
+# b[int(ngridx / 2), cells_pad] = 1
+# b = np.reshape(b, newshape=(ngridx * ngridz))
+#
+# mat1 = splu(mat)
+# x = mat1.solve(b)
+# x = np.reshape(x, newshape=(ngridx, ngridz))
+# x = x[cells_pad-1: cells_pad-1+n, cells_pad-1: cells_pad-1+n]
+#
+# np.savez("Python/Helmholtz/Data/linearvel_nopert.npz", x)
+# x = np.load("Python/Helmholtz/Data/linearvel_nopert.npz")["arr_0"]
+#
+# scale = 1e-4
+# plt.imshow(np.real(x).T, cmap="Greys", vmin=-scale, vmax=scale)
+# plt.grid(True)
+# plt.title("Real")
+# plt.show()

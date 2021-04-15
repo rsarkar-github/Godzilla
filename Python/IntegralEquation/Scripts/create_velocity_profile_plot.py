@@ -94,3 +94,27 @@ cbar.set_ticklabels(cbar_yticks)
 
 plt.show()
 fig.savefig("G:/Research/Freq-Domain/Godzilla/Python/IntegralEquation/Fig/vels.pdf", bbox_inches='tight', pad_inches=0)
+
+# Plot function chi
+xgrid = np.linspace(start=xmin, stop=xmax, num=n, endpoint=True)
+y = xgrid * 0
+p1 = 9/4
+p2 = 2
+for i in range(n):
+    if np.abs(xgrid[i]) < p1:
+        if np.abs(xgrid[i]) <= p2:
+            y[i] = 1.0
+        else:
+            y[i] = 1.0 - np.exp(- 1.0 / (xgrid[i]**2 - p2**2)) / \
+                   (np.exp(- 1.0 / (xgrid[i]**2 - p2**2)) + np.exp(- 1.0 / (p1 ** 2 - xgrid[i]**2)))
+
+fig = plt.figure(figsize=(6, 4))
+plt.plot(xgrid, y)
+plt.xlim([xmin, xmax])
+plt.ylim([0, 1.25])
+plt.xlabel(r"$x_2$  [km]", fontname="Times New Roman", fontsize=10)
+plt.ylabel(r"$\chi (x_2)$", fontname="Times New Roman", fontsize=10)
+plt.grid()
+plt.gca().set_aspect(1)
+plt.show()
+fig.savefig("G:/Research/Freq-Domain/Godzilla/Python/IntegralEquation/Fig/chi.pdf", bbox_inches='tight', pad_inches=0)

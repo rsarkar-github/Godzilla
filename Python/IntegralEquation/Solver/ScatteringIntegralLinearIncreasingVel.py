@@ -1,8 +1,6 @@
 import numpy as np
 import scipy.special as sp
 import time
-import numba
-import numba_scipy
 from ...Utilities import TypeChecker
 import matplotlib.pyplot as plt
 
@@ -89,14 +87,21 @@ class TruncatedKernelLinearIncreasingVel3d:
         # Copy into output appropriately
         output += temparray[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)]
 
+        # Restore class temporary arrays
+        self._temparray *= 0
+        self._temparray1 *= 0
+
+    @property
+    def greens_func(self):
+        return self._green_func
+
     @staticmethod
     def numba_accelerated_calc(green_func, nz, m, z, r, bessel0, k):
 
         j = np.complex(0, 1)
         nu = j * np.sqrt(k - 0.25)
         cutoff = np.sqrt(2.0)
-        r_scaled = (cutoff / m) * np.reshape(r, newshape=(m, 1, 1))
-        r_copy = np.reshape(r, newshape=(m, 1, 1))
+        r_scaled = cutoff * r
 
         print("Total z slices = ", nz, "\n")
         for j1 in range(nz):
@@ -110,26 +115,26 @@ class TruncatedKernelLinearIncreasingVel3d:
                     utildesq = utilde ** 2.0
                     f2 = (utildesq - 1.0) ** 0.5
                     galpha = ((utilde + f2) ** (-1.0 * nu)) / (f2 * (f1 ** 0.5))
-                    green_func[j1, j2, :, :] = (1.0 / (m * cutoff)) * np.sum((r_scaled * galpha) * bessel0)
+                    green_func[j1, j2, :, :] = (1.0 / (m * cutoff)) * np.sum((r_scaled * galpha) * bessel0, axis=0)
                     green_func[j2, j1, :, :] = green_func[j1, j2, :, :]
 
                 else:
                     f1 = z[j1]
-                    utilde = (2.0 / (f1 ** 2) + (r_copy ** 2) / (f1 ** 4)) ** 0.5
-                    galpha_times_r_num = (1 + (r_copy ** 2) / (f1 ** 2) + r_copy * utilde) ** (-1 * nu)
+                    utilde = (2.0 / (f1 ** 2) + (r ** 2) / (f1 ** 4)) ** 0.5
+                    galpha_times_r_num = (1 + (r ** 2) / (f1 ** 2) + r * utilde) ** (-1 * nu)
                     galpha_times_r = galpha_times_r_num / (f1 * utilde)
-                    green_func[j1, j2, :, :] = np.sum(galpha_times_r * bessel0) / m
+                    green_func[j1, j2, :, :] = np.sum(galpha_times_r * bessel0, axis=0) / m
                     green_func[j2, j1, :, :] = green_func[j1, j2, :, :]
 
     def __calculate_green_func(self):
         t1 = time.time()
-        print("Starting Green's Functioncalculation ")
+        print("\nStarting Green's Function calculation ")
 
         kx, ky = np.meshgrid(self._kgrid, self._kgrid, indexing="ij")
-        kabs = (kx ** 2 + ky ** 2) * 0.5
-        r = np.linspace(start=0.0, stop=1.0, num=self._m, endpoint=False)
-        r1 = (self._cutoff / self._m) * np.reshape(r, newshape=(self._m, 1, 1))
-        bessel0 = sp.j0(r1 * kabs)
+        kabs = (kx ** 2 + ky ** 2) ** 0.5
+        r = np.reshape(np.linspace(start=0.0, stop=1.0, num=self._m, endpoint=False), newshape=(self._m, 1, 1))
+        r_scaled = self._cutoff * r
+        bessel0 = sp.j0(r_scaled * kabs)
 
         self.numba_accelerated_calc(
             green_func=self._green_func,
@@ -143,7 +148,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         self._green_func = np.fft.fftshift(self._green_func, axes=(2, 3))
 
         t2 = time.time()
-        print("Computing 3d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
+        print("\nComputing 3d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
 
     def __initialize_class(self):
         # Calculate number of grid points for the domain [-2, 2] along one horizontal axis,
@@ -180,10 +185,10 @@ if __name__ == "__main__":
 
     n_ = 125
     nz_ = 125
-    k_ = 50.0
+    k_ = 3600.0
     a_ = 0.8
     b_ = 1.8
-    m_ = 100
+    m_ = 200
     precision_ = np.complex64
 
     op = TruncatedKernelLinearIncreasingVel3d(
@@ -194,4 +199,25 @@ if __name__ == "__main__":
         b=b_,
         m=m_,
         precision=precision_
+    )
+
+    u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
+    u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
+    output_ = u_ * 0
+
+    start_t_ = time.time()
+    op.apply_kernel(u=u_, output=output_)
+    end_t_ = time.time()
+    print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+
+    scale = 1e-4
+    fig = plt.figure()
+    plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.grid(True)
+    plt.title("Real")
+    plt.colorbar()
+    fig.savefig(
+        "Python/IntegralEquation/Fig/testplot.pdf",
+        bbox_inches='tight',
+        pad_inches=0
     )
