@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.special as sp
 import time
 import numba
 from ...Utilities import TypeChecker
@@ -34,10 +35,12 @@ class TruncatedKernelConstantVel3d:
         # Run class initializer
         self.__initialize_class()
 
-    def convolve_kernel(self, u, output):
+    def convolve_kernel(self, u, output, adj=False, add=False):
         """
         :param u: 3d numpy array (must be n x n x n dimensions with n odd).
         :param output: 3d numpy array (same dimension as u). Assumed to be zeros.
+        :param adj: Boolean flag (forward or adjoint operator)
+        :param add: Boolean flag (whether to add result to output)
         """
 
         # Check types of input
@@ -60,10 +63,16 @@ class TruncatedKernelConstantVel3d:
         # 2. Multiply with Fourier transform of Truncated Kernel Green's function
         # 3. Compute Inverse Fourier transform
         out = np.fft.fftn(np.fft.fftshift(self._temparray))
-        out *= self._green_func
+        if adj:
+            out *= self._green_func_conj
+        else:
+            out *= self._green_func
         out = np.fft.fftshift(np.fft.ifftn(out))
 
         # Copy into output appropriately
+        if not add:
+            output *= 0
+
         output += out[
             self._start_index:(self._end_index + 1),
             self._start_index:(self._end_index + 1),
@@ -143,7 +152,7 @@ class TruncatedKernelConstantVel3d:
     @numba.jit(nopython=True, parallel=True)
     def numba_accelerated_green_func_calc(green_func, num_bins, kx, ky, kz, k, tol):
 
-        j = np.complex(0, 1)
+        j = complex(0, 1)
         cutoff = np.sqrt(3.0)
         f1 = k * cutoff
         f1exp = np.exp(j * f1)
@@ -186,6 +195,7 @@ class TruncatedKernelConstantVel3d:
             tol=tol
         )
         self._green_func = np.fft.fftshift(self._green_func)
+        self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
         print("Computing 3d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
@@ -202,7 +212,6 @@ class TruncatedKernelConstantVel3d:
         # Calculate grid of wavenumbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
         self._kgrid = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
-        print(self._kgrid)
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins, self._num_bins), dtype=self._precision)
@@ -240,10 +249,12 @@ class TruncatedKernelConstantVel2d:
         # Run class initializer
         self.__initialize_class()
 
-    def convolve_kernel(self, u, output):
+    def convolve_kernel(self, u, output, adj=False, add=False):
         """
         :param u: 3d numpy array (must be n x n dimensions with n odd).
         :param output: 3d numpy array (same dimension as u). Assumed to be zeros.
+        :param adj: Boolean flag (forward or adjoint operator)
+        :param add: Boolean flag (whether to add result to output)
         """
 
         # Check types of input
@@ -265,10 +276,16 @@ class TruncatedKernelConstantVel2d:
         # 2. Multiply with Fourier transform of Truncated Kernel Green's function
         # 3. Compute Inverse Fourier transform
         out = np.fft.fft2(np.fft.fftshift(self._temparray))
-        out *= self._green_func
+        if adj:
+            out *= self._green_func_conj
+        else:
+            out *= self._green_func
         out = np.fft.fftshift(np.fft.ifft2(out))
 
         # Copy into output appropriately
+        if not add:
+            output *= 0
+
         output += out[
             self._start_index:(self._end_index + 1),
             self._start_index:(self._end_index + 1)
@@ -344,30 +361,50 @@ class TruncatedKernelConstantVel2d:
         self.__initialize_class()
 
     @staticmethod
-    @numba.jit(nopython=True, parallel=True)
-    def numba_accelerated_green_func_calc(green_func, num_bins, kx, ky, k):
-        """
-        TODO: Not Implemented
-        """
-        j = np.complex(0, 1)
+    def green_func_calc(green_func, num_bins, kx, ky, k, tol):
+
+        j = complex(0, 1)
         cutoff = np.sqrt(2.0)
         f1 = k * cutoff
 
-        raise NotImplementedError
+        for i1 in range(num_bins):
+            for i2 in range(num_bins):
+
+                kabs = np.sqrt(kx[i1, i2] ** 2.0 + ky[i1, i2] ** 2.0)
+
+                if np.abs(kabs - k) > tol:
+                    f2 = kabs * cutoff
+                    f3 = -1.0 - 0.5 * j * np.pi * (f2 * sp.jv(1, f2) * sp.hankel1(0, f1)
+                                                  - f1 * sp.jv(0, f2) * sp.hankel1(1, f1))
+                    green_func[i1, i2] = f3 / ((k - kabs) * (k + kabs))
+
+                else:
+                    f2 = f1 * (sp.jv(1, f1) * sp.hankel1(1, f1)
+                                        - sp.jv(2, f1) * sp.hankel1(0, f1))
+                    f3 = 2 * sp.jv(1, f1) * sp.hankel1(0, f1)
+                    green_func[i1, i2] = 0.5 * j * np.pi * cutoff * (f2 + f3) / (k + kabs)
 
     def __calculate_green_func(self):
 
         t1 = time.time()
 
+        tol = 1e-6
+        if self._precision == np.complex64:
+            tol = 1e-6
+        if self._precision == np.complex128:
+            tol = 1e-15
+
         kx, ky = np.meshgrid(self._kgrid, self._kgrid, indexing="ij")
-        self.numba_accelerated_green_func_calc(
+        self.green_func_calc(
             green_func=self._green_func,
             num_bins=self._num_bins,
             kx=kx,
             ky=ky,
-            k=self._k
+            k=self._k,
+            tol=tol
         )
         self._green_func = np.fft.fftshift(self._green_func)
+        self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
         print("Computing 2d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
@@ -387,6 +424,7 @@ class TruncatedKernelConstantVel2d:
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins), dtype=self._precision)
+        self._green_func_conj = np.zeros(shape=(self._num_bins, self._num_bins), dtype=self._precision)
         self.__calculate_green_func()
 
         # Allocate temporary array to avoid some reallocation
@@ -395,13 +433,38 @@ class TruncatedKernelConstantVel2d:
 
 if __name__ == "__main__":
 
-    n_ = 101
+    n_ = 201
     k_ = 150.0
     precision_ = np.complex64
 
-    op = TruncatedKernelConstantVel3d(n=n_, k=k_, precision=precision_)
-    u_ = np.zeros(shape=(n_, n_, n_), dtype=precision_)
-    u_[int(n_/2), int(n_/2), int(n_/2)] = 1.0
+    # op = TruncatedKernelConstantVel3d(n=n_, k=k_, precision=precision_)
+    # # noinspection PyTypeChecker
+    # u_ = np.zeros(shape=(n_, n_, n_), dtype=precision_)
+    # u_[int(n_/2), int(n_/2), int(n_/2)] = 1.0
+    # output_ = u_ * 0
+    #
+    # start_t_ = time.time()
+    # op.convolve_kernel(u=u_, output=output_)
+    # end_t_ = time.time()
+    # print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+    #
+    # scale = 1e-6
+    # plt.imshow(np.real(output_[int(n_/2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
+    # plt.grid(True)
+    # plt.title("Real")
+    # plt.colorbar()
+    # plt.show()
+    #
+    # plt.imshow(np.imag(output_[int(n_ / 2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
+    # plt.grid(True)
+    # plt.title("Imag")
+    # plt.colorbar()
+    # plt.show()
+
+    op = TruncatedKernelConstantVel2d(n=n_, k=k_, precision=precision_)
+    # noinspection PyTypeChecker
+    u_ = np.zeros(shape=(n_, n_), dtype=precision_)
+    u_[int(n_ / 2), int(n_ / 2)] = 1.0
     output_ = u_ * 0
 
     start_t_ = time.time()
@@ -410,13 +473,13 @@ if __name__ == "__main__":
     print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
 
     scale = 1e-6
-    plt.imshow(np.real(output_[int(n_/2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.imshow(np.real(output_), cmap="Greys", vmin=-scale, vmax=scale)
     plt.grid(True)
     plt.title("Real")
     plt.colorbar()
     plt.show()
 
-    plt.imshow(np.imag(output_[int(n_ / 2), :, :]), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.imshow(np.imag(output_), cmap="Greys", vmin=-scale, vmax=scale)
     plt.grid(True)
     plt.title("Imag")
     plt.colorbar()
