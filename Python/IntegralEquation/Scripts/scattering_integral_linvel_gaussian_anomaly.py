@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel3d as Lipp3d
 
 
-n = 101
-nz = 101
+n = 91
+nz = 91
 a = 4
 b = 9
 xmin = -2.5

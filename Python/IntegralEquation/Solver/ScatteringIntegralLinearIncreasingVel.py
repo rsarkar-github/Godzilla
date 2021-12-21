@@ -9,8 +9,8 @@ class TruncatedKernelLinearIncreasingVel3d:
 
     def __init__(self, n, nz, k, a, b, m, precision):
         """
-        :param n: The field will have shape n x n x nz, with n odd. This means that the unit cube
-        [-0.5, 0.5]^2 is gridded into n^2 nz points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
+        :param n: The field will have shape n x n x nz, with n odd. This means that the cube
+        [-0.5, 0.5]^2 is gridded into n^2 points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
         :param nz: The field will have shape n x n x nz, with n odd. This means that the interval [a, b] is gridded
         into nz points. The points have coordinates {a + (b-a)k/(nz-1) : 0 <= k <= nz-1}.
         :param k: The Helmholtz equation reads (lap + k^2 / z^2)u = f.
@@ -96,9 +96,9 @@ class TruncatedKernelLinearIncreasingVel3d:
         return self._green_func
 
     @staticmethod
-    def numba_accelerated_calc(green_func, nz, m, z, r, bessel0, k):
+    def green_func_calc(green_func, nz, m, z, r, bessel0, k):
 
-        j = np.complex(0, 1)
+        j = complex(0, 1)
         nu = j * np.sqrt(k**2 - 0.25)
         cutoff = np.sqrt(2.0)
         r_scaled = cutoff * r
@@ -136,7 +136,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         r_scaled = self._cutoff * r
         bessel0 = sp.j0(r_scaled * kabs)
 
-        self.numba_accelerated_calc(
+        self.green_func_calc(
             green_func=self._green_func,
             nz=self._nz,
             m=self._m,
@@ -185,9 +185,9 @@ class TruncatedKernelLinearIncreasingVel2d:
 
     def __init__(self, n, nz, k, a, b, m, precision):
         """
-        :param n: The field will have shape n x n x nz, with n odd. This means that the unit cube
-        [-0.5, 0.5]^2 is gridded into n^2 nz points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
-        :param nz: The field will have shape n x n x nz, with n odd. This means that the interval [a, b] is gridded
+        :param n: The field will have shape n x nz, with n odd. This means that the unit cube
+        [-0.5, 0.5] is gridded into n points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
+        :param nz: The field will have shape n x nz, with n odd. This means that the interval [a, b] is gridded
         into nz points. The points have coordinates {a + (b-a)k/(nz-1) : 0 <= k <= nz-1}.
         :param k: The Helmholtz equation reads (lap + k^2 / z^2)u = f.
         :param a: The domain in z direction is [a, b] with 0 < a < b.
@@ -223,15 +223,15 @@ class TruncatedKernelLinearIncreasingVel2d:
         self._m = m
         self._precision = precision
 
-        self._cutoff = np.sqrt(2.0)
+        self._cutoff = np.sqrt(1.0)
 
         # Run class initializer
         self.__initialize_class()
 
     def apply_kernel(self, u, output):
         """
-        :param u: 3d numpy array (must be nz x n x n dimensions with n odd).
-        :param output: 3d numpy array (same dimension as u). Assumed to be zeros.
+        :param u: 2d numpy array (must be nz x n dimensions with n odd).
+        :param output: 2d numpy array (same dimension as u). Assumed to be zeros.
         """
 
         # Check types of input
@@ -239,29 +239,29 @@ class TruncatedKernelLinearIncreasingVel2d:
             raise TypeError("Types of 'u' and 'output' must match that of class: ", self._precision)
 
         # Check dimensions
-        if u.shape != (self._nz, self._n, self._n) or output.shape != (self._nz, self._n, self._n):
-            raise ValueError("Shapes of 'u' and 'output' must be (nz, n, n) with nz = ", self._nz, " and n = ", self._n)
+        if u.shape != (self._nz, self._n) or output.shape != (self._nz, self._n):
+            raise ValueError("Shapes of 'u' and 'output' must be (nz, n) with nz = ", self._nz, " and n = ", self._n)
 
         # Copy u into self._temparray
-        self._temparray[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)] = u
+        self._temparray[:, self._start_index:(self._end_index + 1)] = u
 
-        # Compute Fourier transform along first 2 axis
-        temparray = np.fft.fftn(np.fft.fftshift(self._temparray, axes=(1, 2)), axes=(1, 2))
+        # Compute Fourier transform along first axis
+        temparray = np.fft.fftn(np.fft.fftshift(self._temparray, axes=(1,)), axes=(1,))
 
         # Do the following for each z slice
         # 1. Multiply with Fourier transform of Truncated Kernel Green's function slice for that z
         # 2. Compute weighted sum along z with trapezoidal integration weights
 
         for j in range(self._nz):
-            self._temparray = temparray * self._green_func[j, :, :, :]
+            self._temparray = temparray * self._green_func[j, :, :]
             self._temparray *= self._mu
-            self._temparray1[j, :, :] = self._temparray.sum(axis=0)
+            self._temparray1[j, :] = self._temparray.sum(axis=0)
 
         # Compute Inverse Fourier transform along first 2 axis
-        temparray = np.fft.fftshift(np.fft.ifftn(self._temparray1, axes=(1, 2)), axes=(1, 2))
+        temparray = np.fft.fftshift(np.fft.ifftn(self._temparray1, axes=(1,)), axes=(1,))
 
         # Copy into output appropriately
-        output += temparray[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)]
+        output += temparray[:, self._start_index:(self._end_index + 1)]
 
         # Restore class temporary arrays
         self._temparray *= 0
@@ -272,12 +272,12 @@ class TruncatedKernelLinearIncreasingVel2d:
         return self._green_func
 
     @staticmethod
-    def numba_accelerated_calc(green_func, nz, m, z, r, bessel0, k):
+    def green_func_calc(green_func, nz, m, z, r, cos, k):
 
-        j = np.complex(0, 1)
+        j = complex(0, 1)
         nu = j * np.sqrt(k**2 - 0.25)
-        cutoff = np.sqrt(2.0)
-        r_scaled = cutoff * r
+        lamb = nu - 0.5
+        f = (np.pi ** 0.5) * sp.gamma(1.0 + lamb) / (sp.gamma(1.5 + lamb) * (2 ** (1.0 + lamb)))
 
         print("Total z slices = ", nz, "\n")
         for j1 in range(nz):
@@ -285,46 +285,36 @@ class TruncatedKernelLinearIncreasingVel2d:
             print("Slice number = ", j1 + 1)
             for j2 in range(j1, nz):
 
-                if j1 != j2:
-                    f1 = z[j1] * z[j2]
-                    utilde = 1.0 + (0.5 / f1) * (r_scaled ** 2.0 + (z[j1] - z[j2]) ** 2.0)
-                    utildesq = utilde ** 2.0
-                    f2 = (utildesq - 1.0) ** 0.5
-                    galpha = ((utilde + f2) ** (-1.0 * nu)) / (f2 * (f1 ** 0.5))
-                    green_func[j1, j2, :, :] = (1.0 / (m * cutoff)) * np.sum((r_scaled * galpha) * bessel0, axis=0)
-                    green_func[j2, j1, :, :] = green_func[j1, j2, :, :]
-
-                else:
-                    f1 = z[j1]
-                    utilde = (2.0 / (f1 ** 2) + (r ** 2) / (f1 ** 4)) ** 0.5
-                    galpha_times_r_num = (1 + (r ** 2) / (f1 ** 2) + r * utilde) ** (-1 * nu)
-                    galpha_times_r = galpha_times_r_num / (f1 * utilde)
-                    green_func[j1, j2, :, :] = np.sum(galpha_times_r * bessel0, axis=0) / m
-                    green_func[j2, j1, :, :] = green_func[j1, j2, :, :]
+                f1 = z[j1] * z[j2]
+                utilde = 1.0 + (0.5 / f1) * (r ** 2.0 + (z[j1] - z[j2]) ** 2.0)
+                legendre = f * sp.hyp2f1(0.5*(1.0 + lamb), 0.5*(2.0 + lamb), 1.5+lamb, utilde**(-2.0)) \
+                           / (utilde ** (1.0 + lamb))
+                green_func[j1, j2, :] = (1.0 / m) * np.sum(legendre * cos, axis=0)
+                green_func[j2, j1, :] = green_func[j1, j2, :]
 
     def __calculate_green_func(self):
         t1 = time.time()
         print("\nStarting Green's Function calculation ")
 
-        kx, ky = np.meshgrid(self._kgrid, self._kgrid, indexing="ij")
-        kabs = (kx ** 2 + ky ** 2) ** 0.5
-        r = np.reshape(np.linspace(start=0.0, stop=1.0, num=self._m, endpoint=False), newshape=(self._m, 1, 1))
-        r_scaled = self._cutoff * r
-        bessel0 = sp.j0(r_scaled * kabs)
+        kx = np.meshgrid(self._kgrid, indexing="ij")
+        kabs = np.abs(kx)
+        r = np.reshape(np.linspace(start=0.0, stop=1.0, num=self._m, endpoint=False), newshape=(self._m, 1))
+        r = r[1:]
+        cos = np.cos(r * kabs) # notice scaling is 1 compared to 3d case, so r_scaled is not needed here
 
-        self.numba_accelerated_calc(
+        self.green_func_calc(
             green_func=self._green_func,
             nz=self._nz,
             m=self._m,
             z=self._zgrid,
             r=r,
-            bessel0=bessel0,
+            cos=cos,
             k=self._k
         )
-        self._green_func = np.fft.fftshift(self._green_func, axes=(2, 3))
+        self._green_func = np.fft.fftshift(self._green_func, axes=2)
 
         t2 = time.time()
-        print("\nComputing 3d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
+        print("\nComputing 2d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
 
     def __initialize_class(self):
         # Calculate number of grid points for the domain [-2, 2] along one horizontal axis,
@@ -344,22 +334,21 @@ class TruncatedKernelLinearIncreasingVel2d:
         self._zgrid = np.linspace(start=self._a, stop=self._b, num=self._nz, endpoint=True)
 
         # Calculate FT of Truncated Green's Function and apply fftshift
-        self._green_func = np.zeros(shape=(self._nz, self._nz, self._num_bins, self._num_bins), dtype=self._precision)
+        self._green_func = np.zeros(shape=(self._nz, self._nz, self._num_bins), dtype=self._precision)
         self.__calculate_green_func()
 
         # Calculate integration weights
-        self._mu = np.zeros(shape=(self._nz, 1, 1), dtype=np.float64) + 1.0
-        self._mu[0, 0, 0] = 0.5
-        self._mu[self._nz - 1, 0, 0] = 0.5
+        self._mu = np.zeros(shape=(self._nz, 1), dtype=np.float64) + 1.0
+        self._mu[0, 0] = 0.5
+        self._mu[self._nz - 1, 0] = 0.5
 
         # Allocate temporary array to avoid some reallocation
-        self._temparray = np.zeros(shape=(self._nz, self._num_bins, self._num_bins), dtype=self._precision)
-        self._temparray1 = np.zeros(shape=(self._nz, self._num_bins, self._num_bins), dtype=self._precision)
+        self._temparray = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
+        self._temparray1 = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
 
 
 
 if __name__ == "__main__":
-
     n_ = 51
     nz_ = 51
     k_ = 60.0
@@ -368,7 +357,59 @@ if __name__ == "__main__":
     m_ = 250
     precision_ = np.complex64
 
-    op = TruncatedKernelLinearIncreasingVel3d(
+    # # 3d test
+    # op = TruncatedKernelLinearIncreasingVel3d(
+    #     n=n_,
+    #     nz=nz_,
+    #     k=k_,
+    #     a=a_,
+    #     b=b_,
+    #     m=m_,
+    #     precision=precision_
+    # )
+    #
+    # u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
+    # u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
+    # output_ = u_ * 0
+    #
+    # start_t_ = time.time()
+    # op.apply_kernel(u=u_, output=output_)
+    # end_t_ = time.time()
+    # print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+    #
+    # scale = 1e-4
+    # fig = plt.figure()
+    # plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
+    # plt.grid(True)
+    # plt.title("Real")
+    # plt.colorbar()
+    # plt.show()
+    #
+    # u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
+    # u_[int(nz_ / 2), int(n_ / 2), int(n_ / 2)] = 1.0
+    # output_ = u_ * 0
+    #
+    # start_t_ = time.time()
+    # op.apply_kernel(u=u_, output=output_)
+    # end_t_ = time.time()
+    # print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+    #
+    # scale = 1e-4
+    # fig = plt.figure()
+    # plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
+    # plt.grid(True)
+    # plt.title("Real")
+    # plt.colorbar()
+    # plt.show()
+    #
+    # fig.savefig(
+    #     "Python/IntegralEquation/Fig/testplot.pdf",
+    #     bbox_inches='tight',
+    #     pad_inches=0
+    # )
+
+    # 2d test
+    op = TruncatedKernelLinearIncreasingVel2d(
         n=n_,
         nz=nz_,
         k=k_,
@@ -378,8 +419,8 @@ if __name__ == "__main__":
         precision=precision_
     )
 
-    u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
-    u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
+    u_ = np.zeros(shape=(nz_, n_), dtype=precision_)
+    u_[int(nz_ / 8), int(n_ / 2)] = 1.0
     output_ = u_ * 0
 
     start_t_ = time.time()
@@ -389,31 +430,8 @@ if __name__ == "__main__":
 
     scale = 1e-4
     fig = plt.figure()
-    plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.imshow(np.real(output_), cmap="Greys", vmin=-scale, vmax=scale)
     plt.grid(True)
     plt.title("Real")
     plt.colorbar()
     plt.show()
-
-    u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
-    u_[int(nz_ / 2), int(n_ / 2), int(n_ / 2)] = 1.0
-    output_ = u_ * 0
-
-    start_t_ = time.time()
-    op.apply_kernel(u=u_, output=output_)
-    end_t_ = time.time()
-    print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
-
-    scale = 1e-4
-    fig = plt.figure()
-    plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
-    plt.grid(True)
-    plt.title("Real")
-    plt.colorbar()
-    plt.show()
-
-    fig.savefig(
-        "Python/IntegralEquation/Fig/testplot.pdf",
-        bbox_inches='tight',
-        pad_inches=0
-    )
