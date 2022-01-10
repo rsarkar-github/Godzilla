@@ -1,7 +1,9 @@
 import numpy as np
+import numba
 import scipy.special as sp
 import time
-from ...Utilities import TypeChecker
+from . import TypeChecker
+from . import legendreQ
 import matplotlib.pyplot as plt
 
 
@@ -272,12 +274,12 @@ class TruncatedKernelLinearIncreasingVel2d:
         return self._green_func
 
     @staticmethod
+    @numba.jit(nopython=True)
     def green_func_calc(green_func, nz, m, z, r, cos, k):
 
         j = complex(0, 1)
         nu = j * np.sqrt(k**2 - 0.25)
         lamb = nu - 0.5
-        f = (np.pi ** 0.5) * sp.gamma(1.0 + lamb) / (sp.gamma(1.5 + lamb) * (2 ** (1.0 + lamb)))
 
         print("Total z slices = ", nz, "\n")
         for j1 in range(nz):
@@ -287,9 +289,9 @@ class TruncatedKernelLinearIncreasingVel2d:
 
                 f1 = z[j1] * z[j2]
                 utilde = 1.0 + (0.5 / f1) * (r ** 2.0 + (z[j1] - z[j2]) ** 2.0)
-                legendre = f * sp.hyp2f1(0.5*(1.0 + lamb), 0.5*(2.0 + lamb), 1.5+lamb, utilde**(-2.0)) \
-                           / (utilde ** (1.0 + lamb))
-                green_func[j1, j2, :] = (1.0 / m) * np.sum(legendre * cos, axis=0)
+                leg = legendreQ.legendre_q(lamb, utilde, 1e-6)
+                prod = leg * cos
+                green_func[j1, j2, :] = (1.0 / m) * np.sum(prod, axis=0)
                 green_func[j2, j1, :] = green_func[j1, j2, :]
 
     def __calculate_green_func(self):
@@ -349,12 +351,12 @@ class TruncatedKernelLinearIncreasingVel2d:
 
 
 if __name__ == "__main__":
-    n_ = 51
-    nz_ = 51
+    n_ = 101
+    nz_ = 101
     k_ = 60.0
     a_ = 0.8
     b_ = 1.8
-    m_ = 250
+    m_ = 1000
     precision_ = np.complex64
 
     # # 3d test
@@ -428,7 +430,7 @@ if __name__ == "__main__":
     end_t_ = time.time()
     print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
 
-    scale = 1e-4
+    scale = 1e-3
     fig = plt.figure()
     plt.imshow(np.real(output_), cmap="Greys", vmin=-scale, vmax=scale)
     plt.grid(True)

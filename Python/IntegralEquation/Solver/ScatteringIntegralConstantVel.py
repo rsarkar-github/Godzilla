@@ -1,9 +1,8 @@
 import numpy as np
+import numba
 import scipy.special as sp
 import time
-import numba
-from ...Utilities import TypeChecker
-# import TypeChecker
+from . import TypeChecker
 import matplotlib.pyplot as plt
 
 
