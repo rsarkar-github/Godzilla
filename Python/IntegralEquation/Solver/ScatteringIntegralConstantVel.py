@@ -149,7 +149,7 @@ class TruncatedKernelConstantVel3d:
 
     @staticmethod
     @numba.jit(nopython=True, parallel=True)
-    def numba_accelerated_green_func_calc(green_func, num_bins, kx, ky, kz, k, tol):
+    def green_func_calc(green_func, num_bins, kx, ky, kz, k, tol):
 
         j = complex(0, 1)
         cutoff = np.sqrt(3.0)
@@ -184,7 +184,7 @@ class TruncatedKernelConstantVel3d:
             tol = 1e-15
 
         kx, ky, kz = np.meshgrid(self._kgrid, self._kgrid, self._kgrid, indexing="ij")
-        self.numba_accelerated_green_func_calc(
+        self.green_func_calc(
             green_func=self._green_func,
             num_bins=self._num_bins,
             kx=kx,

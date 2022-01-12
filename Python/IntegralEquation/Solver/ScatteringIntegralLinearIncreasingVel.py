@@ -3,7 +3,7 @@ import numba
 import scipy.special as sp
 import time
 from . import TypeChecker
-from . import legendreQ
+from . import SpecialFunc
 import matplotlib.pyplot as plt
 
 
@@ -98,6 +98,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         return self._green_func
 
     @staticmethod
+    @numba.jit(nopython=True)
     def green_func_calc(green_func, nz, m, z, r, bessel0, k):
 
         j = complex(0, 1)
@@ -230,10 +231,12 @@ class TruncatedKernelLinearIncreasingVel2d:
         # Run class initializer
         self.__initialize_class()
 
-    def apply_kernel(self, u, output):
+    def apply_kernel(self, u, output, adj=False, add=False):
         """
         :param u: 2d numpy array (must be nz x n dimensions with n odd).
         :param output: 2d numpy array (same dimension as u). Assumed to be zeros.
+        :param adj: Boolean flag (forward or adjoint operator)
+        :param add: Boolean flag (whether to add result to output)
         """
 
         # Check types of input
@@ -250,31 +253,56 @@ class TruncatedKernelLinearIncreasingVel2d:
         # Compute Fourier transform along first axis
         temparray = np.fft.fftn(np.fft.fftshift(self._temparray, axes=(1,)), axes=(1,))
 
+        # Forward mode
         # Do the following for each z slice
         # 1. Multiply with Fourier transform of Truncated Kernel Green's function slice for that z
         # 2. Compute weighted sum along z with trapezoidal integration weights
+        if not adj:
+            for j in range(self._nz):
+                self._temparray = temparray * self._green_func[j, :, :]
+                self._temparray *= self._mu
+                self._temparray1[j, :] = self._temparray.sum(axis=0)
 
-        for j in range(self._nz):
-            self._temparray = temparray * self._green_func[j, :, :]
-            self._temparray *= self._mu
-            self._temparray1[j, :] = self._temparray.sum(axis=0)
+            # Compute Inverse Fourier transform along first axis
+            temparray = np.fft.fftshift(np.fft.ifftn(self._temparray1, axes=(1,)), axes=(1,))
 
-        # Compute Inverse Fourier transform along first 2 axis
-        temparray = np.fft.fftshift(np.fft.ifftn(self._temparray1, axes=(1,)), axes=(1,))
+            # Copy into output appropriately
+            if not add:
+                output *= 0
+            output += temparray[:, self._start_index:(self._end_index + 1)]
 
-        # Copy into output appropriately
-        output += temparray[:, self._start_index:(self._end_index + 1)]
+            # Restore class temporary arrays
+            self._temparray *= 0
+            self._temparray1 *= 0
 
-        # Restore class temporary arrays
-        self._temparray *= 0
-        self._temparray1 *= 0
+        # Adjoint mode
+        # Do the following for each z slice
+        # 1. Multiply with Fourier transform of Truncated Kernel Green's function slice for that z (complex conjugate)
+        # 2. Compute sum along z
+        # 3. Multiply with integration weight for the z slice
+        if adj:
+            for j in range(self._nz):
+                self._temparray = temparray * self._green_func_conj[j, :, :]
+                self._temparray1[j, :] = self._mu[j, 0] * self._temparray.sum(axis=0)
+
+            # Compute Inverse Fourier transform along first axis
+            temparray = np.fft.fftshift(np.fft.ifftn(self._temparray1, axes=(1,)), axes=(1,))
+
+            # Copy into output appropriately
+            if not add:
+                output *= 0
+            output += temparray[:, self._start_index:(self._end_index + 1)]
+
+            # Restore class temporary arrays
+            self._temparray *= 0
+            self._temparray1 *= 0
 
     @property
     def greens_func(self):
         return self._green_func
 
     @staticmethod
-    @numba.jit(nopython=True)
+    @numba.jit(nopython=True, parallel=True)
     def green_func_calc(green_func, nz, m, z, r, cos, k):
 
         j = complex(0, 1)
@@ -282,16 +310,20 @@ class TruncatedKernelLinearIncreasingVel2d:
         lamb = nu - 0.5
 
         print("Total z slices = ", nz, "\n")
-        for j1 in range(nz):
+        for j1 in numba.prange(nz):
 
             print("Slice number = ", j1 + 1)
             for j2 in range(j1, nz):
 
                 f1 = z[j1] * z[j2]
                 utilde = 1.0 + (0.5 / f1) * (r ** 2.0 + (z[j1] - z[j2]) ** 2.0)
-                leg = legendreQ.legendre_q(lamb, utilde, 1e-6)
-                prod = leg * cos
-                green_func[j1, j2, :] = (1.0 / m) * np.sum(prod, axis=0)
+                leg = SpecialFunc.legendre_q_v1(lamb, utilde, 1e-12)
+
+                prod = cos * 1.0
+                for j4 in range(m-1):
+                    prod[j4, :] *= leg[j4, 0]
+
+                green_func[j1, j2, :] = (1.0 / (np.pi * m)) * np.sum(prod, axis=0)
                 green_func[j2, j1, :] = green_func[j1, j2, :]
 
     def __calculate_green_func(self):
@@ -310,10 +342,11 @@ class TruncatedKernelLinearIncreasingVel2d:
             m=self._m,
             z=self._zgrid,
             r=r,
-            cos=cos,
+            cos=cos.astype(dtype=np.complex128),
             k=self._k
         )
         self._green_func = np.fft.fftshift(self._green_func, axes=2)
+        self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
         print("\nComputing 2d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
@@ -349,14 +382,13 @@ class TruncatedKernelLinearIncreasingVel2d:
         self._temparray1 = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
 
 
-
 if __name__ == "__main__":
     n_ = 101
     nz_ = 101
-    k_ = 60.0
+    k_ = 100.0
     a_ = 0.8
     b_ = 1.8
-    m_ = 1000
+    m_ = 400
     precision_ = np.complex64
 
     # # 3d test
