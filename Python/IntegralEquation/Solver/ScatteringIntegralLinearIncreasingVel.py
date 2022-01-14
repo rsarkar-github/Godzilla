@@ -269,7 +269,7 @@ class TruncatedKernelLinearIncreasingVel2d:
             # Copy into output appropriately
             if not add:
                 output *= 0
-            output += temparray[:, self._start_index:(self._end_index + 1)]
+            output += self._dz * temparray[:, self._start_index:(self._end_index + 1)]
 
             # Restore class temporary arrays
             self._temparray *= 0
@@ -291,7 +291,7 @@ class TruncatedKernelLinearIncreasingVel2d:
             # Copy into output appropriately
             if not add:
                 output *= 0
-            output += temparray[:, self._start_index:(self._end_index + 1)]
+            output += self._dz * temparray[:, self._start_index:(self._end_index + 1)]
 
             # Restore class temporary arrays
             self._temparray *= 0
@@ -319,11 +319,10 @@ class TruncatedKernelLinearIncreasingVel2d:
                 utilde = 1.0 + (0.5 / f1) * (r ** 2.0 + (z[j1] - z[j2]) ** 2.0)
                 leg = SpecialFunc.legendre_q_v1(lamb, utilde, 1e-12)
 
-                prod = cos * 1.0
                 for j4 in range(m-1):
-                    prod[j4, :] *= leg[j4, 0]
+                    green_func[j1, j2, :] += cos[j4, :] * leg[j4, 0]
 
-                green_func[j1, j2, :] = (1.0 / (np.pi * m)) * np.sum(prod, axis=0)
+                green_func[j1, j2, :] *= (-1.0 / (np.pi * m))
                 green_func[j2, j1, :] = green_func[j1, j2, :]
 
     def __calculate_green_func(self):
