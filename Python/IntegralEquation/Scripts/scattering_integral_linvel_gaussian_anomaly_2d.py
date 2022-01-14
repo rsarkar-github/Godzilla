@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 
-n = 101
-nz = 101
+n = 201
+nz = 201
 a = 4
 b = 5
 xmin = -0.5
@@ -18,7 +18,7 @@ alpha = 0.5
 
 omega = 30 * 2* np.pi
 k = omega / alpha
-m = 500
+m = 1000
 precision = np.complex128
 
 # Create linearly varying background
@@ -111,7 +111,7 @@ end_t = time.time()
 print("Total time to execute convolution: ", "{:4.2f}".format(end_t - start_t), " s \n")
 print("Finished rhs computation\n")
 
-scale = 1e-4
+scale = 1e-5
 fig = plt.figure()
 plt.imshow(np.real(rhs), cmap="Greys", vmin=-scale, vmax=scale)
 plt.grid(True)
@@ -153,7 +153,7 @@ end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 print("Residual norm = ", np.linalg.norm(rhs - np.reshape(A.matvec(x), newshape=(nz, n))))
 
-scale = 1e-4
+scale = 1e-5
 x = np.reshape(x, newshape=(nz, n))
 plt.figure()
 plt.imshow(np.real(x), cmap="Greys", vmin=-scale, vmax=scale)
