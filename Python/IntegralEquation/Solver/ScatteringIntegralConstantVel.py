@@ -2,6 +2,7 @@ import numpy as np
 import numba
 import scipy.special as sp
 import time
+import sys
 from . import TypeChecker
 import matplotlib.pyplot as plt
 
@@ -62,18 +63,18 @@ class TruncatedKernelConstantVel3d:
         # 1. Compute Fourier transform
         # 2. Multiply with Fourier transform of Truncated Kernel Green's function
         # 3. Compute Inverse Fourier transform
-        out = np.fft.fftn(np.fft.fftshift(temparray))
+        temparray = np.fft.fftn(np.fft.fftshift(temparray))
         if adj:
-            out *= self._green_func_conj
+            temparray *= self._green_func_conj
         else:
-            out *= self._green_func
-        out = np.fft.fftshift(np.fft.ifftn(out))
+            temparray *= self._green_func
+        temparray = np.fft.fftshift(np.fft.ifftn(temparray))
 
         # Copy into output appropriately
         if not add:
             output *= 0
 
-        output += out[
+        output += temparray[
             self._start_index:(self._end_index + 1),
             self._start_index:(self._end_index + 1),
             self._start_index:(self._end_index + 1)
@@ -195,7 +196,14 @@ class TruncatedKernelConstantVel3d:
         self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
-        print("Computing 3d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
+        print("\nComputing 3d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
+        print("\nGreen's Function size in memory (Gb) : ", "{:6.2f}".format(sys.getsizeof(self._green_func) / 1e9))
+        print(
+            "\nConjugate Green's Function size in memory (Gb) : ", "{:6.2f}".format(
+                sys.getsizeof(self._green_func_conj) / 1e9
+            )
+        )
+        print("\n")
 
     def __initialize_class(self):
 
@@ -270,18 +278,18 @@ class TruncatedKernelConstantVel2d:
         # 1. Compute Fourier transform
         # 2. Multiply with Fourier transform of Truncated Kernel Green's function
         # 3. Compute Inverse Fourier transform
-        out = np.fft.fft2(np.fft.fftshift(temparray))
+        temparray = np.fft.fft2(np.fft.fftshift(temparray))
         if adj:
-            out *= self._green_func_conj
+            temparray *= self._green_func_conj
         else:
-            out *= self._green_func
-        out = np.fft.fftshift(np.fft.ifft2(out))
+            temparray *= self._green_func
+        temparray = np.fft.fftshift(np.fft.ifft2(temparray))
 
         # Copy into output appropriately
         if not add:
             output *= 0
 
-        output += out[
+        output += temparray[
             self._start_index:(self._end_index + 1),
             self._start_index:(self._end_index + 1)
         ]
@@ -399,7 +407,14 @@ class TruncatedKernelConstantVel2d:
         self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
-        print("Computing 2d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
+        print("\nComputing 2d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
+        print("\nGreen's Function size in memory (Mb) : ", "{:6.2f}".format(sys.getsizeof(self._green_func) / 1e6))
+        print(
+            "\nConjugate Green's Function size in memory (Mb) : ", "{:6.2f}".format(
+                sys.getsizeof(self._green_func_conj) / 1e6
+            )
+        )
+        print("\n")
 
     def __initialize_class(self):
 
@@ -416,7 +431,6 @@ class TruncatedKernelConstantVel2d:
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins), dtype=self._precision)
-        self._green_func_conj = np.zeros(shape=(self._num_bins, self._num_bins), dtype=self._precision)
         self.__calculate_green_func()
 
 
