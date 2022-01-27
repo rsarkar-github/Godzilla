@@ -22,13 +22,13 @@ output_ = u_ * 0
 start_t_ = time.time()
 op.convolve_kernel(u=u_, output=output_, adj=False)
 end_t_ = time.time()
-print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+print("Total time to execute convolution (forward): ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
 dot_prod_1 = np.dot(np.conjugate(np.reshape(v_, newshape=(n_ ** 3,))), np.reshape(output_, newshape=(n_ ** 3,)))
 
 start_t_ = time.time()
 op.convolve_kernel(u=v_, output=output_, adj=True)
 end_t_ = time.time()
-print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+print("Total time to execute convolution (adjoint): ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
 dot_prod_2 = np.dot(np.conjugate(np.reshape(output_, newshape=(n_ ** 3,))), np.reshape(u_, newshape=(n_ ** 3,)))
 
 print("\nDot product test results:")
@@ -52,13 +52,13 @@ output_ = u_ * 0
 start_t_ = time.time()
 op.convolve_kernel(u=u_, output=output_, adj=False)
 end_t_ = time.time()
-print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+print("Total time to execute convolution (forward): ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
 dot_prod_1 = np.dot(np.conjugate(np.reshape(v_, newshape=(n_ ** 2,))), np.reshape(output_, newshape=(n_ ** 2,)))
 
 start_t_ = time.time()
 op.convolve_kernel(u=v_, output=output_, adj=True)
 end_t_ = time.time()
-print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+print("Total time to execute convolution (adjoint): ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
 dot_prod_2 = np.dot(np.conjugate(np.reshape(output_, newshape=(n_ ** 2,))), np.reshape(u_, newshape=(n_ ** 2,)))
 
 print("\nDot product test results:")
