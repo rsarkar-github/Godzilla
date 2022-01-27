@@ -2,6 +2,7 @@ import numpy as np
 import numba
 import scipy.special as sp
 import time
+import sys
 from . import TypeChecker
 from . import SpecialFunc
 import matplotlib.pyplot as plt
@@ -99,7 +100,7 @@ class TruncatedKernelLinearIncreasingVel3d:
 
     @staticmethod
     @numba.jit(nopython=True)
-    def green_func_calc(green_func, nz, m, z, r, bessel0, k):
+    def __green_func_calc(green_func, nz, m, z, r, bessel0, k):
 
         j = complex(0, 1)
         nu = j * np.sqrt(k**2 - 0.25)
@@ -139,7 +140,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         r_scaled = self._cutoff * r
         bessel0 = sp.j0(r_scaled * kabs)
 
-        self.green_func_calc(
+        self.__green_func_calc(
             green_func=self._green_func,
             nz=self._nz,
             m=self._m,
@@ -247,11 +248,22 @@ class TruncatedKernelLinearIncreasingVel2d:
         if u.shape != (self._nz, self._n) or output.shape != (self._nz, self._n):
             raise ValueError("Shapes of 'u' and 'output' must be (nz, n) with nz = ", self._nz, " and n = ", self._n)
 
-        # Copy u into self._temparray
-        self._temparray[:, self._start_index:(self._end_index + 1)] = u
+        # Count of non-negative wave numbers
+        count = self._num_bins_non_neg - 1
 
-        # Compute Fourier transform along first axis
-        temparray = np.fft.fftn(np.fft.fftshift(self._temparray, axes=(1,)), axes=(1,))
+        # Copy u into temparray and compute Fourier transform along first axis
+        temparray = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
+        temparray[:, self._start_index:(self._end_index + 1)] = u
+        temparray = np.fft.fftn(np.fft.fftshift(temparray, axes=(1,)), axes=(1,))
+
+        # Split temparray into negative and positive wave numbers
+        # Non-negative wave numbers: temparray1
+        # Negative wave numbers: temparray (after reassignment)
+        temparray1 = temparray[:, 0:count]
+        temparray = temparray[:, self._num_bins-1:count-1:-1]
+
+        # Allocate temporary array
+        temparray2 = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
 
         # Forward mode
         # Do the following for each z slice
@@ -259,21 +271,20 @@ class TruncatedKernelLinearIncreasingVel2d:
         # 2. Compute weighted sum along z with trapezoidal integration weights
         if not adj:
             for j in range(self._nz):
-                self._temparray = temparray * self._green_func[j, :, :]
-                self._temparray *= self._mu
-                self._temparray1[j, :] = self._temparray.sum(axis=0)
+                temparray3 = temparray1 * self._green_func[j, :, 0:count]
+                temparray3 *= self._mu
+                temparray4 = temparray * self._green_func[j, :, 1:count+1]
+                temparray4 *= self._mu
+                temparray2[j, 0:count] = temparray3.sum(axis=0)
+                temparray2[j, count:self._num_bins] = temparray4.sum(axis=0)[::-1]
 
             # Compute Inverse Fourier transform along first axis
-            temparray = np.fft.fftshift(np.fft.ifftn(self._temparray1, axes=(1,)), axes=(1,))
+            temparray2 = np.fft.fftshift(np.fft.ifftn(temparray2, axes=(1,)), axes=(1,))
 
             # Copy into output appropriately
             if not add:
                 output *= 0
-            output += self._dz * temparray[:, self._start_index:(self._end_index + 1)]
-
-            # Restore class temporary arrays
-            self._temparray *= 0
-            self._temparray1 *= 0
+            output += self._dz * temparray2[:, self._start_index:(self._end_index + 1)]
 
         # Adjoint mode
         # Do the following for each z slice
@@ -282,20 +293,18 @@ class TruncatedKernelLinearIncreasingVel2d:
         # 3. Multiply with integration weight for the z slice
         if adj:
             for j in range(self._nz):
-                self._temparray = temparray * self._green_func_conj[j, :, :]
-                self._temparray1[j, :] = self._mu[j, 0] * self._temparray.sum(axis=0)
+                temparray3 = temparray1 * self._green_func_conj[j, :, 0:count]
+                temparray4 = temparray * self._green_func_conj[j, :, 1:count + 1]
+                temparray2[j, 0:count] = self._mu[j, 0] * temparray3.sum(axis=0)
+                temparray2[j, count:self._num_bins] = self._mu[j, 0] * temparray4.sum(axis=0)[::-1]
 
             # Compute Inverse Fourier transform along first axis
-            temparray = np.fft.fftshift(np.fft.ifftn(self._temparray1, axes=(1,)), axes=(1,))
+            temparray2 = np.fft.fftshift(np.fft.ifftn(temparray2, axes=(1,)), axes=(1,))
 
             # Copy into output appropriately
             if not add:
                 output *= 0
-            output += self._dz * temparray[:, self._start_index:(self._end_index + 1)]
-
-            # Restore class temporary arrays
-            self._temparray *= 0
-            self._temparray1 *= 0
+            output += self._dz * temparray2[:, self._start_index:(self._end_index + 1)]
 
     @property
     def greens_func(self):
@@ -303,7 +312,7 @@ class TruncatedKernelLinearIncreasingVel2d:
 
     @staticmethod
     @numba.jit(nopython=True, parallel=True)
-    def green_func_calc(green_func, nz, m, z, r, cos, k):
+    def __green_func_calc(green_func, nz, m, z, r, cos, k):
 
         j = complex(0, 1)
         nu = j * np.sqrt(k**2 - 0.25)
@@ -329,13 +338,12 @@ class TruncatedKernelLinearIncreasingVel2d:
         t1 = time.time()
         print("\nStarting Green's Function calculation ")
 
-        kx = np.meshgrid(self._kgrid, indexing="ij")
-        kabs = np.abs(kx)
+        kx = np.meshgrid(self._kgrid_non_neg, indexing="ij")
         r = np.reshape(np.linspace(start=0.0, stop=1.0, num=self._m, endpoint=False), newshape=(self._m, 1))
         r = r[1:]
-        cos = np.cos(r * kabs) # notice scaling is 1 compared to 3d case, so r_scaled is not needed here
+        cos = np.cos(r * kx) # notice scaling is 1 compared to 3d case, so r_scaled is not needed here
 
-        self.green_func_calc(
+        self.__green_func_calc(
             green_func=self._green_func,
             nz=self._nz,
             m=self._m,
@@ -344,11 +352,11 @@ class TruncatedKernelLinearIncreasingVel2d:
             cos=cos.astype(dtype=np.complex128),
             k=self._k
         )
-        self._green_func = np.fft.fftshift(self._green_func, axes=2)
         self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
         print("\nComputing 2d Green's Function took ", "{:6.2f}".format(t2 - t1), " s\n")
+        print("\nGreen's Function size in memory (Mb) : ", "{:6.2f}".format(sys.getsizeof(self._green_func) / 1e6))
 
     def __initialize_class(self):
         # Calculate number of grid points for the domain [-2, 2] along one horizontal axis,
@@ -358,9 +366,13 @@ class TruncatedKernelLinearIncreasingVel2d:
         self._end_index = 5 * int((self._n - 1) / 2)
 
         # Calculate horizontal grid spacing d
-        # Calculate horizontal grid of wavenumbers for any 1 dimension
+        # Calculate horizontal grid of wave numbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
         self._kgrid = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
+
+        # Store only non-negative wave numbers
+        self._num_bins_non_neg = 2 * (self._n - 1) + 1
+        self._kgrid_non_neg = np.abs(self._kgrid[0:self._num_bins_non_neg][::-1])
 
         # Calculate z grid spacing d
         # Calculate z grid coordinates
@@ -368,17 +380,13 @@ class TruncatedKernelLinearIncreasingVel2d:
         self._zgrid = np.linspace(start=self._a, stop=self._b, num=self._nz, endpoint=True)
 
         # Calculate FT of Truncated Green's Function and apply fftshift
-        self._green_func = np.zeros(shape=(self._nz, self._nz, self._num_bins), dtype=self._precision)
+        self._green_func = np.zeros(shape=(self._nz, self._nz, self._num_bins_non_neg), dtype=self._precision)
         self.__calculate_green_func()
 
         # Calculate integration weights
         self._mu = np.zeros(shape=(self._nz, 1), dtype=np.float64) + 1.0
         self._mu[0, 0] = 0.5
         self._mu[self._nz - 1, 0] = 0.5
-
-        # Allocate temporary array to avoid some reallocation
-        self._temparray = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
-        self._temparray1 = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
 
 
 if __name__ == "__main__":
@@ -455,14 +463,18 @@ if __name__ == "__main__":
     u_ = np.zeros(shape=(nz_, n_), dtype=precision_)
     u_[int(nz_ / 8), int(n_ / 2)] = 1.0
     output_ = u_ * 0
+    output1_ = u_ * 0
+
+    ntimes = 10
 
     start_t_ = time.time()
-    op.apply_kernel(u=u_, output=output_)
+    for _ in range(ntimes):
+        op.apply_kernel(u=u_, output=output_)
     end_t_ = time.time()
-    print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+    print("Average time to execute convolution: ", "{:4.2f}".format((end_t_ - start_t_) / ntimes), " s \n")
 
-    scale = 1e-3
-    fig = plt.figure()
+    scale = 1e-5
+    plt.figure()
     plt.imshow(np.real(output_), cmap="Greys", vmin=-scale, vmax=scale)
     plt.grid(True)
     plt.title("Real")
