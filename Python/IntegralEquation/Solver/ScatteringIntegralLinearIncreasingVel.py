@@ -137,7 +137,7 @@ class TruncatedKernelLinearIncreasingVel3d:
 
             for j in range(self._nz):
 
-                temparray5 = temparray1 * self._green_func_conj[j, :, 0:count, 0:count]
+                temparray5 = temparray1 * self._green_func[j, :, 0:count, 0:count]
                 temparray6 = temparray2 * self._green_func[j, :, 1:count + 1, 0:count]
                 temparray7 = temparray3 * self._green_func[j, :, 1:count + 1, 1:count + 1]
                 temparray8 = temparray * self._green_func[j, :, 0:count, 1:count + 1]
