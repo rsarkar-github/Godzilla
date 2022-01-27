@@ -37,7 +37,7 @@ class TruncatedKernelConstantVel3d:
     def convolve_kernel(self, u, output, adj=False, add=False):
         """
         :param u: 3d numpy array (must be n x n x n dimensions with n odd).
-        :param output: 3d numpy array (same dimension as u). Assumed to be zeros.
+        :param output: 3d numpy array (same dimension as u).
         :param adj: Boolean flag (forward or adjoint operator)
         :param add: Boolean flag (whether to add result to output)
         """
@@ -246,7 +246,7 @@ class TruncatedKernelConstantVel2d:
     def convolve_kernel(self, u, output, adj=False, add=False):
         """
         :param u: 3d numpy array (must be n x n dimensions with n odd).
-        :param output: 3d numpy array (same dimension as u). Assumed to be zeros.
+        :param output: 3d numpy array (same dimension as u).
         :param adj: Boolean flag (forward or adjoint operator)
         :param add: Boolean flag (whether to add result to output)
         """
