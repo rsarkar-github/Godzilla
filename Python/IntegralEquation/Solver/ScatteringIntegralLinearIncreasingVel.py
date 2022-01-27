@@ -78,7 +78,9 @@ class TruncatedKernelLinearIncreasingVel3d:
         temparray = np.zeros(shape=(self._nz, self._num_bins, self._num_bins), dtype=self._precision)
         temparray[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)] = u
         temparray = np.fft.fftn(np.fft.fftshift(temparray, axes=(1, 2)), axes=(1, 2))
-        if adj:
+        if not adj:
+            temparray *= self._mu
+        else:
             temparray = np.conjugate(temparray)
 
         # Split temparray into negative and positive wave numbers (4 quadrants)
@@ -103,16 +105,9 @@ class TruncatedKernelLinearIncreasingVel3d:
             for j in range(self._nz):
 
                 temparray5 = temparray1 * self._green_func[j, :, 0:count, 0:count]
-                temparray5 *= self._mu
-
                 temparray6 = temparray2 * self._green_func[j, :, 1:count + 1, 0:count]
-                temparray6 *= self._mu
-
                 temparray7 = temparray3 * self._green_func[j, :, 1:count + 1, 1:count + 1]
-                temparray7 *= self._mu
-
                 temparray8 = temparray * self._green_func[j, :, 0:count, 1:count + 1]
-                temparray8 *= self._mu
 
                 temparray4[j, 0:count, 0:count] = temparray5.sum(axis=0)
                 temparray4[j, count:self._num_bins, 0:count] = temparray6.sum(axis=0)[::-1, :]
@@ -257,7 +252,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         self.__calculate_green_func()
 
         # Calculate integration weights
-        self._mu = np.zeros(shape=(self._nz, 1, 1), dtype=np.float64) + 1.0
+        self._mu = np.zeros(shape=(self._nz, 1, 1), dtype=np.float32) + 1.0
         self._mu[0, 0, 0] = 0.5
         self._mu[self._nz - 1, 0, 0] = 0.5
 
@@ -332,7 +327,9 @@ class TruncatedKernelLinearIncreasingVel2d:
         temparray = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
         temparray[:, self._start_index:(self._end_index + 1)] = u
         temparray = np.fft.fftn(np.fft.fftshift(temparray, axes=(1,)), axes=(1,))
-        if adj:
+        if not adj:
+            temparray *= self._mu
+        else:
             temparray = np.conjugate(temparray)
 
         # Split temparray into negative and positive wave numbers
@@ -353,10 +350,7 @@ class TruncatedKernelLinearIncreasingVel2d:
             for j in range(self._nz):
 
                 temparray3 = temparray1 * self._green_func[j, :, 0:count]
-                temparray3 *= self._mu
-
                 temparray4 = temparray * self._green_func[j, :, 1:count+1]
-                temparray4 *= self._mu
 
                 temparray2[j, 0:count] = temparray3.sum(axis=0)
                 temparray2[j, count:self._num_bins] = temparray4.sum(axis=0)[::-1]
@@ -472,7 +466,7 @@ class TruncatedKernelLinearIncreasingVel2d:
         self.__calculate_green_func()
 
         # Calculate integration weights
-        self._mu = np.zeros(shape=(self._nz, 1), dtype=np.float64) + 1.0
+        self._mu = np.zeros(shape=(self._nz, 1), dtype=np.float32) + 1.0
         self._mu[0, 0] = 0.5
         self._mu[self._nz - 1, 0] = 0.5
 
