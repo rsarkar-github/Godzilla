@@ -481,40 +481,33 @@ if __name__ == "__main__":
     m_ = 1000
     precision_ = np.complex128
 
-    # # 3d test
-    # op = TruncatedKernelLinearIncreasingVel3d(
-    #     n=n_,
-    #     nz=nz_,
-    #     k=k_,
-    #     a=a_,
-    #     b=b_,
-    #     m=m_,
-    #     precision=precision_
-    # )
-    #
-    # u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
-    # u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
-    # output_ = u_ * 0
-    #
-    # start_t_ = time.time()
-    # op.apply_kernel(u=u_, output=output_)
-    # end_t_ = time.time()
-    # print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
-    #
-    # scale = 1e-4
-    # fig = plt.figure()
-    # plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
-    # plt.grid(True)
-    # plt.title("Real")
-    # plt.colorbar()
-    # plt.show()
+    # 3d test
+    op = TruncatedKernelLinearIncreasingVel3d(
+        n=n_,
+        nz=nz_,
+        k=k_,
+        a=a_,
+        b=b_,
+        m=m_,
+        precision=precision_
+    )
 
-    #
-    # fig.savefig(
-    #     "Python/IntegralEquation/Fig/testplot.pdf",
-    #     bbox_inches='tight',
-    #     pad_inches=0
-    # )
+    u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
+    u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
+    output_ = u_ * 0
+
+    start_t_ = time.time()
+    op.apply_kernel(u=u_, output=output_)
+    end_t_ = time.time()
+    print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+
+    scale = 1e-4
+    fig = plt.figure()
+    plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.grid(True)
+    plt.title("Real")
+    plt.colorbar()
+    plt.show()
 
     # 2d test
     op = TruncatedKernelLinearIncreasingVel2d(
