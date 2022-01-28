@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sc
 import numba
 import scipy.special as sp
 import time
@@ -77,7 +78,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         # Copy u into temparray and compute Fourier transform along first axis
         temparray = np.zeros(shape=(self._nz, self._num_bins, self._num_bins), dtype=self._precision)
         temparray[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)] = u
-        temparray = np.fft.fftn(np.fft.fftshift(temparray, axes=(1, 2)), axes=(1, 2))
+        temparray = sc.fft.fftn(sc.fft.fftshift(temparray, axes=(1, 2)), axes=(1, 2))
         if not adj:
             temparray *= self._mu
         else:
@@ -115,7 +116,7 @@ class TruncatedKernelLinearIncreasingVel3d:
                 temparray4[j, 0:count, count:self._num_bins] = temparray8.sum(axis=0)[:, ::-1]
 
             # Compute Inverse Fourier transform along first 2 axis
-            temparray4 = np.fft.fftshift(np.fft.ifftn(temparray4, axes=(1, 2)), axes=(1, 2))
+            temparray4 = sc.fft.fftshift(sc.fft.ifftn(temparray4, axes=(1, 2)), axes=(1, 2))
 
             # Copy into output appropriately
             if not add:
@@ -144,7 +145,7 @@ class TruncatedKernelLinearIncreasingVel3d:
                 temparray4[j, 0:count, count:self._num_bins] = self._mu[j, 0] * temparray8.sum(axis=0)[:, ::-1]
 
             # Compute Inverse Fourier transform along first 2 axis
-            temparray4 = np.fft.fftshift(np.fft.ifftn(np.conjugate(temparray4), axes=(1, 2)), axes=(1, 2))
+            temparray4 = sc.fft.fftshift(sc.fft.ifftn(np.conjugate(temparray4), axes=(1, 2)), axes=(1, 2))
 
             # Copy into output appropriately
             if not add:
@@ -233,7 +234,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         # Calculate horizontal grid spacing d
         # Calculate horizontal grid of wavenumbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
-        self._kgrid = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
+        self._kgrid = 2 * np.pi * sc.fft.fftshift(sc.fft.fftfreq(n=self._num_bins, d=self._d))
 
         # Store only non-negative wave numbers
         self._num_bins_non_neg = 2 * (self._n - 1) + 1
@@ -326,7 +327,7 @@ class TruncatedKernelLinearIncreasingVel2d:
         # Copy u into temparray and compute Fourier transform along first axis
         temparray = np.zeros(shape=(self._nz, self._num_bins), dtype=self._precision)
         temparray[:, self._start_index:(self._end_index + 1)] = u
-        temparray = np.fft.fftn(np.fft.fftshift(temparray, axes=(1,)), axes=(1,))
+        temparray = sc.fft.fftn(sc.fft.fftshift(temparray, axes=(1,)), axes=(1,))
         if not adj:
             temparray *= self._mu
         else:
@@ -356,7 +357,7 @@ class TruncatedKernelLinearIncreasingVel2d:
                 temparray2[j, count:self._num_bins] = temparray4.sum(axis=0)[::-1]
 
             # Compute Inverse Fourier transform along first axis
-            temparray2 = np.fft.fftshift(np.fft.ifftn(temparray2, axes=(1,)), axes=(1,))
+            temparray2 = sc.fft.fftshift(sc.fft.ifftn(temparray2, axes=(1,)), axes=(1,))
 
             # Copy into output appropriately
             if not add:
@@ -379,7 +380,7 @@ class TruncatedKernelLinearIncreasingVel2d:
                 temparray2[j, count:self._num_bins] = self._mu[j, 0] * temparray4.sum(axis=0)[::-1]
 
             # Compute Inverse Fourier transform along first axis
-            temparray2 = np.fft.fftshift(np.fft.ifftn(np.conjugate(temparray2), axes=(1,)), axes=(1,))
+            temparray2 = sc.fft.fftshift(sc.fft.ifftn(np.conjugate(temparray2), axes=(1,)), axes=(1,))
 
             # Copy into output appropriately
             if not add:
@@ -450,7 +451,7 @@ class TruncatedKernelLinearIncreasingVel2d:
         # Calculate horizontal grid spacing d
         # Calculate horizontal grid of wave numbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
-        self._kgrid = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(n=self._num_bins, d=self._d))
+        self._kgrid = 2 * np.pi * sc.fft.fftshift(sc.fft.fftfreq(n=self._num_bins, d=self._d))
 
         # Store only non-negative wave numbers
         self._num_bins_non_neg = 2 * (self._n - 1) + 1
@@ -478,45 +479,10 @@ if __name__ == "__main__":
     a_ = 0.8
     b_ = 1.8
     m_ = 1000
-    precision_ = np.complex64
+    precision_ = np.complex128
 
-    # 3d test
-    op = TruncatedKernelLinearIncreasingVel3d(
-        n=n_,
-        nz=nz_,
-        k=k_,
-        a=a_,
-        b=b_,
-        m=m_,
-        precision=precision_
-    )
-
-    u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
-    u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
-    output_ = u_ * 0
-
-    start_t_ = time.time()
-    op.apply_kernel(u=u_, output=output_)
-    end_t_ = time.time()
-    print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
-
-    scale = 1e-4
-    fig = plt.figure()
-    plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
-    plt.grid(True)
-    plt.title("Real")
-    plt.colorbar()
-    plt.show()
-
-    #
-    # fig.savefig(
-    #     "Python/IntegralEquation/Fig/testplot.pdf",
-    #     bbox_inches='tight',
-    #     pad_inches=0
-    # )
-
-    # # 2d test
-    # op = TruncatedKernelLinearIncreasingVel2d(
+    # # 3d test
+    # op = TruncatedKernelLinearIncreasingVel3d(
     #     n=n_,
     #     nz=nz_,
     #     k=k_,
@@ -526,23 +492,58 @@ if __name__ == "__main__":
     #     precision=precision_
     # )
     #
-    # u_ = np.zeros(shape=(nz_, n_), dtype=precision_)
-    # u_[int(nz_ / 8), int(n_ / 2)] = 1.0
+    # u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
+    # u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
     # output_ = u_ * 0
-    # output1_ = u_ * 0
-    #
-    # ntimes = 10
     #
     # start_t_ = time.time()
-    # for _ in range(ntimes):
-    #     op.apply_kernel(u=u_, output=output_)
+    # op.apply_kernel(u=u_, output=output_)
     # end_t_ = time.time()
-    # print("Average time to execute convolution: ", "{:4.2f}".format((end_t_ - start_t_) / ntimes), " s \n")
+    # print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
     #
-    # scale = 1e-5
-    # plt.figure()
-    # plt.imshow(np.real(output_), cmap="Greys", vmin=-scale, vmax=scale)
+    # scale = 1e-4
+    # fig = plt.figure()
+    # plt.imshow(np.real(output_[:, :, int(n_ / 2)]), cmap="Greys", vmin=-scale, vmax=scale)
     # plt.grid(True)
     # plt.title("Real")
     # plt.colorbar()
     # plt.show()
+
+    #
+    # fig.savefig(
+    #     "Python/IntegralEquation/Fig/testplot.pdf",
+    #     bbox_inches='tight',
+    #     pad_inches=0
+    # )
+
+    # 2d test
+    op = TruncatedKernelLinearIncreasingVel2d(
+        n=n_,
+        nz=nz_,
+        k=k_,
+        a=a_,
+        b=b_,
+        m=m_,
+        precision=precision_
+    )
+
+    u_ = np.zeros(shape=(nz_, n_), dtype=precision_)
+    u_[int(nz_ / 8), int(n_ / 2)] = 1.0
+    output_ = u_ * 0
+    output1_ = u_ * 0
+
+    ntimes = 1
+
+    start_t_ = time.time()
+    for _ in range(ntimes):
+        op.apply_kernel(u=u_, output=output_)
+    end_t_ = time.time()
+    print("Average time to execute convolution: ", "{:4.2f}".format((end_t_ - start_t_) / ntimes), " s \n")
+
+    scale = 1e-5
+    plt.figure()
+    plt.imshow(np.real(output_), cmap="Greys", vmin=-scale, vmax=scale)
+    plt.grid(True)
+    plt.title("Real")
+    plt.colorbar()
+    plt.show()
