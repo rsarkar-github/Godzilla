@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 
-n = 201
-nz = 201
+n = 101
+nz = 101
 a = 4
 b = 5
 xmin = -0.5
@@ -18,8 +18,8 @@ alpha = 0.5
 
 omega = 30 * 2* np.pi
 k = omega / alpha
-m = 1000
-precision = np.complex128
+m = 500
+precision = np.complex64
 
 # Create linearly varying background
 vel = np.zeros(shape=(nz, n), dtype=np.float64)
@@ -101,6 +101,7 @@ start_t = time.time()
 op.apply_kernel(u=f, output=rhs)
 end_t = time.time()
 print("Total time to execute convolution: ", "{:4.2f}".format(end_t - start_t), " s \n")
+print("Norm of rhs = ", np.linalg.norm(rhs), "\n")
 print("Finished rhs computation\n")
 
 scale = 1e-5
@@ -144,7 +145,7 @@ x0, exitCode = gmres(
     atol=0.0,
     callback=make_callback()
 )
-print(exitCode)
+print("\nLinear solver exitcode:", exitCode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 print("Residual norm = ", np.linalg.norm(rhs - np.reshape(A.matvec(x0), newshape=(nz, n))))
@@ -160,10 +161,12 @@ plt.colorbar()
 plt.show()
 
 # Calculate new rhs and reset psi
-psi *= 2
+psi *= 1.001
 rhs1 = np.zeros((nz, n), dtype=precision)
 op.apply_kernel(u=psi*x0, output=rhs1)
 rhs1 = rhs - x0 + (k ** 2) * rhs1
+print("Norm of new rhs = ", np.linalg.norm(rhs1), "\n")
+print("New tolerance for solver = ", 1e-6 * np.linalg.norm(rhs) / np.linalg.norm(rhs1))
 
 # Run gmres
 start_t = time.time()
@@ -176,17 +179,35 @@ x, exitCode = gmres(
     atol=0.0,
     callback=make_callback()
 )
-print(exitCode)
+print("\nLinear solver exitcode:", exitCode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-print("Residual norm = ", np.linalg.norm(rhs - np.reshape(A.matvec(x0), newshape=(nz, n))))
+print("Residual norm = ", np.linalg.norm(rhs1 - np.reshape(A.matvec(x), newshape=(nz, n))))
+
+# Total solution
+xtotal = x0 + np.reshape(x, newshape=(nz, n))
 
 # Plot solution at full perturbation
 scale = 1e-5
-x = np.reshape(x, newshape=(nz, n))
 plt.figure()
-plt.imshow(np.real(x), cmap="Greys", vmin=-scale, vmax=scale)
+plt.imshow(np.real(xtotal), cmap="Greys", vmin=-scale, vmax=scale)
 plt.grid(True)
 plt.title("Real (Solution)")
 plt.colorbar()
 plt.show()
+
+# Run gmres
+start_t = time.time()
+x, exitCode = gmres(
+    A,
+    np.reshape(rhs, newshape=(nz * n, 1)),
+    maxiter=300,
+    restart=100,
+    tol=1e-6,
+    atol=0.0,
+    callback=make_callback()
+)
+print("\nLinear solver exitcode:", exitCode)
+end_t = time.time()
+print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+print("Residual norm = ", np.linalg.norm(rhs - np.reshape(A.matvec(x), newshape=(nz, n))))
