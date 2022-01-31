@@ -33,20 +33,23 @@ if __name__ == "__main__":
     output_ = u_ * 0
     output1_ = u_ * 0
 
-    plist = []
-    p1 = Process(target=func, args=[op, u_, output_])
-    plist.append(p1)
+    # plist = []
+    # p1 = Process(target=func, args=[op, u_, output_])
+    # plist.append(p1)
+    #
+    # p2 = Process(target=func, args=[op, u1_, output1_])
+    # plist.append(p2)
 
-    p2 = Process(target=func, args=[op, u1_, output1_])
-    plist.append(p2)
+    pool = mp.Pool(mp.cpu_count())
+    result = pool.starmap(func, [(op, u_, output_), (op, u1_, output1_)])
 
-    for p in plist:
-        print("Process ", p.name, "starting\n")
-        p.start()
-
-    for p in plist:
-        p.join()
-        print("Process ", p.name, "done\n")
+    # for p in plist:
+    #     print("Process ", p.name, "starting\n")
+    #     p.start()
+    #
+    # for p in plist:
+    #     p.join()
+    #     print("Process ", p.name, "done\n")
 
     print("All Close check : ", np.allclose(output_, output1_))
     print(output_[0, 0])

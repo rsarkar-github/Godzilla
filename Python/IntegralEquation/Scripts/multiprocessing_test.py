@@ -1,8 +1,6 @@
 import numpy as np
 import multiprocessing as mp
-from multiprocessing import Process, Manager
-from multiprocessing.managers import BaseManager
-
+from multiprocessing import Pool
 
 class SimpleClass(object):
     def __init__(self, n):
@@ -45,13 +43,13 @@ class SimpleClass3(object):
             self.arr += 0.0
         print(self.val + a)
 
-
 def func(obj, arr):
     obj.add(arr)
 
 if __name__ == '__main__':
 
     mp.set_start_method('fork')
+    print("CPU count = ", mp.cpu_count())
 
     n = 3000
     ntimes = 20
@@ -61,13 +59,7 @@ if __name__ == '__main__':
     # inst = SimpleClass2(n)
     inst = SimpleClass3(n)
 
-    plist = []
-    for i in range(ntimes):
-        p = Process(target=func, args=[inst, i])
-        plist.append(p)
+    pool = mp.Pool(mp.cpu_count())
+    arglist = [(inst, i) for i in range(ntimes)]
+    result = pool.starmap(func, arglist)
 
-    for p in plist:
-        p.start()
-
-    for p in plist:
-        p.join()
