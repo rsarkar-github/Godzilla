@@ -1,0 +1,16 @@
+#----------------------
+Experiment 1
+#----------------------
+
+Running test1 on Windows and Linux produces different outputs.
+
+########################
+
+#----------------------
+Experiment 2
+#----------------------
+
+Running memory_test1 shows example use of multiprocessing, without creating copies.
+Also the program modifies the global variable and copy is not created.
+
+########################

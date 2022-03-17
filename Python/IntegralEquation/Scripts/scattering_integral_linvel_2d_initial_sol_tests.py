@@ -42,7 +42,7 @@ pert_gaussian = np.zeros(shape=(nz, n), dtype=np.float64)
 pert_gaussian[int((nz - 1) / 2), int((n - 1) / 2)] = 1000.0
 pert_gaussian = gaussian_filter(pert_gaussian, sigma=10)
 
-# Create 3D velocity and perturbation fields using chi cutoff
+# Create 2D velocity and perturbation fields
 xgrid = np.linspace(start=xmin, stop=xmax, num=n, endpoint=True)
 total_vel = vel + pert_gaussian
 

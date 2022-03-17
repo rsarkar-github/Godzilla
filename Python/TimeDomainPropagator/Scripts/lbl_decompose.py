@@ -35,8 +35,8 @@ def lbl_decompose_f2(A):
                 B = np.dot(B, E.transpose()) % 2
                 L = np.dot(L, E) % 2
 
-        print("i=", i)
-        print("B=\n", B)
+        # print("i=", i)
+        # print("B=\n", B)
 
     return L, B
 
@@ -99,10 +99,18 @@ if __name__ == "__main__":
         j2 = np.random.randint(0, n)
         A[j1, j2] += 1
         A[j2, j1] += 1
-        A = A % 2
 
-    for i in range(n):
-        A[i, i] = 0
+    # Add ones to diagonal randomly
+    for i in range(n1):
+        j1 = np.random.randint(0, n)
+        A[j1, j1] += 1
+
+    # # Zero out the diagonal
+    # for i in range(n):
+    #     A[i, i] = 0
+
+    A = A % 2
     print("A = \n", A)
 
     L, B = lbl_decompose_f2(A)
+    print("B = \n", B)
