@@ -113,6 +113,7 @@ class TruncatedKernelLinearIncreasingVel3d:
             self.__initialize_class(green_func_flag=False)
             self._green_func += green_func
 
+        self._initialized_flag = True
 
     def apply_kernel(self, u, output, adj=False, add=False):
         """
@@ -121,6 +122,9 @@ class TruncatedKernelLinearIncreasingVel3d:
         :param adj: Boolean flag (forward or adjoint operator)
         :param add: Boolean flag (whether to add result to output)
         """
+
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
 
         # Check types of input
         if u.dtype != self._precision or output.dtype != self._precision:
@@ -213,35 +217,59 @@ class TruncatedKernelLinearIncreasingVel3d:
 
     @property
     def greens_func(self):
-        return self._green_func
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._green_func
 
     @property
     def n(self):
-        return self._n
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._n
 
     @property
     def nz(self):
-        return self._nz
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._nz
 
     @property
     def k(self):
-        return self._k
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._k
 
     @property
     def a(self):
-        return self._a
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._a
 
     @property
     def b(self):
-        return self._b
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._b
 
     @property
     def m(self):
-        return self._m
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._m
 
     @property
     def precision(self):
-        return self._precision
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._precision
 
     @staticmethod
     @numba.jit(nopython=True, parallel=True)
@@ -449,6 +477,8 @@ class TruncatedKernelLinearIncreasingVel2d:
             self.__initialize_class(green_func_flag=False)
             self._green_func += green_func
 
+        self._initialized_flag = True
+
     def apply_kernel(self, u, output, adj=False, add=False):
         """
         :param u: 2d numpy array (must be nz x n dimensions with n odd).
@@ -456,6 +486,9 @@ class TruncatedKernelLinearIncreasingVel2d:
         :param adj: Boolean flag (forward or adjoint operator)
         :param add: Boolean flag (whether to add result to output)
         """
+
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
 
         # Check types of input
         if u.dtype != self._precision or output.dtype != self._precision:
@@ -533,35 +566,59 @@ class TruncatedKernelLinearIncreasingVel2d:
 
     @property
     def greens_func(self):
-        return self._green_func
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._green_func
 
     @property
     def n(self):
-        return self._n
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._n
 
     @property
     def nz(self):
-        return self._nz
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._nz
 
     @property
     def k(self):
-        return self._k
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._k
 
     @property
     def a(self):
-        return self._a
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._a
 
     @property
     def b(self):
-        return self._b
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._b
 
     @property
     def m(self):
-        return self._m
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._m
 
     @property
     def precision(self):
-        return self._precision
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            return self._precision
 
     @staticmethod
     @numba.jit(nopython=True, parallel=True)
