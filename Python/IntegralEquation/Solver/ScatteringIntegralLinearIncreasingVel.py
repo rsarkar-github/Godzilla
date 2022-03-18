@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class TruncatedKernelLinearIncreasingVel3d:
 
-    def __init__(self, n, nz, k, a, b, m, precision):
+    def __init__(self, n, nz, k, a, b, m, precision, light_mode=False):
         """
         :param n: The field will have shape n x n x nz, with n odd. This means that the cube
         [-0.5, 0.5]^2 is gridded into n^2 points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
@@ -22,6 +22,58 @@ class TruncatedKernelLinearIncreasingVel3d:
         :param b: The domain in z direction is [a, b] with 0 < a < b.
         :param m: Number of points to use in Riemann sum calculator for FT of truncated kernel.
         :param precision: np.complex64 or np.complex128
+        :param light_mode: bool (if True an empty class is initialized)
+        """
+
+        TypeChecker.check(x=light_mode, expected_type=(bool,))
+        self._initialized_flag = light_mode
+
+        if not light_mode:
+
+            print("\n\nInitializing the class")
+
+            TypeChecker.check(x=n, expected_type=(int,))
+            if n % 2 != 1 or n < 3:
+                raise ValueError("n must be an odd integer >= 3")
+
+            TypeChecker.check(x=nz, expected_type=(int,))
+            if nz < 2:
+                raise ValueError("n must be an integer >= 2")
+
+            TypeChecker.check_float_positive(k)
+            TypeChecker.check_float_positive(a)
+            TypeChecker.check_float_strict_lower_bound(x=b, lb=a)
+
+            TypeChecker.check_int_positive(m)
+
+            if precision not in [np.complex64, np.complex128]:
+                raise TypeError("Only precision types numpy.complex64 or numpy.complex128 are supported")
+
+            self._n = n
+            self._nz = nz
+            self._k = k
+            self._a = a
+            self._b = b
+            self._m = m
+            self._precision = precision
+
+            self._cutoff = np.sqrt(2.0)
+
+            # Run class initializer
+            self.__initialize_class()
+
+    def set_parameters(self, n, nz, k, a, b, m, precision, green_func=None):
+        """
+        :param n: The field will have shape n x n x nz, with n odd. This means that the cube
+        [-0.5, 0.5]^2 is gridded into n^2 points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
+        :param nz: The field will have shape n x n x nz, with n odd. This means that the interval [a, b] is gridded
+        into nz points. The points have coordinates {a + (b-a)k/(nz-1) : 0 <= k <= nz-1}.
+        :param k: The Helmholtz equation reads (lap + k^2 / z^2)u = f.
+        :param a: The domain in z direction is [a, b] with 0 < a < b.
+        :param b: The domain in z direction is [a, b] with 0 < a < b.
+        :param m: Number of points to use in Riemann sum calculator for FT of truncated kernel.
+        :param precision: np.complex64 or np.complex128
+        :param green_func: np.ndarray of dtype precision of size nz x nz x (2n - 1) x (2n - 1) or None
         """
 
         print("\n\nInitializing the class")
@@ -54,7 +106,13 @@ class TruncatedKernelLinearIncreasingVel3d:
         self._cutoff = np.sqrt(2.0)
 
         # Run class initializer
-        self.__initialize_class()
+        if green_func is None:
+            self.__initialize_class()
+        else:
+            # TODO: add type checks for green_func (just need to check dtype and shape, else addition throws error)
+            self.__initialize_class(green_func_flag=False)
+            self._green_func += green_func
+
 
     def apply_kernel(self, u, output, adj=False, add=False):
         """
@@ -157,6 +215,34 @@ class TruncatedKernelLinearIncreasingVel3d:
     def greens_func(self):
         return self._green_func
 
+    @property
+    def n(self):
+        return self._n
+
+    @property
+    def nz(self):
+        return self._nz
+
+    @property
+    def k(self):
+        return self._k
+
+    @property
+    def a(self):
+        return self._a
+
+    @property
+    def b(self):
+        return self._b
+
+    @property
+    def m(self):
+        return self._m
+
+    @property
+    def precision(self):
+        return self._precision
+
     @staticmethod
     @numba.jit(nopython=True, parallel=True)
     def __green_func_calc(green_func, nz, m, z, r, bessel0, k):
@@ -224,7 +310,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         print("\nGreen's Function size in memory (Gb) : ", "{:6.2f}".format(sys.getsizeof(self._green_func) / 1e9))
         print("\n")
 
-    def __initialize_class(self):
+    def __initialize_class(self, green_func_flag=True):
         # Calculate number of grid points for the domain [-2, 2] along one horizontal axis,
         # and index to crop the physical domain [-0.5, 0.5]
         self._num_bins = 4 * (self._n - 1)
@@ -250,7 +336,8 @@ class TruncatedKernelLinearIncreasingVel3d:
             shape=(self._nz, self._nz, self._num_bins_non_neg, self._num_bins_non_neg),
             dtype=self._precision
         )
-        self.__calculate_green_func()
+        if green_func_flag:
+            self.__calculate_green_func()
 
         # Calculate integration weights
         self._mu = np.zeros(shape=(self._nz, 1, 1), dtype=np.float32) + 1.0
@@ -260,7 +347,7 @@ class TruncatedKernelLinearIncreasingVel3d:
 
 class TruncatedKernelLinearIncreasingVel2d:
 
-    def __init__(self, n, nz, k, a, b, m, precision):
+    def __init__(self, n, nz, k, a, b, m, precision, light_mode=False):
         """
         :param n: The field will have shape n x nz, with n odd. This means that the unit cube
         [-0.5, 0.5] is gridded into n points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
@@ -271,6 +358,58 @@ class TruncatedKernelLinearIncreasingVel2d:
         :param b: The domain in z direction is [a, b] with 0 < a < b.
         :param m: Number of points to use in Riemann sum calculator for FT of truncated kernel.
         :param precision: np.complex64 or np.complex128
+        :param light_mode: bool (if True an empty class is initialized)
+        """
+
+        TypeChecker.check(x=light_mode, expected_type=(bool,))
+        self._initialized_flag = light_mode
+
+        if not light_mode:
+
+            print("\n\nInitializing the class")
+
+            TypeChecker.check(x=n, expected_type=(int,))
+            if n % 2 != 1 or n < 3:
+                raise ValueError("n must be an odd integer >= 3")
+
+            TypeChecker.check(x=nz, expected_type=(int,))
+            if nz < 2:
+                raise ValueError("n must be an integer >= 2")
+
+            TypeChecker.check_float_positive(k)
+            TypeChecker.check_float_positive(a)
+            TypeChecker.check_float_strict_lower_bound(x=b, lb=a)
+
+            TypeChecker.check_int_positive(m)
+
+            if precision not in [np.complex64, np.complex128]:
+                raise TypeError("Only precision types numpy.complex64 or numpy.complex128 are supported")
+
+            self._n = n
+            self._nz = nz
+            self._k = k
+            self._a = a
+            self._b = b
+            self._m = m
+            self._precision = precision
+
+            self._cutoff = np.sqrt(1.0)
+
+            # Run class initializer
+            self.__initialize_class()
+
+    def set_parameters(self, n, nz, k, a, b, m, precision, green_func=None):
+        """
+        :param n: The field will have shape n x nz, with n odd. This means that the unit cube
+        [-0.5, 0.5] is gridded into n points. The points have coordinates {-0.5 + k/(n-1) : 0 <= k <= n-1}.
+        :param nz: The field will have shape n x nz, with n odd. This means that the interval [a, b] is gridded
+        into nz points. The points have coordinates {a + (b-a)k/(nz-1) : 0 <= k <= nz-1}.
+        :param k: The Helmholtz equation reads (lap + k^2 / z^2)u = f.
+        :param a: The domain in z direction is [a, b] with 0 < a < b.
+        :param b: The domain in z direction is [a, b] with 0 < a < b.
+        :param m: Number of points to use in Riemann sum calculator for FT of truncated kernel.
+        :param precision: np.complex64 or np.complex128
+        :param green_func: np.ndarray of dtype precision of size nz x nz x (2n - 1) or None
         """
 
         print("\n\nInitializing the class")
@@ -303,7 +442,12 @@ class TruncatedKernelLinearIncreasingVel2d:
         self._cutoff = np.sqrt(1.0)
 
         # Run class initializer
-        self.__initialize_class()
+        if green_func is None:
+            self.__initialize_class()
+        else:
+            # TODO: add type checks for green_func (just need to check dtype and shape, else addition throws error)
+            self.__initialize_class(green_func_flag=False)
+            self._green_func += green_func
 
     def apply_kernel(self, u, output, adj=False, add=False):
         """
@@ -391,6 +535,34 @@ class TruncatedKernelLinearIncreasingVel2d:
     def greens_func(self):
         return self._green_func
 
+    @property
+    def n(self):
+        return self._n
+
+    @property
+    def nz(self):
+        return self._nz
+
+    @property
+    def k(self):
+        return self._k
+
+    @property
+    def a(self):
+        return self._a
+
+    @property
+    def b(self):
+        return self._b
+
+    @property
+    def m(self):
+        return self._m
+
+    @property
+    def precision(self):
+        return self._precision
+
     @staticmethod
     @numba.jit(nopython=True, parallel=True)
     def __green_func_calc(green_func, nz, m, z, r, cos, k):
@@ -441,7 +613,7 @@ class TruncatedKernelLinearIncreasingVel2d:
         print("\nGreen's Function size in memory (Mb) : ", "{:6.2f}".format(sys.getsizeof(self._green_func) / 1e6))
         print("\n")
 
-    def __initialize_class(self):
+    def __initialize_class(self, green_func_flag=True):
         # Calculate number of grid points for the domain [-2, 2] along one horizontal axis,
         # and index to crop the physical domain [-0.5, 0.5]
         self._num_bins = 4 * (self._n - 1)
@@ -464,7 +636,8 @@ class TruncatedKernelLinearIncreasingVel2d:
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._nz, self._nz, self._num_bins_non_neg), dtype=self._precision)
-        self.__calculate_green_func()
+        if green_func_flag:
+            self.__calculate_green_func()
 
         # Calculate integration weights
         self._mu = np.zeros(shape=(self._nz, 1), dtype=np.float32) + 1.0
