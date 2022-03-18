@@ -26,7 +26,7 @@ class TruncatedKernelLinearIncreasingVel3d:
         """
 
         TypeChecker.check(x=light_mode, expected_type=(bool,))
-        self._initialized_flag = light_mode
+        self._initialized_flag = not light_mode
 
         if not light_mode:
 
@@ -390,7 +390,7 @@ class TruncatedKernelLinearIncreasingVel2d:
         """
 
         TypeChecker.check(x=light_mode, expected_type=(bool,))
-        self._initialized_flag = light_mode
+        self._initialized_flag = not light_mode
 
         if not light_mode:
 
