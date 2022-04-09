@@ -215,6 +215,15 @@ class TruncatedKernelLinearIncreasingVel3d:
             output += self._dz * \
                       temparray4[:, self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)]
 
+    def write_green_func(self, green_func_file):
+        """
+        :param green_func_file: Full filepath to save green's function to
+        """
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            np.savez(file=green_func_file, green_func=self._green_func)
+
     @property
     def greens_func(self):
         if not self._initialized_flag:
@@ -563,6 +572,15 @@ class TruncatedKernelLinearIncreasingVel2d:
             if not add:
                 output *= 0
             output += self._dz * temparray2[:, self._start_index:(self._end_index + 1)]
+
+    def write_green_func(self, green_func_file):
+        """
+        :param green_func_file: Full filepath to save green's function to
+        """
+        if not self._initialized_flag:
+            raise ValueError("Class initialized in light mode, cannot perform operation.")
+        else:
+            np.savez(file=green_func_file, green_func=self._green_func)
 
     @property
     def greens_func(self):

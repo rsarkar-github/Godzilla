@@ -47,7 +47,7 @@ plt.title("Perturbation")
 plt.colorbar()
 plt.show()
 
-# Create 3D velocity and perturbation fields using chi cutoff
+# Create 2D velocity and perturbation fields
 xgrid = np.linspace(start=xmin, stop=xmax, num=n, endpoint=True)
 total_vel = vel + pert_gaussian
 
