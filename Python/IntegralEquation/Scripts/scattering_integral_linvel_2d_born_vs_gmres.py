@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from scipy.sparse.linalg import LinearOperator, gmres
-import time
-import os
+import time, os, sys
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
@@ -18,10 +18,31 @@ hz = (b - a) / (nz - 1)
 hx = (xmax - xmin) / (n - 1)
 alpha = 0.5
 
-omega = 10 * 2* np.pi
+omega = 30 * 2 * np.pi
 k = omega / alpha
 m = 1000
 precision = np.complex128
+
+if len(sys.argv) < 3:
+    ValueError("Input parameters to program not provided. Run program as\n"
+               "python -m program run_number(str) model_mode(int)")
+run_number = sys.argv[1]
+model_mode = int(sys.argv[2])
+
+#************************************************************
+# Create directories if they don't exist
+_file = os.path.basename(__file__)[:-3]
+_basedir = "./Python/IntegralEquation/Runs/" + _file + "/" + run_number
+if not os.path.exists(os.path.abspath(_basedir)):
+    os.makedirs(os.path.abspath(_basedir))
+
+_basedir_data = _basedir + "/Data"
+if not os.path.exists(os.path.abspath(_basedir_data)):
+    os.makedirs(os.path.abspath(_basedir_data))
+
+_basedir_fig = _basedir + "/Fig"
+if not os.path.exists(os.path.abspath(_basedir_fig)):
+    os.makedirs(os.path.abspath(_basedir_fig))
 
 #************************************************************
 # Create linearly varying background
@@ -31,12 +52,14 @@ for i in range(nz):
 
 #************************************************************
 # Create perturbation fields
-def create_pert_fields(mode, plot=False):
+def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
-    :param mode:
+    :param mode: int
         0 - Gaussian
         1 - Salt
-    :param plot: bool
+        2 - Three scatterers
+    :param plot: bool (if True then plot, else do not plot)
+    :param fig_filename: str (figure file name)
     :return: total_vel_, pert_, psi_
     """
     if mode == 0:
@@ -54,6 +77,22 @@ def create_pert_fields(mode, plot=False):
         mask = mask / np.max(mask)
         pert_salt = (vel_sigsbee[75:75 + nz, 150:150 + n] - vel) * mask[75:75 + nz, 150:150 + n]
         pert_ = gaussian_filter(pert_salt, sigma=0.5)
+
+    if mode == 2:
+        # Create three scatterers
+        pert1_ = np.zeros(shape=(nz, n), dtype=np.float64)
+        pert1_[int((nz - 1) / 3), int((n - 1) / 2)] = 1500.0
+        pert1_ = gaussian_filter(pert1_, sigma=10)
+
+        pert2_ = np.zeros(shape=(nz, n), dtype=np.float64)
+        pert2_[int((nz - 1) * 2 / 3), int((n - 1) / 3)] = 1500.0
+        pert2_ = gaussian_filter(pert2_, sigma=10)
+
+        pert3_ = np.zeros(shape=(nz, n), dtype=np.float64)
+        pert3_[int((nz - 1) * 2 / 3), int((n - 1) * 2 / 3)] = 1500.0
+        pert3_ = gaussian_filter(pert3_, sigma=10)
+
+        pert_ = pert1_ + pert2_ + pert3_
 
     # Create 2D velocity and perturbation fields (psi)
     total_vel_ = vel + pert_
@@ -94,9 +133,12 @@ def create_pert_fields(mode, plot=False):
 
         plt.show()
 
+        fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename),
+                    bbox_inches='tight', pad_inches=0)
+
     return total_vel_, pert_, psi_
 
-total_vel, pert, psi = create_pert_fields(mode=1, plot=True)
+total_vel, pert, psi = create_pert_fields(mode=model_mode, plot=True, fig_filename="vels.pdf")
 
 #************************************************************
 # Initialize operator
@@ -148,13 +190,19 @@ def init_op(green_func_filepath):
     return op_
 
 green_func_filename = "green_func.npz"
-path = os.path.abspath("./Python/IntegralEquation/Data/" + green_func_filename)
+path = os.path.abspath(_basedir_data + "/" + green_func_filename)
 op = init_op(green_func_filepath=path)
 
 #************************************************************
 # Create source
-def create_source(plot=False, scale=1.0, scale1=1e-4):
-
+def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
+    """
+    :param plot: bool (if True then plot, else do not plot)
+    :param fig_filename: str (figure file name)
+    :param scale: float (positive, for colorbar of f_)
+    :param scale1: float (positive, for colorbar of rhs_)
+    :return: f_, rhs_
+    """
     # Source
     xgrid = np.linspace(start=xmin, stop=xmax, num=n, endpoint=True)
     zgrid = np.linspace(start=a, stop=b, num=nz, endpoint=True)
@@ -163,13 +211,13 @@ def create_source(plot=False, scale=1.0, scale1=1e-4):
     sigma = 0.025
     z, x1 = np.meshgrid(zgrid, xgrid / 1, indexing="ij")
     distsq = (z - q) ** 2 + (x1 - p) ** 2
-    f = np.exp(-0.5 * distsq / (sigma ** 2))
-    f = f.astype(precision)
+    f_ = np.exp(-0.5 * distsq / (sigma ** 2))
+    f_ = f_.astype(precision)
 
     # Create LSE rhs
-    rhs = np.zeros((nz, n), dtype=precision)
+    rhs_ = np.zeros((nz, n), dtype=precision)
     start_t = time.time()
-    op.apply_kernel(u=f, output=rhs)
+    op.apply_kernel(u=f_, output=rhs_)
     end_t = time.time()
     print("Total time to execute convolution: ", "{:4.2f}".format(end_t - start_t), " s \n")
     print("Finished LSE rhs computation\n")
@@ -180,7 +228,7 @@ def create_source(plot=False, scale=1.0, scale1=1e-4):
 
         # Plot source
         ax = axs[0]
-        im0 = ax.imshow(np.real(f), cmap="Greys", vmin=-scale, vmax=scale)
+        im0 = ax.imshow(np.real(f_), cmap="Greys", vmin=-scale, vmax=scale)
         ax.grid(True)
         ax.set_title("Source", fontname="Times New Roman", fontsize=10)
         divider = make_axes_locatable(ax)
@@ -189,7 +237,7 @@ def create_source(plot=False, scale=1.0, scale1=1e-4):
 
         # Plot LSE rhs
         ax = axs[1]
-        im1 = ax.imshow(np.real(rhs), cmap="Greys", vmin=-scale1, vmax=scale1)
+        im1 = ax.imshow(np.real(rhs_), cmap="Greys", vmin=-scale1, vmax=scale1)
         ax.grid(True)
         ax.set_title("Lippmann-Schwinger RHS (real part)", fontname="Times New Roman", fontsize=10)
         divider = make_axes_locatable(ax)
@@ -198,7 +246,7 @@ def create_source(plot=False, scale=1.0, scale1=1e-4):
 
         # Plot LSE rhs
         ax = axs[2]
-        im2 = ax.imshow(np.imag(rhs), cmap="Greys", vmin=-scale1, vmax=scale1)
+        im2 = ax.imshow(np.imag(rhs_), cmap="Greys", vmin=-scale1, vmax=scale1)
         ax.grid(True)
         ax.set_title("Lippmann-Schwinger RHS (imag part)", fontname="Times New Roman", fontsize=10)
         divider = make_axes_locatable(ax)
@@ -207,9 +255,13 @@ def create_source(plot=False, scale=1.0, scale1=1e-4):
 
         plt.show()
 
-    return f, rhs
+        fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename),
+                    bbox_inches='tight', pad_inches=0)
 
-source, rhs = create_source(plot=True)
+    return f_, rhs_
+
+scale_sol = 1e-5
+source, rhs = create_source(plot=True, fig_filename="source.pdf", scale1=scale_sol)
 
 #************************************************************
 # Define linear operator object
@@ -232,87 +284,142 @@ def make_callback():
     return callback
 
 #************************************************************
-# Run GMRES to get total iterations
-start_t = time.time()
-x, exitCode = gmres(
-    A,
-    np.reshape(rhs, newshape=(nz * n, 1)),
-    maxiter=1000,
-    restart=100,
-    callback=make_callback()
-)
-print(exitCode)
-end_t = time.time()
-print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-print("Residual norm = ", np.linalg.norm(rhs - np.reshape(A.matvec(x), newshape=(nz, n))))
+# Run GMRES for variable iterations, and also to convergence
+def run_gmres(num_iter_list):
+    """
+    :param num_iter_list: list of positive integers (list of number of GMRES iterations)
+    :return: sol_list (list of solutions), actual_sol (solution at convergence)
+    """
 
-scale = 1e-4
-x = np.reshape(x, newshape=(nz, n))
-plt.figure()
-plt.imshow(np.real(x), cmap="Greys", vmin=-scale, vmax=scale)
-plt.grid(True)
-plt.title("Real (Solution)")
+    sol_list = [np.zeros((nz, n), dtype=precision) for _ in num_iter_list]
+    actual_sol = np.zeros((nz, n), dtype=precision)
+
+    print("\n************************************************************")
+    print("\nRunning GMRES till convergence...")
+
+    start_t = time.time()
+    x, exitcode = gmres(
+        A,
+        np.reshape(rhs, newshape=(nz * n, 1)),
+        maxiter=10000,
+        restart=1000,
+        callback=make_callback()
+    )
+    x = np.reshape(x, newshape=(nz, n))
+    print("\nConverged with exitcode ", exitcode)
+    end_t = time.time()
+    print("\nTotal time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+
+    actual_sol += x
+
+    print("\n************************************************************")
+    print("\nRunning GMRES for variable iterations...\n\n")
+
+    for count, num_iter in enumerate(num_iter_list):
+        print("\n-------------------------------------------------------------")
+        print("\nRunning GMRES for ", num_iter, " iterations...\n")
+        start_t = time.time()
+        x = gmres(
+            A,
+            np.reshape(rhs, newshape=(nz * n, 1)),
+            maxiter=num_iter,
+            restart=num_iter,
+            callback=make_callback()
+        )[0]
+        x = np.reshape(x, newshape=(nz, n))
+        end_t = time.time()
+        print("\nTotal time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+
+        sol_list[count] += x
+
+    return sol_list, actual_sol
+
+iter_list = [10, 20, 30]
+solutions_list_gmres, solution_true = run_gmres(num_iter_list=iter_list)
+
+fig = plt.figure()
+plt.imshow(np.real(solution_true), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
+plt.title("True solution (real part)", fontname="Times New Roman", fontsize=10)
 plt.colorbar()
 plt.show()
+fig.savefig(os.path.abspath(_basedir_fig + "/" + "true_solution.pdf"), bbox_inches='tight', pad_inches=0)
 
-# Get this by running code once
-total_iterations = 30
+#************************************************************
+# Sum Born Neumann scattering series for variable iterations
+def sum_born_neumann(num_iter_list):
+    """
+    :param num_iter_list: list of positive integers (list of number of terms to sum)
+    :return: sum_list (list of sum of terms of Born Neumann series)
+    """
+    print("\n************************************************************")
+    print("\nSumming Born Neumann series...")
 
-# #************************************************************
-# # Run GMRES variable iterations
-# def run_gmres(niter):
-#     print("\nRunning GMRES for ", niter, " iterations\n")
-#     start_t = time.time()
-#     result, exitcode = gmres(
-#         A,
-#         np.reshape(rhs, newshape=(nz * n, 1)),
-#         maxiter=niter,
-#         restart=100,
-#         callback=make_callback()
-#     )
-#     print("Exitcode = ", exitcode)
-#     end_t = time.time()
-#     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-#
-#     return result
-#
-# niter_list = [10, 20, 30]
-# result_list = []
-# for niter in niter_list:
-#     x = run_gmres(niter=niter)
-#     result_list.append(x)
-#
-# # Plotting
-# fig, axs = plt.subplots(1, 3, sharey=True, figsize=(30, 10))
-#
-# x = result_list[0]
-# x = np.reshape(x, newshape=(nz, n))
-# ax = axs[0]
-# im0 = ax.imshow(np.real(x), cmap="Greys", vmin=-scale, vmax=scale)
-# ax.grid(True)
-# ax.set_title("Source", fontname="Times New Roman", fontsize=10)
-# divider = make_axes_locatable(ax)
-# cax = divider.append_axes("right", size="5%", pad=0.05)
-# plt.colorbar(im0, cax=cax)
-#
-# x = result_list[1]
-# x = np.reshape(x, newshape=(nz, n))
-# ax = axs[1]
-# im1 = ax.imshow(np.real(x), cmap="Greys", vmin=-scale, vmax=scale)
-# ax.grid(True)
-# ax.set_title("Source", fontname="Times New Roman", fontsize=10)
-# divider = make_axes_locatable(ax)
-# cax = divider.append_axes("right", size="5%", pad=0.05)
-# plt.colorbar(im1, cax=cax)
-#
-# x = result_list[2]
-# x = np.reshape(x, newshape=(nz, n))
-# ax = axs[2]
-# im2 = ax.imshow(np.real(x), cmap="Greys", vmin=-scale, vmax=scale)
-# ax.grid(True)
-# ax.set_title("Source", fontname="Times New Roman", fontsize=10)
-# divider = make_axes_locatable(ax)
-# cax = divider.append_axes("right", size="5%", pad=0.05)
-# plt.colorbar(im2, cax=cax)
-#
-# plt.show()
+    successive_iter_list = [num_iter_list[0] - 1]
+    for kk in range(len(num_iter_list)):
+        if kk > 0:
+            successive_iter_list.append(num_iter_list[kk] - num_iter_list[kk-1])
+
+    sum_list = [np.zeros((nz, n), dtype=precision) for _ in num_iter_list]
+    norm_list = [np.linalg.norm(rhs)]
+
+    series_sum = rhs * 1.0
+    curr_term = rhs * 1.0
+    next_term = rhs * 1.0
+
+    for count, kk in enumerate(successive_iter_list):
+
+        print("\n")
+        msg = "Summing the next " + str(kk) + " terms"
+
+        for _ in tqdm(range(kk), desc=msg, ncols=100):
+
+            curr_term *= psi
+            op.apply_kernel(u=curr_term, output=next_term)
+            curr_term *= 0
+            curr_term += next_term * (k ** 2)
+            series_sum += curr_term
+            norm_list.append(np.linalg.norm(series_sum))
+
+        sum_list[count] += series_sum
+
+    return sum_list, norm_list
+
+sum_list_born_neumann, norm_list_born_neumann = sum_born_neumann(num_iter_list=iter_list)
+
+#************************************************************
+# Plot comparison, Born-Neumann norm
+
+#------------------------------------------------------------
+fig = plt.figure()
+plt.semilogy(norm_list_born_neumann, 'ro-', linewidth=2, markersize=6)
+plt.xlabel("Number of terms", fontname="Times New Roman", fontsize=10)
+plt.ylabel("2-Norm of Born-Neumann series sum", fontname="Times New Roman", fontsize=10)
+plt.grid(True)
+plt.show()
+fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_norm.pdf"), bbox_inches='tight', pad_inches=0)
+
+#------------------------------------------------------------
+fig, axs = plt.subplots(2, len(iter_list), sharey=True, sharex=True, figsize=(30, 10))
+
+# Plot GMRES solutions
+for kk in range(len(iter_list)):
+    ax = axs[0, kk]
+    im = ax.imshow(np.real(solutions_list_gmres[kk]), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
+    ax.grid(True)
+    ax.set_title("GMRES, Iteration = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+
+# Plot Born-Neumann series sum
+for kk in range(len(iter_list)):
+    ax = axs[1, kk]
+    im = ax.imshow(np.real(sum_list_born_neumann[kk]), cmap="Greys")
+    ax.grid(True)
+    ax.set_title("Born-Neumann series, Terms = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+
+plt.show()
+fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_gmres_comp.pdf"), bbox_inches='tight', pad_inches=0)
