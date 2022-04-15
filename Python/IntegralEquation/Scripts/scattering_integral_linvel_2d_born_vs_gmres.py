@@ -55,7 +55,7 @@ for i in range(nz):
 def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
     :param mode: int
-        0 - Gaussian
+        0 - Gaussian + reflector
         1 - Salt
         2 - Three scatterers
     :param plot: bool (if True then plot, else do not plot)
@@ -64,9 +64,16 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
     if mode == 0:
         # Create Gaussian perturbation
-        pert_ = np.zeros(shape=(nz, n), dtype=np.float64)
-        pert_[int((nz - 1) / 2), int((n - 1) / 2)] = 4000.0
-        pert_ = gaussian_filter(pert_, sigma=20)
+        pert1_ = np.zeros(shape=(nz, n), dtype=np.float64)
+        pert1_[int((nz - 1) / 2), int((n - 1) / 2)] = 4000.0
+        pert1_ = gaussian_filter(pert1_, sigma=20)
+
+        # Create flat reflector
+        pert2_ = np.zeros(shape=(nz, n), dtype=np.float64)
+        pert2_[int((nz - 1) * 0.75): int((nz - 1) * 0.77), int((n - 1) * 0.1): int((n - 1) * 0.9)] = 3.0
+        pert2_ = gaussian_filter(pert2_, sigma=2)
+
+        pert_ = pert1_ + pert2_
 
     if mode == 1:
         # Create Salt perturbation
@@ -102,6 +109,11 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     # Plotting
     if plot:
 
+        xticks = np.arange(0, n + 1, int(n / 3))
+        xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
+        yticks = np.arange(0, nz + 1, int(nz / 3))
+        yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
+
         fig, axs = plt.subplots(1, 3, sharey=True, figsize=(30, 10))
 
         # Plot velocity
@@ -109,32 +121,73 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
         im0 = ax.imshow(vel, cmap="jet", vmin=2.0, vmax=4.5)
         ax.grid(True)
         ax.set_title("Background Velocity", fontname="Times New Roman", fontsize=15)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+        ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
-        plt.colorbar(im0, cax=cax)
+        cbar = plt.colorbar(im0, cax=cax)
+        cbar.set_label("[km/s]", rotation=270, fontname="Times New Roman", fontsize=10, labelpad=10)
+        cbar_yticks = cbar.get_ticks()
+        cbar_yticks = cbar_yticks[::2]
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
 
         # Plot total velocity
         ax = axs[1]
         im1 = ax.imshow(total_vel_, cmap="jet", vmin=2.0, vmax=4.5)
         ax.grid(True)
         ax.set_title("Total Velocity", fontname="Times New Roman", fontsize=15)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
-        plt.colorbar(im1, cax=cax)
+        cbar = plt.colorbar(im1, cax=cax)
+        cbar.set_label("[km/s]", rotation=270, fontname="Times New Roman", fontsize=10, labelpad=10)
+        cbar_yticks = cbar.get_ticks()
+        cbar_yticks = cbar_yticks[::2]
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
 
         # Plot perturbation
+        scale = np.max(np.abs(pert_))
         ax = axs[2]
-        im2 = ax.imshow(pert_, cmap="Greys", vmin=-1.0, vmax=1.0)
+        im2 = ax.imshow(pert_, cmap="Greys", vmin=-scale, vmax=scale)
         ax.grid(True)
         ax.set_title("Perturbation", fontname="Times New Roman", fontsize=15)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
-        plt.colorbar(im2, cax=cax)
+        cbar = plt.colorbar(im2, cax=cax)
+        cbar.set_label("[km/s]", rotation=270, fontname="Times New Roman", fontsize=10, labelpad=10)
+        cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
 
         plt.show()
 
-        fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename),
-                    bbox_inches='tight', pad_inches=0)
+        fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
 
     return total_vel_, pert_, psi_
 
@@ -224,6 +277,14 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
 
     if plot:
 
+        xticks = np.arange(0, n + 1, int(n / 3))
+        xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
+        yticks = np.arange(0, nz + 1, int(nz / 3))
+        yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
+
+        f = int(np.floor(np.log10(scale)))
+        f1 = int(np.floor(np.log10(scale1)))
+
         fig, axs = plt.subplots(1, 3, sharey=True, figsize=(30, 10))
 
         # Plot source
@@ -231,32 +292,92 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
         im0 = ax.imshow(np.real(f_), cmap="Greys", vmin=-scale, vmax=scale)
         ax.grid(True)
         ax.set_title("Source", fontname="Times New Roman", fontsize=10)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+        ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
-        plt.colorbar(im0, cax=cax)
+        cbar = plt.colorbar(im0, cax=cax)
+        cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
+        if f != 0:
+            cbar.ax.text(
+                0,
+                1.05 * scale,
+                r"$\times$ 1e" + str(f),
+                fontname="Times New Roman",
+                fontsize=10
+            )
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
 
-        # Plot LSE rhs
+        # Plot LSE rhs (real)
         ax = axs[1]
         im1 = ax.imshow(np.real(rhs_), cmap="Greys", vmin=-scale1, vmax=scale1)
         ax.grid(True)
         ax.set_title("Lippmann-Schwinger RHS (real part)", fontname="Times New Roman", fontsize=10)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
-        plt.colorbar(im1, cax=cax)
+        cbar = plt.colorbar(im1, cax=cax)
+        cbar_yticks = np.linspace(-scale1, scale1, 5, endpoint=True)
+        if f1 != 0:
+            cbar.ax.text(
+                0,
+                1.05 * scale1,
+                r"$\times$ 1e" + str(f1),
+                fontname="Times New Roman",
+                fontsize=10
+            )
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item / (10 ** f1)) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
 
-        # Plot LSE rhs
+        # Plot LSE rhs (imag)
         ax = axs[2]
         im2 = ax.imshow(np.imag(rhs_), cmap="Greys", vmin=-scale1, vmax=scale1)
         ax.grid(True)
         ax.set_title("Lippmann-Schwinger RHS (imag part)", fontname="Times New Roman", fontsize=10)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
-        plt.colorbar(im2, cax=cax)
+        cbar = plt.colorbar(im2, cax=cax)
+        cbar_yticks = cbar.get_ticks()
+        cbar_yticks = cbar_yticks[::2]
+        if f1 != 0:
+            cbar.ax.text(
+                0,
+                1.05 * scale1,
+                r"$\times$ 1e" + str(f1),
+                fontname="Times New Roman",
+                fontsize=10
+            )
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item / (10 ** f1)) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
 
         plt.show()
 
-        fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename),
-                    bbox_inches='tight', pad_inches=0)
+        fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
 
     return f_, rhs_
 
@@ -337,13 +458,46 @@ def run_gmres(num_iter_list):
 iter_list = [10, 20, 30]
 solutions_list_gmres, solution_true = run_gmres(num_iter_list=iter_list)
 
-fig = plt.figure()
-plt.imshow(np.real(solution_true), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
-plt.title("True solution (real part)", fontname="Times New Roman", fontsize=10)
-plt.colorbar()
-plt.show()
-fig.savefig(os.path.abspath(_basedir_fig + "/" + "true_solution.pdf"), bbox_inches='tight', pad_inches=0)
+def plot_true_sol():
 
+    xticks = np.arange(0, n + 1, int(n / 3))
+    xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
+    yticks = np.arange(0, nz + 1, int(nz / 3))
+    yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
+
+    f = int(np.floor(np.log10(scale_sol)))
+
+    fig, ax = plt.subplots(1, 1)
+    im = ax.imshow(np.real(solution_true), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
+    ax.grid(True)
+    ax.set_title("True solution (real part)", fontname="Times New Roman", fontsize=10)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
+    ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+    ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+
+    cbar = plt.colorbar(im)
+    cbar_yticks = np.linspace(-scale_sol, scale_sol, 5, endpoint=True)
+    if f != 0:
+        cbar.ax.text(
+            0,
+            1.05 * scale_sol,
+            r"$\times$ 1e" + str(f),
+            fontname="Times New Roman",
+            fontsize=10
+        )
+    cbar.set_ticks(cbar_yticks)
+    cbar.set_ticklabels(
+        ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
+        fontname="Times New Roman",
+        fontsize=10
+    )
+    plt.show()
+    fig.savefig(os.path.abspath(_basedir_fig + "/" + "true_solution.pdf"), bbox_inches='tight', pad_inches=0)
+
+plot_true_sol()
 #************************************************************
 # Sum Born Neumann scattering series for variable iterations
 def sum_born_neumann(num_iter_list):
@@ -390,36 +544,94 @@ sum_list_born_neumann, norm_list_born_neumann = sum_born_neumann(num_iter_list=i
 # Plot comparison, Born-Neumann norm
 
 #------------------------------------------------------------
-fig = plt.figure()
-plt.semilogy(norm_list_born_neumann, 'ro-', linewidth=2, markersize=6)
-plt.xlabel("Number of terms", fontname="Times New Roman", fontsize=10)
-plt.ylabel("2-Norm of Born-Neumann series sum", fontname="Times New Roman", fontsize=10)
-plt.grid(True)
-plt.show()
-fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_norm.pdf"), bbox_inches='tight', pad_inches=0)
+def make_plot():
 
-#------------------------------------------------------------
-fig, axs = plt.subplots(2, len(iter_list), sharey=True, sharex=True, figsize=(30, 10))
+    fig = plt.figure()
+    plt.semilogy(norm_list_born_neumann, 'ro-', linewidth=2, markersize=6)
+    plt.xlabel("Number of terms", fontname="Times New Roman", fontsize=10)
+    plt.ylabel("2-Norm of Born-Neumann series sum", fontname="Times New Roman", fontsize=10)
+    plt.grid(True)
+    plt.show()
+    fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_norm.pdf"), bbox_inches='tight', pad_inches=0)
 
-# Plot GMRES solutions
-for kk in range(len(iter_list)):
-    ax = axs[0, kk]
-    im = ax.imshow(np.real(solutions_list_gmres[kk]), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
-    ax.grid(True)
-    ax.set_title("GMRES, Iteration = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    plt.colorbar(im, cax=cax)
+    #------------------------------------------------------------
+    xticks = np.arange(0, n + 1, int(n / 3))
+    xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
+    yticks = np.arange(0, nz + 1, int(nz / 3))
+    yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
 
-# Plot Born-Neumann series sum
-for kk in range(len(iter_list)):
-    ax = axs[1, kk]
-    im = ax.imshow(np.real(sum_list_born_neumann[kk]), cmap="Greys")
-    ax.grid(True)
-    ax.set_title("Born-Neumann series, Terms = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    plt.colorbar(im, cax=cax)
+    f = int(np.floor(np.log10(scale_sol)))
 
-plt.show()
-fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_gmres_comp.pdf"), bbox_inches='tight', pad_inches=0)
+    fig, axs = plt.subplots(2, len(iter_list), sharey=True, sharex=True, figsize=(30, 10))
+
+    # Plot GMRES solutions
+    for kk in range(len(iter_list)):
+        ax = axs[0, kk]
+        im = ax.imshow(np.real(solutions_list_gmres[kk]), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
+        ax.grid(True)
+        ax.set_title("GMRES, Iteration = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
+        if kk == 0:
+            ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        cbar = plt.colorbar(im, cax=cax)
+        cbar_yticks = np.linspace(-scale_sol, scale_sol, 5, endpoint=True)
+        if f != 0:
+            cbar.ax.text(
+                0,
+                1.05 * scale_sol,
+                r"$\times$ 1e" + str(f),
+                fontname="Times New Roman",
+                fontsize=10
+            )
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
+
+    # Plot Born-Neumann series sum
+    for kk in range(len(iter_list)):
+
+        scale1 = np.max(np.abs(np.real(sum_list_born_neumann[kk])))
+        f1 = int(np.floor(np.log10(scale1)))
+
+        ax = axs[1, kk]
+        im = ax.imshow(np.real(sum_list_born_neumann[kk]), cmap="Greys", vmin=-scale1, vmax=scale1)
+        ax.grid(True)
+        ax.set_title("Born-Neumann series, Terms = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
+        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+        if kk == 0:
+            ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        cbar = plt.colorbar(im, cax=cax)
+        cbar_yticks = np.linspace(-scale1, scale1, 5, endpoint=True)
+        cbar.set_ticks(cbar_yticks)
+        cbar.set_ticklabels(
+            ["{:4.1f}".format(item / (10 ** f1)) for item in cbar_yticks],
+            fontname="Times New Roman",
+            fontsize=10
+        )
+        if f1 != 0:
+            cbar.ax.text(
+                0,
+                1.05 * scale1,
+                r"$\times$ 1e" + str(f1),
+                fontname="Times New Roman",
+                fontsize=10
+            )
+
+    plt.show()
+    fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_gmres_comp.pdf"), bbox_inches='tight', pad_inches=0)
+
+make_plot()
