@@ -34,7 +34,9 @@ def create_helmholtz2d_matrix(
     """
 
     # Check vel for type, make copy consistent with type of precision, and check if values > 0
-    TypeChecker.check(x=precision, expected_type=(np.complex64, np.complex128))
+    if precision not in [np.complex64, np.complex128]:
+        raise TypeError("Only precision types numpy.complex64 or numpy.complex128 are supported")
+
     TypeChecker.check(x=vel, expected_type=(np.ndarray,))
 
     n1, n2 = vel.shape
@@ -75,10 +77,10 @@ def create_helmholtz2d_matrix(
     if warnings:
         print("\n\n")
 
-        if d1 < dmin:
+        if d1 > dmin:
             print("Warning: Required dmin = ", "{:.2e}".format(dmin), ", Computed d1 = ", "{:.2e}".format(d1))
 
-        if d2 < dmin:
+        if d2 > dmin:
             print("Warning: Required dmin = ", "{:.2e}".format(dmin), ", Computed d2 = ", "{:.2e}".format(d2))
 
         if pml_width1 < lambda_max:
@@ -440,7 +442,9 @@ def create_helmholtz3d_matrix(
     """
 
     # Check vel for type, make copy consistent with type of precision, and check if values > 0
-    TypeChecker.check(x=precision, expected_type=(np.complex64, np.complex128))
+    if precision not in [np.complex64, np.complex128]:
+        raise TypeError("Only precision types numpy.complex64 or numpy.complex128 are supported")
+
     TypeChecker.check(x=vel, expected_type=(np.ndarray,))
 
     n1, n2, n3 = vel.shape
@@ -487,13 +491,13 @@ def create_helmholtz3d_matrix(
     if warnings:
         print("\n\n")
 
-        if d1 < dmin:
+        if d1 > dmin:
             print("Warning: Required dmin = ", "{:.2e}".format(dmin), ", Computed d1 = ", "{:.2e}".format(d1))
 
-        if d2 < dmin:
+        if d2 > dmin:
             print("Warning: Required dmin = ", "{:.2e}".format(dmin), ", Computed d2 = ", "{:.2e}".format(d2))
 
-        if d3 < dmin:
+        if d3 > dmin:
             print("Warning: Required dmin = ", "{:.2e}".format(dmin), ", Computed d3 = ", "{:.2e}".format(d3))
 
         if pml_width1 < lambda_max:
