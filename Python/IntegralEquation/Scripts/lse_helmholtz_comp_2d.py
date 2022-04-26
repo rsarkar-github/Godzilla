@@ -1,10 +1,10 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from scipy.sparse.linalg import LinearOperator, gmres
-import time, os, sys
-from tqdm import tqdm
+from scipy.sparse.linalg import LinearOperator, gmres, splu
+import time, sys, os
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from ..Solver import HelmholtzOperators
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 
@@ -83,9 +83,9 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
         mask = np.clip(vel_sigsbee, 4.49, 4.5) - 4.49
         mask = mask / np.max(mask)
         pert_salt = (vel_sigsbee[75:75 + nz, 150:150 + n] - vel) * mask[75:75 + nz, 150:150 + n]
-        pert_salt[:, n - 10: n] = 0.0
-        pert_salt[:, 0: 10] = 0.0
-        pert_ = gaussian_filter(pert_salt, sigma=1.5)
+        pert_salt[:, n - 20: n] = 0.0
+        pert_salt[:, 0: 20] = 0.0
+        pert_ = gaussian_filter(pert_salt, sigma=0.5)
 
     if mode == 2:
         # Create three scatterers
@@ -262,7 +262,10 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
     xgrid = np.linspace(start=xmin, stop=xmax, num=n, endpoint=True)
     zgrid = np.linspace(start=a, stop=b, num=nz, endpoint=True)
     p = 0.0
-    q = a + (b - a) / 10.0
+    if model_mode == 1:
+        q = a + (b - a) * 0.6
+    else:
+        q = a + (b - a) * 0.3
     sigma = 0.025
     z, x1 = np.meshgrid(zgrid, xgrid / 1, indexing="ij")
     distsq = (z - q) ** 2 + (x1 - p) ** 2
@@ -384,18 +387,19 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
     return f_, rhs_
 
 scale_sol = 1e-5
-source, rhs = create_source(plot=True, fig_filename="source.pdf", scale1=scale_sol)
+f, rhs = create_source(plot=True, fig_filename="source.pdf", scale1=scale_sol)
 
 #************************************************************
-# Define linear operator object
+# Define linear operator objects
 def func_matvec(v):
     v = np.reshape(v, newshape=(nz, n))
     u = v * 0
     op.apply_kernel(u=v*psi, output=u, adj=False, add=False)
     return np.reshape(v - (k ** 2) * u, newshape=(nz * n, 1))
 
-A = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec, dtype=precision)
+linop_lse = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec, dtype=precision)
 
+#************************************************************
 # Callback generator
 def make_callback():
     closure_variables = dict(counter=0, residuals=[])
@@ -407,72 +411,42 @@ def make_callback():
     return callback
 
 #************************************************************
-# Run GMRES for variable iterations, and also to convergence
-def run_gmres(num_iter_list):
-    """
-    :param num_iter_list: list of positive integers (list of number of GMRES iterations)
-    :return: sol_list (list of solutions), actual_sol (solution at convergence)
-    """
+# Run GMRES for LSE
+tol = 1e-3
+print("\n************************************************************")
+print("\nRunning GMRES for LSE...\n\n")
+start_t = time.time()
+x1, exitcode = gmres(
+    linop_lse,
+    np.reshape(rhs, newshape=(nz * n, 1)),
+    maxiter=2000,
+    restart=2000,
+    atol=0,
+    tol=tol,
+    callback=make_callback()
+)
+x1 = np.reshape(x1, newshape=(nz, n))
+print(exitcode)
+end_t = time.time()
+print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-    sol_list = [np.zeros((nz, n), dtype=precision) for _ in num_iter_list]
-    actual_sol = np.zeros((nz, n), dtype=precision)
 
-    print("\n************************************************************")
-    print("\nRunning GMRES till convergence...")
+#************************************************************
+# Plot results
 
-    start_t = time.time()
-    x, exitcode = gmres(
-        A,
-        np.reshape(rhs, newshape=(nz * n, 1)),
-        maxiter=10000,
-        restart=1000,
-        callback=make_callback()
-    )
-    x = np.reshape(x, newshape=(nz, n))
-    print("\nConverged with exitcode ", exitcode)
-    end_t = time.time()
-    print("\nTotal time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-
-    actual_sol += x
-
-    print("\n************************************************************")
-    print("\nRunning GMRES for variable iterations...\n\n")
-
-    for count, num_iter in enumerate(num_iter_list):
-        print("\n-------------------------------------------------------------")
-        print("\nRunning GMRES for ", num_iter, " iterations...\n")
-        start_t = time.time()
-        x = gmres(
-            A,
-            np.reshape(rhs, newshape=(nz * n, 1)),
-            maxiter=num_iter,
-            restart=num_iter,
-            callback=make_callback()
-        )[0]
-        x = np.reshape(x, newshape=(nz, n))
-        end_t = time.time()
-        print("\nTotal time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-
-        sol_list[count] += x
-
-    return sol_list, actual_sol
-
-iter_list = [10, 20, 30]
-solutions_list_gmres, solution_true = run_gmres(num_iter_list=iter_list)
-
-def plot_true_sol():
+def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
 
     xticks = np.arange(0, n + 1, int(n / 3))
     xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
     yticks = np.arange(0, nz + 1, int(nz / 3))
     yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
 
-    f = int(np.floor(np.log10(scale_sol)))
+    f = int(np.floor(np.log10(scale)))
 
     fig, ax = plt.subplots(1, 1)
-    im = ax.imshow(np.real(solution_true), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
+    im = ax.imshow(np.real(sol), cmap="Greys", vmin=-scale, vmax=scale)
     ax.grid(True)
-    ax.set_title("True solution (real part)", fontname="Times New Roman", fontsize=10)
+    ax.set_title(title, fontname="Times New Roman", fontsize=10)
     ax.set_xticks(xticks)
     ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
     ax.set_yticks(yticks)
@@ -481,7 +455,7 @@ def plot_true_sol():
     ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
 
     cbar = plt.colorbar(im)
-    cbar_yticks = np.linspace(-scale_sol, scale_sol, 5, endpoint=True)
+    cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
     if f != 0:
         cbar.ax.text(
             0,
@@ -497,143 +471,73 @@ def plot_true_sol():
         fontsize=10
     )
     plt.show()
-    fig.savefig(os.path.abspath(_basedir_fig + "/" + "true_solution.pdf"), bbox_inches='tight', pad_inches=0)
+    fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
 
-plot_true_sol()
-#************************************************************
-# Sum Born Neumann scattering series for variable iterations
-def sum_born_neumann(num_iter_list):
-    """
-    :param num_iter_list: list of positive integers (list of number of terms to sum)
-    :return: sum_list (list of sum of terms of Born Neumann series)
-    """
-    print("\n************************************************************")
-    print("\nSumming Born Neumann series...")
-
-    successive_iter_list = [num_iter_list[0] - 1]
-    for kk in range(len(num_iter_list)):
-        if kk > 0:
-            successive_iter_list.append(num_iter_list[kk] - num_iter_list[kk-1])
-
-    sum_list = [np.zeros((nz, n), dtype=precision) for _ in num_iter_list]
-    norm_list = [np.linalg.norm(rhs)]
-
-    series_sum = rhs * 1.0
-    curr_term = rhs * 1.0
-    next_term = rhs * 1.0
-
-    for count, kk in enumerate(successive_iter_list):
-
-        print("\n")
-        msg = "Summing the next " + str(kk) + " terms"
-
-        for _ in tqdm(range(kk), desc=msg, ncols=100):
-
-            curr_term *= psi
-            op.apply_kernel(u=curr_term, output=next_term)
-            curr_term *= 0
-            curr_term += next_term * (k ** 2)
-            series_sum += curr_term
-            norm_list.append(np.linalg.norm(series_sum))
-
-        sum_list[count] += series_sum
-
-    return sum_list, norm_list
-
-sum_list_born_neumann, norm_list_born_neumann = sum_born_neumann(num_iter_list=iter_list)
+plot_sol(x1, "sol_lse.pdf", "Lippmann-Schwinger Solution (real)", scale=1e-5)
 
 #************************************************************
-# Plot comparison, Born-Neumann norm
+#************************************************************
+# Helmholtz code
+#************************************************************
+#************************************************************
 
-#------------------------------------------------------------
-def make_plot():
+pml_cells = 20
 
-    fig = plt.figure()
-    plt.semilogy(norm_list_born_neumann, 'ro-', linewidth=2, markersize=6)
-    plt.xlabel("Number of terms", fontname="Times New Roman", fontsize=10)
-    plt.ylabel("2-Norm of Born-Neumann series sum", fontname="Times New Roman", fontsize=10)
-    plt.grid(True)
-    plt.show()
-    fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_norm.pdf"), bbox_inches='tight', pad_inches=0)
+while pml_cells < 100:
 
-    #------------------------------------------------------------
-    xticks = np.arange(0, n + 1, int(n / 3))
-    xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
-    yticks = np.arange(0, nz + 1, int(nz / 3))
-    yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
+    print("\n")
+    print("Solution with pml cells = ", pml_cells)
 
-    f = int(np.floor(np.log10(scale_sol)))
+    a1_ = xmax - xmin + 2 * hx
+    a2_ = b - a + 2 * hz
 
-    fig, axs = plt.subplots(2, len(iter_list), sharey=True, sharex=True, figsize=(30, 10))
+    # Pad total vel
+    total_vel_pad = np.zeros((nz + 2 * pml_cells, n + 2 * pml_cells))
+    if precision is np.complex64:
+        total_vel_pad = total_vel_pad.astype(np.float32)
+        total_vel_pad[pml_cells: pml_cells + nz, pml_cells: pml_cells + n] = total_vel.astype(np.float32)
+    if precision is np.complex128:
+        total_vel_pad = total_vel_pad.astype(np.float64)
+        total_vel_pad[pml_cells: pml_cells + nz, pml_cells: pml_cells + n] = total_vel.astype(np.float64)
 
-    # Plot GMRES solutions
-    for kk in range(len(iter_list)):
-        ax = axs[0, kk]
-        im = ax.imshow(np.real(solutions_list_gmres[kk]), cmap="Greys", vmin=-scale_sol, vmax=scale_sol)
-        ax.grid(True)
-        ax.set_title("GMRES, Iteration = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
-        if kk == 0:
-            ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+    total_vel_pad[pml_cells: pml_cells + nz, 0: pml_cells] \
+        = total_vel_pad[pml_cells: pml_cells + nz, pml_cells]
 
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        cbar = plt.colorbar(im, cax=cax)
-        cbar_yticks = np.linspace(-scale_sol, scale_sol, 5, endpoint=True)
-        if f != 0:
-            cbar.ax.text(
-                0,
-                1.05 * scale_sol,
-                r"$\times$ 1e" + str(f),
-                fontname="Times New Roman",
-                fontsize=10
-            )
-        cbar.set_ticks(cbar_yticks)
-        cbar.set_ticklabels(
-            ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
-            fontname="Times New Roman",
-            fontsize=10
-        )
+    total_vel_pad[pml_cells: pml_cells + nz, pml_cells + n: 2 * pml_cells + n] \
+        = total_vel_pad[pml_cells: pml_cells + nz, pml_cells + n - 1]
 
-    # Plot Born-Neumann series sum
-    for kk in range(len(iter_list)):
+    total_vel_pad[0: pml_cells, :] = total_vel_pad[pml_cells, :]
+    total_vel_pad[pml_cells + nz: 2 * pml_cells + nz, :] = total_vel_pad[pml_cells + nz - 1, :]
 
-        scale1 = np.max(np.abs(np.real(sum_list_born_neumann[kk])))
-        f1 = int(np.floor(np.log10(scale1)))
+    # Create Helmholtz matrix
+    mat = HelmholtzOperators.create_helmholtz2d_matrix(
+        a1=a1_,
+        a2=a2_,
+        pad1=pml_cells,
+        pad2=pml_cells,
+        omega=omega,
+        precision=precision,
+        vel=total_vel_pad,
+        pml_damping=100.0,
+        adj=False,
+        warnings=True
+    )
 
-        ax = axs[1, kk]
-        im = ax.imshow(np.real(sum_list_born_neumann[kk]), cmap="Greys", vmin=-scale1, vmax=scale1)
-        ax.grid(True)
-        ax.set_title("Born-Neumann series, Terms = " + str(iter_list[kk]), fontname="Times New Roman", fontsize=10)
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
-        ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
-        if kk == 0:
-            ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+    # Create source
+    f_ = np.zeros((nz + 2 * pml_cells, n + 2 * pml_cells), dtype=precision)
+    f_[pml_cells: pml_cells + nz, pml_cells: pml_cells + n] = f
+    f_ = np.reshape(f_, newshape=((nz + 2 * pml_cells) * (n + 2 * pml_cells), 1))
 
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        cbar = plt.colorbar(im, cax=cax)
-        cbar_yticks = np.linspace(-scale1, scale1, 5, endpoint=True)
-        cbar.set_ticks(cbar_yticks)
-        cbar.set_ticklabels(
-            ["{:4.1f}".format(item / (10 ** f1)) for item in cbar_yticks],
-            fontname="Times New Roman",
-            fontsize=10
-        )
-        if f1 != 0:
-            cbar.ax.text(
-                0,
-                1.05 * scale1,
-                r"$\times$ 1e" + str(f1),
-                fontname="Times New Roman",
-                fontsize=10
-            )
+    # Solve and extract solution
+    mat_lu = splu(mat)
+    x2 = np.reshape(
+        mat_lu.solve(f_), newshape=(nz + 2 * pml_cells, n + 2 * pml_cells)
+    )[pml_cells: pml_cells + nz, pml_cells: pml_cells + n]
 
-    plt.show()
-    fig.savefig(os.path.abspath(_basedir_fig + "/" + "born_neumann_gmres_comp.pdf"), bbox_inches='tight', pad_inches=0)
-
-make_plot()
+    # Plot
+    plot_sol(
+        x2,
+        "sol_helmholtz_pml" + str(pml_cells) + ".pdf",
+        "Helmholtz Solution (real), PML Cells = " + str(pml_cells),
+        scale=1e-5
+    )

@@ -83,6 +83,8 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
         mask = np.clip(vel_sigsbee, 4.49, 4.5) - 4.49
         mask = mask / np.max(mask)
         pert_salt = (vel_sigsbee[75:75 + nz, 150:150 + n] - vel) * mask[75:75 + nz, 150:150 + n]
+        pert_salt[:, n - 20: n] = 0.0
+        pert_salt[:, 0: 20] = 0.0
         pert_ = gaussian_filter(pert_salt, sigma=0.5)
 
     if mode == 2:
@@ -260,7 +262,10 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
     xgrid = np.linspace(start=xmin, stop=xmax, num=n, endpoint=True)
     zgrid = np.linspace(start=a, stop=b, num=nz, endpoint=True)
     p = 0.0
-    q = a + (b - a) / 10.0
+    if model_mode == 1:
+        q = a + (b - a) * 0.6
+    else:
+        q = a + (b - a) * 0.3
     sigma = 0.025
     z, x1 = np.meshgrid(zgrid, xgrid / 1, indexing="ij")
     distsq = (z - q) ** 2 + (x1 - p) ** 2
@@ -387,14 +392,14 @@ f, rhs = create_source(plot=True, fig_filename="source.pdf", scale1=scale_sol)
 #************************************************************
 # Create Helmholtz matrix
 mat = HelmholtzOperators.create_helmholtz2d_matrix(
-    a1=xmax - xmin,
+    a1=xmax-xmin,
     a2=b-a,
-    pad1=10,
-    pad2=10,
+    pad1=20,
+    pad2=20,
     omega=omega,
     precision=precision,
     vel=total_vel,
-    pml_damping=50.0,
+    pml_damping=100.0,
     adj=False,
     warnings=True
 )
@@ -441,6 +446,7 @@ def make_callback():
 
 #************************************************************
 # Run GMRES for 4 cases
+tol = 1e-3
 print("\n************************************************************")
 print("\nRunning GMRES for LSE...\n\n")
 start_t = time.time()
@@ -449,8 +455,11 @@ x1, exitcode = gmres(
     np.reshape(rhs, newshape=(nz * n, 1)),
     maxiter=2000,
     restart=2000,
+    atol=0,
+    tol=tol,
     callback=make_callback()
 )
+x1 = np.reshape(x1, newshape=(nz, n))
 print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
@@ -464,75 +473,93 @@ x2, exitcode = gmres(
     maxiter=2000,
     restart=2000,
     atol=0,
-    tol=1e-3,
+    tol=tol,
     callback=make_callback()
 )
+x2 = np.reshape(x2, newshape=(nz, n))
 print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-print("\n************************************************************")
-print("\nRunning GMRES for Helmholtz (left preconditioner)...\n\n")
-start_t = time.time()
-x3, exitcode = gmres(
-    linop_lse_left_precond,
-    np.reshape(rhs, newshape=(nz * n, 1)),
-    maxiter=2000,
-    restart=2000,
-    atol=0,
-    tol=1e-3,
-    callback=make_callback()
-)
-print(exitcode)
-end_t = time.time()
-print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-
-print("\n************************************************************")
-print("\nRunning GMRES for Helmholtz (right preconditioner)...\n\n")
-start_t = time.time()
-x_, exitcode = gmres(
-    linop_lse_right_precond,
-    np.reshape(f, newshape=(nz * n, 1)),
-    maxiter=2000,
-    restart=2000,
-    atol=0,
-    tol=1e-3,
-    callback=make_callback()
-)
-print(exitcode)
-x_ = np.reshape(x_, newshape=(nz, n))
-x4 = x_ * 0
-op.apply_kernel(u=x_, output=x4)
-end_t = time.time()
-print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+# print("\n************************************************************")
+# print("\nRunning GMRES for Helmholtz (left preconditioner)...\n\n")
+# start_t = time.time()
+# x3, exitcode = gmres(
+#     linop_lse_left_precond,
+#     np.reshape(rhs, newshape=(nz * n, 1)),
+#     maxiter=5000,
+#     restart=5000,
+#     atol=0,
+#     tol=tol,
+#     callback=make_callback()
+# )
+# x3 = np.reshape(x3, newshape=(nz, n))
+# print(exitcode)
+# end_t = time.time()
+# print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+#
+# print("\n************************************************************")
+# print("\nRunning GMRES for Helmholtz (right preconditioner)...\n\n")
+# start_t = time.time()
+# x_, exitcode = gmres(
+#     linop_lse_right_precond,
+#     np.reshape(f, newshape=(nz * n, 1)),
+#     maxiter=5000,
+#     restart=5000,
+#     atol=0,
+#     tol=tol,
+#     callback=make_callback()
+# )
+# print(exitcode)
+# x_ = np.reshape(x_, newshape=(nz, n))
+# x4 = x_ * 0
+# op.apply_kernel(u=x_, output=x4)
+# end_t = time.time()
+# print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
 #************************************************************
 # Plot results
-scale = 1e-5
-plt.figure()
-plt.imshow(np.real(x1), cmap="Greys", vmin=-scale, vmax=scale)
-plt.grid(True)
-plt.title("Real (Solution): GMRES")
-plt.colorbar()
-plt.show()
 
-plt.figure()
-plt.imshow(np.real(x2), cmap="Greys", vmin=-scale, vmax=scale)
-plt.grid(True)
-plt.title("Real (Solution): Helmholtz")
-plt.colorbar()
-plt.show()
+def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
 
-plt.figure()
-plt.imshow(np.real(x3), cmap="Greys", vmin=-scale, vmax=scale)
-plt.grid(True)
-plt.title("Real (Solution): Helmholtz (left precond)")
-plt.colorbar()
-plt.show()
+    xticks = np.arange(0, n + 1, int(n / 3))
+    xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
+    yticks = np.arange(0, nz + 1, int(nz / 3))
+    yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
 
-plt.figure()
-plt.imshow(np.real(x4), cmap="Greys", vmin=-scale, vmax=scale)
-plt.grid(True)
-plt.title("Real (Solution): Helmholtz (right precond)")
-plt.colorbar()
-plt.show()
+    f = int(np.floor(np.log10(scale)))
+
+    fig, ax = plt.subplots(1, 1)
+    im = ax.imshow(np.real(sol), cmap="Greys", vmin=-scale, vmax=scale)
+    ax.grid(True)
+    ax.set_title(title, fontname="Times New Roman", fontsize=10)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
+    ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+    ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+
+    cbar = plt.colorbar(im)
+    cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
+    if f != 0:
+        cbar.ax.text(
+            0,
+            1.05 * scale_sol,
+            r"$\times$ 1e" + str(f),
+            fontname="Times New Roman",
+            fontsize=10
+        )
+    cbar.set_ticks(cbar_yticks)
+    cbar.set_ticklabels(
+        ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
+        fontname="Times New Roman",
+        fontsize=10
+    )
+    plt.show()
+    fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
+
+plot_sol(x1, "sol_lse.pdf", "Lippmann-Schwinger Solution (real)", scale=1e-5)
+plot_sol(x2, "sol_helmholtz.pdf", "Helmholtz Solution (real)", scale=1e-5)
+# plot_sol(x3, "sol_helmholtz_left_precond.pdf", "Helmholtz Left Precond Solution (real)", scale=1e-5)
+# plot_sol(x4, "sol_helmholtz_right_precond.pdf", "Helmholtz Right Precond Solution (real)", scale=1e-5)
