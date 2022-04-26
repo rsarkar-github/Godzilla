@@ -8,6 +8,14 @@ from ..Solver import HelmholtzOperators
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 
+if len(sys.argv) < 5:
+    ValueError("Input parameters to program not provided. Run program as\n"
+               "python -m program run_number(str) model_mode(int) pml_damping(float) freq(float)")
+run_number = sys.argv[1]
+model_mode = int(sys.argv[2])
+pml_damping = float(sys.argv[3])
+freq = float(sys.argv[4])
+
 n = 201
 nz = 201
 a = 4
@@ -18,19 +26,14 @@ hz = (b - a) / (nz - 1)
 hx = (xmax - xmin) / (n - 1)
 alpha = 0.5
 
-omega = 30 * 2 * np.pi
+omega = freq * 2 * np.pi
 k = omega / alpha
 m = 1000
 precision = np.complex128
 
-if len(sys.argv) < 3:
-    ValueError("Input parameters to program not provided. Run program as\n"
-               "python -m program run_number(str) model_mode(int)")
-run_number = sys.argv[1]
-model_mode = int(sys.argv[2])
-
 #************************************************************
 # Create directories if they don't exist
+# Write input arguments to text file
 _file = os.path.basename(__file__)[:-3]
 _basedir = "./Python/IntegralEquation/Runs/" + _file + "/" + run_number
 if not os.path.exists(os.path.abspath(_basedir)):
@@ -44,6 +47,17 @@ _basedir_fig = _basedir + "/Fig"
 if not os.path.exists(os.path.abspath(_basedir_fig)):
     os.makedirs(os.path.abspath(_basedir_fig))
 
+_textfile = _basedir + "/args.txt"
+with open(_textfile, 'w') as textfile:
+    textfile.write("run_number = " + str(run_number))
+    textfile.write("\n")
+    textfile.write("model_mode = " + str(model_mode))
+    textfile.write("\n")
+    textfile.write("pml_damping = " + str(pml_damping))
+    textfile.write("\n")
+    textfile.write("freq = " + str(freq))
+    textfile.write("\n")
+
 #************************************************************
 # Create linearly varying background
 vel = np.zeros(shape=(nz, n), dtype=np.float64)
@@ -55,13 +69,18 @@ for i in range(nz):
 def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
     :param mode: int
+        -1 - No perturbation
         0 - Gaussian + reflector
         1 - Salt
+        11 - Salt smoother
         2 - Three scatterers
     :param plot: bool (if True then plot, else do not plot)
     :param fig_filename: str (figure file name)
     :return: total_vel_, pert_, psi_
     """
+    if mode == -1:
+        pert_ = np.zeros(shape=(nz, n), dtype=np.float64)
+
     if mode == 0:
         # Create Gaussian perturbation
         pert1_ = np.zeros(shape=(nz, n), dtype=np.float64)
@@ -86,6 +105,18 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
         pert_salt[:, n - 20: n] = 0.0
         pert_salt[:, 0: 20] = 0.0
         pert_ = gaussian_filter(pert_salt, sigma=0.5)
+
+    if mode == 11:
+        # Create Salt perturbation smooth
+        vel_sigsbee = np.load(os.path.abspath("./Python/Helmholtz/Data/sigsbee.npz"))["arr_0"].T
+        vel_sigsbee *= 0.3048 * 0.001
+        vel_sigsbee = np.roll(vel_sigsbee[::2, ::2], shift=30, axis=0)
+        mask = np.clip(vel_sigsbee, 4.49, 4.5) - 4.49
+        mask = mask / np.max(mask)
+        pert_salt = (vel_sigsbee[75:75 + nz, 150:150 + n] - vel) * mask[75:75 + nz, 150:150 + n]
+        pert_salt[:, n - 20: n] = 0.0
+        pert_salt[:, 0: 20] = 0.0
+        pert_ = gaussian_filter(pert_salt, sigma=10.0)
 
     if mode == 2:
         # Create three scatterers
@@ -262,10 +293,7 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
     xgrid = np.linspace(start=xmin, stop=xmax, num=n, endpoint=True)
     zgrid = np.linspace(start=a, stop=b, num=nz, endpoint=True)
     p = 0.0
-    if model_mode == 1:
-        q = a + (b - a) * 0.6
-    else:
-        q = a + (b - a) * 0.3
+    q = a + (b - a) * 0.2
     sigma = 0.025
     z, x1 = np.meshgrid(zgrid, xgrid / 1, indexing="ij")
     distsq = (z - q) ** 2 + (x1 - p) ** 2
@@ -412,7 +440,7 @@ def make_callback():
 
 #************************************************************
 # Run GMRES for LSE
-tol = 1e-3
+tol1 = 1e-3
 print("\n************************************************************")
 print("\nRunning GMRES for LSE...\n\n")
 start_t = time.time()
@@ -422,7 +450,7 @@ x1, exitcode = gmres(
     maxiter=2000,
     restart=2000,
     atol=0,
-    tol=tol,
+    tol=tol1,
     callback=make_callback()
 )
 x1 = np.reshape(x1, newshape=(nz, n))
@@ -430,10 +458,28 @@ print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
+tol2 = 1e-5
+print("\n************************************************************")
+print("\nRunning GMRES for LSE...\n\n")
+start_t = time.time()
+x2, exitcode = gmres(
+    linop_lse,
+    np.reshape(rhs, newshape=(nz * n, 1)),
+    maxiter=2000,
+    restart=2000,
+    atol=0,
+    tol=tol2,
+    callback=make_callback()
+)
+x2 = np.reshape(x2, newshape=(nz, n))
+print(exitcode)
+end_t = time.time()
+print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+
 
 #************************************************************
 # Plot results
-
+scale_sol = np.max(np.abs(np.real(x1))) / 2
 def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
 
     xticks = np.arange(0, n + 1, int(n / 3))
@@ -473,7 +519,9 @@ def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
     plt.show()
     fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
 
-plot_sol(x1, "sol_lse.pdf", "Lippmann-Schwinger Solution (real)", scale=1e-5)
+plot_sol(x1, "sol_lse_tol_low.pdf", "Lippmann-Schwinger Solution (real)", scale=scale_sol)
+plot_sol(x2, "sol_lse_tol_high.pdf", "Lippmann-Schwinger Solution (real)", scale=scale_sol)
+
 
 #************************************************************
 #************************************************************
@@ -483,13 +531,13 @@ plot_sol(x1, "sol_lse.pdf", "Lippmann-Schwinger Solution (real)", scale=1e-5)
 
 pml_cells = 20
 
-while pml_cells < 100:
+while pml_cells < 500:
 
     print("\n")
     print("Solution with pml cells = ", pml_cells)
 
-    a1_ = xmax - xmin + 2 * hx
-    a2_ = b - a + 2 * hz
+    a1_ = xmax - xmin + 2 * pml_cells * hx
+    a2_ = b - a + 2 * pml_cells * hz
 
     # Pad total vel
     total_vel_pad = np.zeros((nz + 2 * pml_cells, n + 2 * pml_cells))
@@ -501,10 +549,10 @@ while pml_cells < 100:
         total_vel_pad[pml_cells: pml_cells + nz, pml_cells: pml_cells + n] = total_vel.astype(np.float64)
 
     total_vel_pad[pml_cells: pml_cells + nz, 0: pml_cells] \
-        = total_vel_pad[pml_cells: pml_cells + nz, pml_cells]
+        = np.reshape(total_vel_pad[pml_cells: pml_cells + nz, pml_cells], newshape=(nz, 1))
 
     total_vel_pad[pml_cells: pml_cells + nz, pml_cells + n: 2 * pml_cells + n] \
-        = total_vel_pad[pml_cells: pml_cells + nz, pml_cells + n - 1]
+        = np.reshape(total_vel_pad[pml_cells: pml_cells + nz, pml_cells + n - 1], newshape=(nz, 1))
 
     total_vel_pad[0: pml_cells, :] = total_vel_pad[pml_cells, :]
     total_vel_pad[pml_cells + nz: 2 * pml_cells + nz, :] = total_vel_pad[pml_cells + nz - 1, :]
@@ -518,7 +566,7 @@ while pml_cells < 100:
         omega=omega,
         precision=precision,
         vel=total_vel_pad,
-        pml_damping=100.0,
+        pml_damping=pml_damping,
         adj=False,
         warnings=True
     )
@@ -530,14 +578,16 @@ while pml_cells < 100:
 
     # Solve and extract solution
     mat_lu = splu(mat)
-    x2 = np.reshape(
+    x = np.reshape(
         mat_lu.solve(f_), newshape=(nz + 2 * pml_cells, n + 2 * pml_cells)
     )[pml_cells: pml_cells + nz, pml_cells: pml_cells + n]
 
     # Plot
     plot_sol(
-        x2,
+        x,
         "sol_helmholtz_pml" + str(pml_cells) + ".pdf",
         "Helmholtz Solution (real), PML Cells = " + str(pml_cells),
-        scale=1e-5
+        scale=scale_sol
     )
+
+    pml_cells *= 2
