@@ -345,7 +345,7 @@ def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
     if f1 != 0:
         cbar.ax.text(
             0,
-            1.05 * scale_sol,
+            1.05 * scale,
             r"$\times$ 1e" + str(f1),
             fontname="Times New Roman",
             fontsize=10
@@ -364,9 +364,9 @@ scale_sol = np.max(np.abs(np.real(rhs))) / 2
 scale_sol1 = np.max(np.abs(np.real(rhs1))) / 2
 
 plot_sol(sol=f, fig_filename="source.pdf", title=r"$f$", scale=scale_f)
-plot_sol(sol=rhs, fig_filename="lse_source.pdf", title=r"$A_{\omega} f (Real)$", scale=scale_sol)
-plot_sol(sol=rhs1, fig_filename="lse_modified_source.pdf", title=r"$A_{\omega}^2 f (Real)$", scale=scale_sol1)
-
+plot_sol(sol=rhs, fig_filename="lse_source.pdf", title=r"$A_{\omega} f$" + " (Real)", scale=scale_sol)
+plot_sol(sol=rhs1, fig_filename="lse_modified_source.pdf", title=r"$A_{\omega}^2 f$" + " (Real)", scale=scale_sol1)
+exit(1)
 #************************************************************
 # Define linear operator objects
 def func_matvec(v):

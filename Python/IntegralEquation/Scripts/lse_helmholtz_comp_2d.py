@@ -505,7 +505,7 @@ def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
     if f != 0:
         cbar.ax.text(
             0,
-            1.05 * scale_sol,
+            1.05 * scale,
             r"$\times$ 1e" + str(f),
             fontname="Times New Roman",
             fontsize=10
