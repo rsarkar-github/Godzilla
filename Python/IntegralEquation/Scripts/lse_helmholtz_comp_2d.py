@@ -590,7 +590,7 @@ while pml_cells < 500:
         scale=scale_sol
     )
 
-    if pml_cells == 360:
+    if pml_cells == 320:
         plot_sol(
             x-x2,
             "sol_diff_lse_helmholtz" + str(pml_cells) + ".pdf",

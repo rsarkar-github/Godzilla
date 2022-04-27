@@ -22,7 +22,6 @@ then
     for i in {1..13}
     do
        str3=$str1${i}$str2
-       rm -rf str3
+       rm -rf $str3
     done
-    echo "Deleted files"
 fi
