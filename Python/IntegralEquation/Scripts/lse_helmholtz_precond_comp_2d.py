@@ -415,11 +415,11 @@ def func_matvec(v):
 linop_lse = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec, dtype=precision)
 
 def func_matvec1(v):
-    v = mat.dot(v)
-    v = np.reshape(v, newshape=(nz, n))
-    u = v * 0
-    op.apply_kernel(u=v, output=u, adj=False, add=False)
-    return np.reshape(u, newshape=(nz * n, 1))
+    u = mat.dot(v)
+    u = np.reshape(u, newshape=(nz, n))
+    w = u * 0
+    op.apply_kernel(u=u, output=w, adj=False, add=False)
+    return np.reshape(w, newshape=(nz * n, 1))
 
 linop_lse_left_precond = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec1, dtype=precision)
 
@@ -481,23 +481,23 @@ print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-# print("\n************************************************************")
-# print("\nRunning GMRES for Helmholtz (left preconditioner)...\n\n")
-# start_t = time.time()
-# x3, exitcode = gmres(
-#     linop_lse_left_precond,
-#     np.reshape(rhs, newshape=(nz * n, 1)),
-#     maxiter=5000,
-#     restart=5000,
-#     atol=0,
-#     tol=tol,
-#     callback=make_callback()
-# )
-# x3 = np.reshape(x3, newshape=(nz, n))
-# print(exitcode)
-# end_t = time.time()
-# print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-#
+print("\n************************************************************")
+print("\nRunning GMRES for Helmholtz (left preconditioner)...\n\n")
+start_t = time.time()
+x3, exitcode = gmres(
+    linop_lse_left_precond,
+    np.reshape(rhs, newshape=(nz * n, 1)),
+    maxiter=5000,
+    restart=5000,
+    atol=0,
+    tol=tol,
+    callback=make_callback()
+)
+x3 = np.reshape(x3, newshape=(nz, n))
+print(exitcode)
+end_t = time.time()
+print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+
 # print("\n************************************************************")
 # print("\nRunning GMRES for Helmholtz (right preconditioner)...\n\n")
 # start_t = time.time()
@@ -561,5 +561,5 @@ def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
 
 plot_sol(x1, "sol_lse.pdf", "Lippmann-Schwinger Solution (real)", scale=1e-5)
 plot_sol(x2, "sol_helmholtz.pdf", "Helmholtz Solution (real)", scale=1e-5)
-# plot_sol(x3, "sol_helmholtz_left_precond.pdf", "Helmholtz Left Precond Solution (real)", scale=1e-5)
+plot_sol(x3, "sol_helmholtz_left_precond.pdf", "Helmholtz Left Precond Solution (real)", scale=1e-5)
 # plot_sol(x4, "sol_helmholtz_right_precond.pdf", "Helmholtz Right Precond Solution (real)", scale=1e-5)

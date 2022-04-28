@@ -415,7 +415,7 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
     return f_, rhs_
 
 scale_sol = 1e-5
-f, rhs = create_source(plot=True, fig_filename="source.pdf", scale1=scale_sol)
+f, rhs = create_source(plot=True, fig_filename="source.pdf", scale=1.0, scale1=scale_sol)
 
 #************************************************************
 # Define linear operator objects
