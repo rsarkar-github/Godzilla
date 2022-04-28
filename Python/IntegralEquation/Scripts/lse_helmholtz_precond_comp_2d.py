@@ -547,7 +547,7 @@ plot_sol(x2, "sol_helmholtz.pdf", "", scale=scale_sol)
 print("\n************************************************************")
 print("\nRunning GMRES for Helmholtz (left preconditioner)...\n\n")
 
-for total_iter in range(500, 500, 5000):
+for total_iter in range(500, 5000, 500):
 
     print("\nRunning GMRES for Helmholtz (left preconditioner) with total iterations ", total_iter, "\n")
     start_t = time.time()
@@ -565,7 +565,12 @@ for total_iter in range(500, 500, 5000):
     end_t = time.time()
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-    plot_sol(x3, "sol_helmholtz_left_precond_iter" + str(total_iter) + ".pdf", "", scale=scale_sol)
+    plot_sol(
+        x3,
+        "sol_helmholtz_left_precond_iter" + str(total_iter) + ".pdf",
+        "iter = " + str(total_iter),
+        scale=scale_sol
+    )
 
 # ************************************************************
 # Run GMRES for right preconditioned Helmholtz
@@ -573,7 +578,7 @@ for total_iter in range(500, 500, 5000):
 print("\n************************************************************")
 print("\nRunning GMRES for Helmholtz (right preconditioner)...\n\n")
 
-for total_iter in range(500, 500, 5000):
+for total_iter in range(500, 5000, 500):
     print("\nRunning GMRES for Helmholtz (right preconditioner) with total iterations ", total_iter, "\n")
     start_t = time.time()
     x, exitcode = gmres(
@@ -592,4 +597,9 @@ for total_iter in range(500, 500, 5000):
     end_t = time.time()
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-    plot_sol(x4, "sol_helmholtz_right_precond_iter" + str(total_iter) + ".pdf", "", scale=scale_sol)
+    plot_sol(
+        x4,
+        "sol_helmholtz_right_precond_iter" + str(total_iter) + ".pdf",
+        "iter = " + str(total_iter),
+        scale=scale_sol
+    )
