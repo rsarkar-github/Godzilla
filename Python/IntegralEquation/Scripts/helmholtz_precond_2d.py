@@ -536,8 +536,8 @@ start_t = time.time()
 x2, exitcode = gmres(
     linop_left_precond_helmholtz,
     f_left_precond_helmholtz,
-    maxiter=2000,
-    restart=2000,
+    maxiter=5000,
+    restart=5000,
     atol=0,
     tol=tol,
     callback=make_callback()

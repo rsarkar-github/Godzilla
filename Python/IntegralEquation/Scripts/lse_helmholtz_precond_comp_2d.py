@@ -8,6 +8,13 @@ from ..Solver import HelmholtzOperators
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 
+if len(sys.argv) < 4:
+    ValueError("Input parameters to program not provided. Run program as\n"
+               "python -m program run_number(str) model_mode(int) freq(float)")
+run_number = sys.argv[1]
+model_mode = int(sys.argv[2])
+freq = float(sys.argv[3])
+
 n = 201
 nz = 201
 a = 4
@@ -18,19 +25,14 @@ hz = (b - a) / (nz - 1)
 hx = (xmax - xmin) / (n - 1)
 alpha = 0.5
 
-omega = 30 * 2 * np.pi
+omega = freq * 2 * np.pi
 k = omega / alpha
 m = 1000
 precision = np.complex128
 
-if len(sys.argv) < 3:
-    ValueError("Input parameters to program not provided. Run program as\n"
-               "python -m program run_number(str) model_mode(int)")
-run_number = sys.argv[1]
-model_mode = int(sys.argv[2])
-
 #************************************************************
 # Create directories if they don't exist
+# Write input arguments to text file
 _file = os.path.basename(__file__)[:-3]
 _basedir = "./Python/IntegralEquation/Runs/" + _file + "/" + run_number
 if not os.path.exists(os.path.abspath(_basedir)):
@@ -43,6 +45,16 @@ if not os.path.exists(os.path.abspath(_basedir_data)):
 _basedir_fig = _basedir + "/Fig"
 if not os.path.exists(os.path.abspath(_basedir_fig)):
     os.makedirs(os.path.abspath(_basedir_fig))
+
+_textfile = _basedir + "/args.txt"
+with open(_textfile, 'w') as textfile:
+    textfile.write("run_number = " + str(run_number))
+    textfile.write("\n")
+    textfile.write("model_mode = " + str(model_mode))
+    textfile.write("\n")
+    textfile.write("freq = " + str(freq))
+    textfile.write("\n")
+
 
 #************************************************************
 # Create linearly varying background
@@ -445,7 +457,49 @@ def make_callback():
     return callback
 
 #************************************************************
-# Run GMRES for 4 cases
+# Plot results
+
+def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
+
+    xticks = np.arange(0, n + 1, int(n / 3))
+    xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
+    yticks = np.arange(0, nz + 1, int(nz / 3))
+    yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
+
+    f_ = int(np.floor(np.log10(scale)))
+
+    fig, ax = plt.subplots(1, 1)
+    im = ax.imshow(np.real(sol), cmap="Greys", vmin=-scale, vmax=scale)
+    ax.grid(True)
+    ax.set_title(title, fontname="Times New Roman", fontsize=10)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
+    ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
+    ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
+
+    cbar = plt.colorbar(im)
+    cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
+    if f_ != 0:
+        cbar.ax.text(
+            0,
+            1.05 * scale,
+            r"$\times$ 1e" + str(f_),
+            fontname="Times New Roman",
+            fontsize=10
+        )
+    cbar.set_ticks(cbar_yticks)
+    cbar.set_ticklabels(
+        ["{:4.1f}".format(item / (10 ** f_)) for item in cbar_yticks],
+        fontname="Times New Roman",
+        fontsize=10
+    )
+    plt.show()
+    fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
+
+#************************************************************
+# Run GMRES for LSE
 tol = 1e-3
 print("\n************************************************************")
 print("\nRunning GMRES for LSE...\n\n")
@@ -464,6 +518,8 @@ print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
+#************************************************************
+# Run GMRES for Helmholtz
 print("\n************************************************************")
 print("\nRunning GMRES for Helmholtz...\n\n")
 start_t = time.time()
@@ -481,85 +537,59 @@ print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-print("\n************************************************************")
-print("\nRunning GMRES for Helmholtz (left preconditioner)...\n\n")
-start_t = time.time()
-x3, exitcode = gmres(
-    linop_lse_left_precond,
-    np.reshape(rhs, newshape=(nz * n, 1)),
-    maxiter=5000,
-    restart=5000,
-    atol=0,
-    tol=tol,
-    callback=make_callback()
-)
-x3 = np.reshape(x3, newshape=(nz, n))
-print(exitcode)
-end_t = time.time()
-print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
-
-# print("\n************************************************************")
-# print("\nRunning GMRES for Helmholtz (right preconditioner)...\n\n")
-# start_t = time.time()
-# x_, exitcode = gmres(
-#     linop_lse_right_precond,
-#     np.reshape(f, newshape=(nz * n, 1)),
-#     maxiter=5000,
-#     restart=5000,
-#     atol=0,
-#     tol=tol,
-#     callback=make_callback()
-# )
-# print(exitcode)
-# x_ = np.reshape(x_, newshape=(nz, n))
-# x4 = x_ * 0
-# op.apply_kernel(u=x_, output=x4)
-# end_t = time.time()
-# print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+scale_sol = np.max(np.abs(np.real(x1))) / 2
+plot_sol(x1, "sol_lse.pdf", "", scale=scale_sol)
+plot_sol(x2, "sol_helmholtz.pdf", "", scale=scale_sol)
 
 #************************************************************
-# Plot results
+# Run GMRES for left preconditioned Helmholtz
 
-def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
+print("\n************************************************************")
+print("\nRunning GMRES for Helmholtz (left preconditioner)...\n\n")
 
-    xticks = np.arange(0, n + 1, int(n / 3))
-    xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
-    yticks = np.arange(0, nz + 1, int(nz / 3))
-    yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
+for total_iter in range(500, 500, 5000):
 
-    f = int(np.floor(np.log10(scale)))
-
-    fig, ax = plt.subplots(1, 1)
-    im = ax.imshow(np.real(sol), cmap="Greys", vmin=-scale, vmax=scale)
-    ax.grid(True)
-    ax.set_title(title, fontname="Times New Roman", fontsize=10)
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels, fontname="Times New Roman", fontsize=10)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(yticklabels, fontname="Times New Roman", fontsize=10)
-    ax.set_xlabel(r"$x$  [km]", fontname="Times New Roman", fontsize=10)
-    ax.set_ylabel(r"$z$  [km]", fontname="Times New Roman", fontsize=10)
-
-    cbar = plt.colorbar(im)
-    cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
-    if f != 0:
-        cbar.ax.text(
-            0,
-            1.05 * scale_sol,
-            r"$\times$ 1e" + str(f),
-            fontname="Times New Roman",
-            fontsize=10
-        )
-    cbar.set_ticks(cbar_yticks)
-    cbar.set_ticklabels(
-        ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
-        fontname="Times New Roman",
-        fontsize=10
+    print("\nRunning GMRES for Helmholtz (left preconditioner) with total iterations ", total_iter, "\n")
+    start_t = time.time()
+    x3, exitcode = gmres(
+        linop_lse_left_precond,
+        np.reshape(rhs, newshape=(nz * n, 1)),
+        maxiter=total_iter,
+        restart=total_iter,
+        atol=0,
+        tol=tol,
+        callback=make_callback()
     )
-    plt.show()
-    fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
+    x3 = np.reshape(x3, newshape=(nz, n))
+    print(exitcode)
+    end_t = time.time()
+    print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-plot_sol(x1, "sol_lse.pdf", "Lippmann-Schwinger Solution (real)", scale=1e-5)
-plot_sol(x2, "sol_helmholtz.pdf", "Helmholtz Solution (real)", scale=1e-5)
-plot_sol(x3, "sol_helmholtz_left_precond.pdf", "Helmholtz Left Precond Solution (real)", scale=1e-5)
-# plot_sol(x4, "sol_helmholtz_right_precond.pdf", "Helmholtz Right Precond Solution (real)", scale=1e-5)
+    plot_sol(x3, "sol_helmholtz_left_precond_iter" + str(total_iter) + ".pdf", "", scale=scale_sol)
+
+# ************************************************************
+# Run GMRES for right preconditioned Helmholtz
+
+print("\n************************************************************")
+print("\nRunning GMRES for Helmholtz (right preconditioner)...\n\n")
+
+for total_iter in range(500, 500, 5000):
+    print("\nRunning GMRES for Helmholtz (right preconditioner) with total iterations ", total_iter, "\n")
+    start_t = time.time()
+    x, exitcode = gmres(
+        linop_lse_right_precond,
+        np.reshape(f, newshape=(nz * n, 1)),
+        maxiter=total_iter,
+        restart=total_iter,
+        atol=0,
+        tol=tol,
+        callback=make_callback()
+    )
+    x = np.reshape(x, newshape=(nz, n))
+    print(exitcode)
+    x4 = x * 0
+    op.apply_kernel(u=x, output=x4)
+    end_t = time.time()
+    print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+
+    plot_sol(x4, "sol_helmholtz_right_precond_iter" + str(total_iter) + ".pdf", "", scale=scale_sol)
