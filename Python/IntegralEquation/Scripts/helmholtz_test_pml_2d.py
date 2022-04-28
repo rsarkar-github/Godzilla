@@ -16,7 +16,8 @@ hz = (b - a) / (nz - 1)
 hx = (xmax - xmin) / (n - 1)
 alpha = 0.5
 
-omega = 30 * 2 * np.pi
+freq = 15.0
+omega = freq * 2 * np.pi
 precision = np.complex128
 
 # Create linearly varying background
@@ -61,9 +62,8 @@ plt.show()
 
 # Source
 p = 0.0
-q = a + (b - a) / 3
-# q = a + (b - a) / 2
-sigma = 0.01
+q = a + (b - a) * 0.3
+sigma = 0.025
 zgrid = np.linspace(start=a, stop=b, num=nz, endpoint=True)
 z, x1 = np.meshgrid(zgrid, xgrid / 1, indexing="ij")
 distsq = (z - q) ** 2 + (x1 - p) ** 2
@@ -109,7 +109,7 @@ mat = HelmholtzOperators.create_helmholtz2d_matrix(
     omega=omega,
     precision=precision,
     vel=total_vel,
-    pml_damping=500.0,
+    pml_damping=50.0,
     adj=False,
     warnings=True
 )
@@ -132,3 +132,4 @@ plt.grid(True)
 plt.title("Real (Solution)")
 plt.colorbar()
 plt.show()
+

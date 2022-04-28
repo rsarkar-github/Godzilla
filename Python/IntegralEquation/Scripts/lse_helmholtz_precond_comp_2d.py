@@ -8,12 +8,14 @@ from ..Solver import HelmholtzOperators
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 
-if len(sys.argv) < 4:
+if len(sys.argv) < 6:
     ValueError("Input parameters to program not provided. Run program as\n"
-               "python -m program run_number(str) model_mode(int) freq(float)")
+               "python -m program run_number(str) model_mode(int) pml_cells(int) freq(float) pml_damping(float)")
 run_number = sys.argv[1]
 model_mode = int(sys.argv[2])
-freq = float(sys.argv[3])
+pml_cells = int(sys.argv[3])
+freq = float(sys.argv[4])
+pml_damping = float(sys.argv[5])
 
 n = 201
 nz = 201
@@ -52,6 +54,8 @@ with open(_textfile, 'w') as textfile:
     textfile.write("\n")
     textfile.write("model_mode = " + str(model_mode))
     textfile.write("\n")
+    textfile.write("pml_cells = " + str(pml_cells))
+    textfile.write("\n")
     textfile.write("freq = " + str(freq))
     textfile.write("\n")
 
@@ -67,13 +71,18 @@ for i in range(nz):
 def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
     :param mode: int
+        -1 - No perturbation
         0 - Gaussian + reflector
         1 - Salt
+        11 - Salt smoother
         2 - Three scatterers
     :param plot: bool (if True then plot, else do not plot)
     :param fig_filename: str (figure file name)
     :return: total_vel_, pert_, psi_
     """
+    if mode == -1:
+        pert_ = np.zeros(shape=(nz, n), dtype=np.float64)
+
     if mode == 0:
         # Create Gaussian perturbation
         pert1_ = np.zeros(shape=(nz, n), dtype=np.float64)
@@ -98,6 +107,18 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
         pert_salt[:, n - 20: n] = 0.0
         pert_salt[:, 0: 20] = 0.0
         pert_ = gaussian_filter(pert_salt, sigma=0.5)
+
+    if mode == 11:
+        # Create Salt perturbation smooth
+        vel_sigsbee = np.load(os.path.abspath("./Python/Helmholtz/Data/sigsbee.npz"))["arr_0"].T
+        vel_sigsbee *= 0.3048 * 0.001
+        vel_sigsbee = np.roll(vel_sigsbee[::2, ::2], shift=30, axis=0)
+        mask = np.clip(vel_sigsbee, 4.49, 4.5) - 4.49
+        mask = mask / np.max(mask)
+        pert_salt = (vel_sigsbee[75:75 + nz, 150:150 + n] - vel) * mask[75:75 + nz, 150:150 + n]
+        pert_salt[:, n - 20: n] = 0.0
+        pert_salt[:, 0: 20] = 0.0
+        pert_ = gaussian_filter(pert_salt, sigma=10.0)
 
     if mode == 2:
         # Create three scatterers
@@ -399,19 +420,19 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
     return f_, rhs_
 
 scale_sol = 1e-5
-f, rhs = create_source(plot=True, fig_filename="source.pdf", scale1=scale_sol)
+f, rhs = create_source(plot=True, fig_filename="source.pdf", scale=1.0, scale1=scale_sol)
 
 #************************************************************
 # Create Helmholtz matrix
 mat = HelmholtzOperators.create_helmholtz2d_matrix(
     a1=xmax-xmin,
     a2=b-a,
-    pad1=20,
-    pad2=20,
+    pad1=pml_cells,
+    pad2=pml_cells,
     omega=omega,
     precision=precision,
     vel=total_vel,
-    pml_damping=100.0,
+    pml_damping=pml_damping,
     adj=False,
     warnings=True
 )
@@ -568,7 +589,7 @@ for total_iter in range(500, 5000, 500):
     plot_sol(
         x3,
         "sol_helmholtz_left_precond_iter" + str(total_iter) + ".pdf",
-        "iter = " + str(total_iter),
+        "Iter = " + str(total_iter),
         scale=scale_sol
     )
 
@@ -600,6 +621,6 @@ for total_iter in range(500, 5000, 500):
     plot_sol(
         x4,
         "sol_helmholtz_right_precond_iter" + str(total_iter) + ".pdf",
-        "iter = " + str(total_iter),
+        "Iter = " + str(total_iter),
         scale=scale_sol
     )
