@@ -58,6 +58,8 @@ with open(_textfile, 'w') as textfile:
     textfile.write("\n")
     textfile.write("freq = " + str(freq))
     textfile.write("\n")
+    textfile.write("pml_damping = " + str(pml_damping))
+    textfile.write("\n")
 
 
 #************************************************************

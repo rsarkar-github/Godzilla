@@ -582,7 +582,6 @@ def create_helmholtz3d_matrix(
         s3_ += 1.0
         return 1.0 / s3_
 
-
     s1 = s1_array()
     s2 = s2_array()
     s3 = s3_array()

@@ -50,7 +50,7 @@ def gamma(x):
 
         sq2pi = 2.5066282746310005024157652848110
         f = (sq2pi * (c[0] + ss)) * ((xp * np.exp(-1.0 * xgh)) * xp)
-        f = -1.0 * np.pi /(xx * f * np.sin(np.pi * xx))
+        f = -1.0 * np.pi / (xx * f * np.sin(np.pi * xx))
 
     else:
         x = x - 1
@@ -68,6 +68,7 @@ def gamma(x):
         f = (sq2pi * (c[0] + ss)) * ((xp * np.exp(-1.0 * xgh)) * xp)
 
     return f
+
 
 @vectorize([complex128(complex128)], nopython=True)
 def digamma(x):
@@ -128,6 +129,7 @@ def digamma(x):
 
     return f
 
+
 @vectorize(
     [complex128(complex128, complex128, complex128, complex128, float64)],
     nopython=True
@@ -158,9 +160,10 @@ def hyp2f1(a, b, c, z, tol=1e-15):
         beta[k + 1] = beta[k] + alpha[k + 1]
         n = n + 1
 
-    check_convergence = np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
-                        np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
-                        np.abs(alpha[step - 3] / beta[step - 4]) > tol
+    check_convergence = \
+        np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
+        np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
+        np.abs(alpha[step - 3] / beta[step - 4]) > tol
 
     while check_convergence:
 
@@ -173,11 +176,13 @@ def hyp2f1(a, b, c, z, tol=1e-15):
             beta[k + 1] = beta[k] + alpha[k + 1]
             n = n + 1
 
-        check_convergence = np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
-                            np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
-                            np.abs(alpha[step - 3] / beta[step - 4]) > tol
+        check_convergence = \
+            np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
+            np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
+            np.abs(alpha[step - 3] / beta[step - 4]) > tol
 
     return beta[step - 1]
+
 
 @vectorize(
     [complex128(complex128, complex128, float64, float64)],
@@ -213,9 +218,10 @@ def hyp2f1_r01(a, b, z, tol=1e-15):
             beta[k + 1] = beta[k] + alpha[k + 1]
             n = n + 1
 
-        check_convergence = np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
-                            np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
-                            np.abs(alpha[step - 3] / beta[step - 4]) > tol
+        check_convergence = \
+            np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
+            np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
+            np.abs(alpha[step - 3] / beta[step - 4]) > tol
 
         while check_convergence:
 
@@ -228,9 +234,10 @@ def hyp2f1_r01(a, b, z, tol=1e-15):
                 beta[k + 1] = beta[k] + alpha[k + 1]
                 n = n + 1
 
-            check_convergence = np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
-                                np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
-                                np.abs(alpha[step - 3] / beta[step - 4]) > tol
+            check_convergence = \
+                np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
+                np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
+                np.abs(alpha[step - 3] / beta[step - 4]) > tol
 
         return beta[step - 1]
 
@@ -253,9 +260,10 @@ def hyp2f1_r01(a, b, z, tol=1e-15):
             beta[k + 1] = beta[k] + alpha[k + 1] * (2 * psi1 - psi2 - psi3 - logzz)
             n = n + 1
 
-        check_convergence = np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
-                            np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
-                            np.abs(alpha[step - 3] / beta[step - 4]) > tol
+        check_convergence = \
+            np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
+            np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
+            np.abs(alpha[step - 3] / beta[step - 4]) > tol
 
         while check_convergence:
 
@@ -274,11 +282,13 @@ def hyp2f1_r01(a, b, z, tol=1e-15):
                 beta[k + 1] = beta[k] + alpha[k + 1] * (2 * psi1 - psi2 - psi3 - logzz)
                 n = n + 1
 
-            check_convergence = np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
-                                np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
-                                np.abs(alpha[step - 3] / beta[step - 4]) > tol
+            check_convergence = \
+                np.abs(alpha[step - 1] / beta[step - 2]) > tol or \
+                np.abs(alpha[step - 2] / beta[step - 3]) > tol or \
+                np.abs(alpha[step - 3] / beta[step - 4]) > tol
 
         return beta[step - 1] * gamma(c) / (gamma(a) * gamma(b))
+
 
 @vectorize([complex128(complex128, float64, float64)], nopython=True)
 def legendre_q(nu, z, tol=1e-15):
@@ -303,6 +313,7 @@ def legendre_q(nu, z, tol=1e-15):
     leg = hyp2f1_r01(a, b, z1, tol) * (np.pi ** 0.5) * gamma(1.0 + nu) / (gamma(1.5 + nu) * ((2 * z) ** (1.0 + nu)))
     # leg = hyp2f1(a, b, c, z1, tol) * (np.pi ** 0.5) * gamma(1.0 + nu) / (gamma(1.5 + nu) * ((2 * z) ** (1.0 + nu)))
     return leg
+
 
 @vectorize([complex128(complex128, float64, float64)], nopython=True)
 def legendre_q_v1(nu, z, tol=1e-15):
@@ -329,15 +340,15 @@ def legendre_q_v1(nu, z, tol=1e-15):
     z1 = np.exp(-2.0 * eta)
 
     # Compute legendreQ function
-    leg = hyp2f1_r01(a, b, z1, tol) * (np.pi ** 0.5) * \
-          gamma(0.5 + nu) * np.exp(-1.0 * (0.5 + nu) * eta ) / gamma(1.0 + nu)
-    # leg = hyp2f1(a, b, c, z1, tol) * (np.pi ** 0.5) * \
-    #       gamma(0.5 + nu) * np.exp(-1.0 * (0.5 + nu) * eta) / gamma(1.0 + nu)
+    leg = \
+        hyp2f1_r01(a, b, z1, tol) * (np.pi ** 0.5) \
+        * gamma(0.5 + nu) * np.exp(-1.0 * (0.5 + nu) * eta) / gamma(1.0 + nu)
+    # leg = hyp2f1(a, b, c, z1, tol) * (np.pi ** 0.5) \
+    #       * gamma(0.5 + nu) * np.exp(-1.0 * (0.5 + nu) * eta) / gamma(1.0 + nu)
     return leg
 
 
 if __name__ == "__main__":
-
     """
     Test Gamma function
     """

@@ -1,5 +1,5 @@
 import numpy as np
-import scipy as sc
+import scipy.fft as scfft
 import numba
 import scipy.special as sp
 import time
@@ -55,31 +55,31 @@ class TruncatedKernelConstantVel3d:
         # Copy u into self._temparray
         temparray = np.zeros(shape=(self._num_bins, self._num_bins, self._num_bins), dtype=self._precision)
         temparray[
-            self._start_index:(self._end_index + 1),
-            self._start_index:(self._end_index + 1),
-            self._start_index:(self._end_index + 1),
+        self._start_index:(self._end_index + 1),
+        self._start_index:(self._end_index + 1),
+        self._start_index:(self._end_index + 1),
         ] = u
 
         # Do the following
         # 1. Compute Fourier transform
         # 2. Multiply with Fourier transform of Truncated Kernel Green's function
         # 3. Compute Inverse Fourier transform
-        temparray = sc.fft.fftn(sc.fft.fftshift(temparray))
+        temparray = scfft.fftn(scfft.fftshift(temparray))
         if adj:
             temparray *= self._green_func_conj
         else:
             temparray *= self._green_func
-        temparray = sc.fft.fftshift(sc.fft.ifftn(temparray))
+        temparray = scfft.fftshift(scfft.ifftn(temparray))
 
         # Copy into output appropriately
         if not add:
             output *= 0
 
         output += temparray[
-            self._start_index:(self._end_index + 1),
-            self._start_index:(self._end_index + 1),
-            self._start_index:(self._end_index + 1)
-        ]
+                  self._start_index:(self._end_index + 1),
+                  self._start_index:(self._end_index + 1),
+                  self._start_index:(self._end_index + 1)
+                  ]
 
     @property
     def greens_func(self):
@@ -193,7 +193,7 @@ class TruncatedKernelConstantVel3d:
             k=self._k,
             tol=tol
         )
-        self._green_func = sc.fft.fftshift(self._green_func)
+        self._green_func = scfft.fftshift(self._green_func)
         self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
@@ -217,7 +217,7 @@ class TruncatedKernelConstantVel3d:
         # Calculate grid spacing d
         # Calculate grid of wavenumbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
-        self._kgrid = 2 * np.pi * sc.fft.fftshift(sc.fft.fftfreq(n=self._num_bins, d=self._d))
+        self._kgrid = 2 * np.pi * scfft.fftshift(scfft.fftfreq(n=self._num_bins, d=self._d))
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins, self._num_bins), dtype=self._precision)
@@ -270,30 +270,27 @@ class TruncatedKernelConstantVel2d:
 
         # Copy u into self._temparray
         temparray = np.zeros(shape=(self._num_bins, self._num_bins), dtype=self._precision)
-        temparray[
-            self._start_index:(self._end_index + 1),
-            self._start_index:(self._end_index + 1)
-        ] = u
+        temparray[self._start_index:(self._end_index + 1), self._start_index:(self._end_index + 1)] = u
 
         # Do the following
         # 1. Compute Fourier transform
         # 2. Multiply with Fourier transform of Truncated Kernel Green's function
         # 3. Compute Inverse Fourier transform
-        temparray = sc.fft.fft2(sc.fft.fftshift(temparray))
+        temparray = scfft.fft2(scfft.fftshift(temparray))
         if adj:
             temparray *= self._green_func_conj
         else:
             temparray *= self._green_func
-        temparray = sc.fft.fftshift(sc.fft.ifft2(temparray))
+        temparray = scfft.fftshift(scfft.ifft2(temparray))
 
         # Copy into output appropriately
         if not add:
             output *= 0
 
         output += temparray[
-            self._start_index:(self._end_index + 1),
-            self._start_index:(self._end_index + 1)
-        ]
+                  self._start_index:(self._end_index + 1),
+                  self._start_index:(self._end_index + 1)
+                  ]
 
     @property
     def greens_func(self):
@@ -376,12 +373,12 @@ class TruncatedKernelConstantVel2d:
                 if np.abs(kabs - k) > tol:
                     f2 = kabs * cutoff
                     f3 = -1.0 - 0.5 * j * np.pi * (f2 * sp.jv(1, f2) * sp.hankel1(0, f1)
-                                                  - f1 * sp.jv(0, f2) * sp.hankel1(1, f1))
+                                                   - f1 * sp.jv(0, f2) * sp.hankel1(1, f1))
                     green_func[i1, i2] = f3 / ((k - kabs) * (k + kabs))
 
                 else:
                     f2 = f1 * (sp.jv(1, f1) * sp.hankel1(1, f1)
-                                        - sp.jv(2, f1) * sp.hankel1(0, f1))
+                               - sp.jv(2, f1) * sp.hankel1(0, f1))
                     f3 = 2 * sp.jv(1, f1) * sp.hankel1(0, f1)
                     green_func[i1, i2] = 0.5 * j * np.pi * cutoff * (f2 + f3) / (k + kabs)
 
@@ -404,7 +401,7 @@ class TruncatedKernelConstantVel2d:
             k=self._k,
             tol=tol
         )
-        self._green_func = sc.fft.fftshift(self._green_func)
+        self._green_func = scfft.fftshift(self._green_func)
         self._green_func_conj = np.conjugate(self._green_func)
 
         t2 = time.time()
@@ -428,7 +425,7 @@ class TruncatedKernelConstantVel2d:
         # Calculate grid spacing d
         # Calculate grid of wavenumbers for any 1 dimension
         self._d = 1.0 / (self._n - 1)
-        self._kgrid = 2 * np.pi * sc.fft.fftshift(sc.fft.fftfreq(n=self._num_bins, d=self._d))
+        self._kgrid = 2 * np.pi * scfft.fftshift(scfft.fftfreq(n=self._num_bins, d=self._d))
 
         # Calculate FT of Truncated Green's Function and apply fftshift
         self._green_func = np.zeros(shape=(self._num_bins, self._num_bins), dtype=self._precision)
@@ -436,7 +433,6 @@ class TruncatedKernelConstantVel2d:
 
 
 if __name__ == "__main__":
-
     n_ = 201
     k_ = 150.0
     precision_ = np.complex64

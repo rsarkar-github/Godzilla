@@ -124,12 +124,20 @@ x2 = mat_lu.solve(np.reshape(f, newshape=(nz * n, 1)))
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-scale = 1e-5
-x = np.reshape(x1-x2, newshape=(nz, n))
+# scale = 1e-5
+# x = np.reshape(x1-x2, newshape=(nz, n))
+# plt.figure()
+# plt.imshow(np.real(x), extent=[xmin, xmax, b, a], cmap="Greys", vmin=-scale, vmax=scale)
+# plt.grid(True)
+# plt.title("Real (Solution)")
+# plt.colorbar()
+# plt.show()
+
+scale = 1e-4
+x = np.reshape(x2, newshape=(nz, n))
 plt.figure()
 plt.imshow(np.real(x), extent=[xmin, xmax, b, a], cmap="Greys", vmin=-scale, vmax=scale)
 plt.grid(True)
 plt.title("Real (Solution)")
 plt.colorbar()
 plt.show()
-
