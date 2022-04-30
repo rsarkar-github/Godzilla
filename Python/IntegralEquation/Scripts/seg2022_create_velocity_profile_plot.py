@@ -40,7 +40,7 @@ ax.set_yticklabels(yticklabels)
 print("\n\n")
 
 # Create Salt perturbation
-vel_sigsbee = np.load("G:/Research/Freq-Domain/Godzilla/Python/Helmholtz/Data/sigsbee.npz")["arr_0"].T
+vel_sigsbee = np.load("D:/Research/Freq-Domain/Godzilla/Python/Helmholtz/Data/sigsbee.npz")["arr_0"].T
 vel_sigsbee *= 0.3048 * 0.001
 vel_sigsbee = np.roll(vel_sigsbee[::2, ::2], shift=30, axis=0)
 mask = np.clip(vel_sigsbee, 4.49, 4.5) - 4.49
@@ -72,4 +72,5 @@ cbar.set_ticks(cbar_yticks)
 cbar.set_ticklabels(cbar_yticks)
 
 plt.show()
-fig.savefig("G:/Research/Freq-Domain/Godzilla/Python/IntegralEquation/Fig/seg2022_vels.pdf", bbox_inches='tight', pad_inches=0)
+fig.savefig("D:/Research/Freq-Domain/Godzilla/Python/IntegralEquation/Fig/seg2022_vels.pdf",
+            bbox_inches='tight', pad_inches=0)

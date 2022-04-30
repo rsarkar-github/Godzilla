@@ -29,6 +29,7 @@ op = Lipp2d(
 psi = np.zeros(shape=(nz_, n_), dtype=np.float32)
 rtol = 1e-6
 
+
 def func_solve(source, thread_num):
     """
     :param source: rhs of LSE without application of the kernel
@@ -54,8 +55,10 @@ def func_solve(source, thread_num):
 
     # Callback generator
     msg_list = ["GMRES on thread " + str(thread_num) + "\n\n"]
+
     def make_callback():
         closure_variables = dict(counter=0, residuals=[])
+
         def callback(residuals):
             closure_variables["counter"] += 1
             closure_variables["residuals"].append(residuals)
@@ -77,7 +80,8 @@ def func_solve(source, thread_num):
     msg_list.append("Total time for GMRES: " + "{:4.2f}".format(end_t_ - start_t_) + " s \n")
 
     print("Finished thread ", thread_num)
-    return (np.reshape(output, newshape=(nz_, n_)), rhs, msg_list)
+    return np.reshape(output, newshape=(nz_, n_)), rhs, msg_list
+
 
 if __name__ == "__main__":
 

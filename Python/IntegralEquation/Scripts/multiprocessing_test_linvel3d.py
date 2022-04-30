@@ -22,21 +22,23 @@ op = Lipp3d(
     precision=precision_
 )
 
-def func(input, output):
+
+def func(input_, output_):
     print("Starting thread")
     start_t_ = time.time()
-    op.apply_kernel(input, output)
+    op.apply_kernel(input_, output_)
     end_t_ = time.time()
     print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
+
 
 if __name__ == "__main__":
 
     u_ = np.zeros(shape=(nz_, n_, n_), dtype=precision_)
     u_[int(nz_ / 8), int(n_ / 2), int(n_ / 2)] = 1.0
-    output_ = u_ * 0
+    output = u_ * 0
 
     ntimes = 20
-    arglist = [(u_ * 1.0, output_ * 1.0) for _ in range(ntimes)]
+    arglist = [(u_ * 1.0, output * 1.0) for _ in range(ntimes)]
 
     pool = mp.Pool(mp.cpu_count())
     result = pool.starmap(func, arglist)
