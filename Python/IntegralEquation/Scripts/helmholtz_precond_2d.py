@@ -1,12 +1,15 @@
-import numpy as np
-from scipy.ndimage import gaussian_filter
-from scipy.sparse.linalg import LinearOperator, gmres, splu
-import time, sys, os
+import os
+import sys
+import time
+
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.ndimage import gaussian_filter
+from scipy.sparse.linalg import LinearOperator, gmres
+
 from ..Solver import HelmholtzOperators
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
-
 
 if len(sys.argv) < 6:
     ValueError("Input parameters to program not provided. Run program as\n"
@@ -32,7 +35,7 @@ k = omega / alpha
 m = 1000
 precision = np.complex128
 
-#************************************************************
+# ************************************************************
 # Create directories if they don't exist
 # Write input arguments to text file
 _file = os.path.basename(__file__)[:-3]
@@ -61,13 +64,14 @@ with open(_textfile, 'w') as textfile:
     textfile.write("freq = " + str(freq))
     textfile.write("\n")
 
-#************************************************************
+# ************************************************************
 # Create linearly varying background
 vel = np.zeros(shape=(nz, n), dtype=np.float64)
 for i in range(nz):
     vel[i, :] = alpha * (a + i * hz)
 
-#************************************************************
+
+# ************************************************************
 # Create perturbation fields
 def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
@@ -81,6 +85,8 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     :param fig_filename: str (figure file name)
     :return: total_vel_, pert_, psi_
     """
+    pert_ = np.zeros(shape=(nz, n), dtype=np.float64)
+
     if mode == -1:
         pert_ = np.zeros(shape=(nz, n), dtype=np.float64)
 
@@ -144,7 +150,6 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
 
     # Plotting
     if plot:
-
         xticks = np.arange(0, n + 1, int(n / 3))
         xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
         yticks = np.arange(0, nz + 1, int(nz / 3))
@@ -227,9 +232,11 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
 
     return total_vel_, pert_, psi_
 
+
 total_vel, pert, psi = create_pert_fields(mode=model_mode, plot=True, fig_filename="vels.pdf")
 
-#************************************************************
+
+# ************************************************************
 # Initialize operator
 def init_op(green_func_filepath):
     """
@@ -278,11 +285,13 @@ def init_op(green_func_filepath):
 
     return op_
 
+
 green_func_filename = "green_func.npz"
 path = os.path.abspath(_basedir_data + "/" + green_func_filename)
 op = init_op(green_func_filepath=path)
 
-#************************************************************
+
+# ************************************************************
 # Create source
 def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
     """
@@ -305,10 +314,10 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
 
     # Create LSE rhs
     rhs_ = np.zeros((nz, n), dtype=precision)
-    start_t = time.time()
+    start_t_ = time.time()
     op.apply_kernel(u=f_, output=rhs_)
-    end_t = time.time()
-    print("Total time to execute convolution: ", "{:4.2f}".format(end_t - start_t), " s \n")
+    end_t_ = time.time()
+    print("Total time to execute convolution: ", "{:4.2f}".format(end_t_ - start_t_), " s \n")
     print("Finished LSE rhs computation\n")
 
     if plot:
@@ -318,7 +327,7 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
         yticks = np.arange(0, nz + 1, int(nz / 3))
         yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
 
-        f = int(np.floor(np.log10(scale)))
+        f0 = int(np.floor(np.log10(scale)))
         f1 = int(np.floor(np.log10(scale1)))
 
         fig, axs = plt.subplots(1, 3, sharey=True, figsize=(30, 10))
@@ -339,17 +348,17 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
         cax = divider.append_axes("right", size="5%", pad=0.05)
         cbar = plt.colorbar(im0, cax=cax)
         cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
-        if f != 0:
+        if f0 != 0:
             cbar.ax.text(
                 0,
                 1.05 * scale,
-                r"$\times$ 1e" + str(f),
+                r"$\times$ 1e" + str(f0),
                 fontname="Times New Roman",
                 fontsize=10
             )
         cbar.set_ticks(cbar_yticks)
         cbar.set_ticklabels(
-            ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
+            ["{:4.1f}".format(item / (10 ** f0)) for item in cbar_yticks],
             fontname="Times New Roman",
             fontsize=10
         )
@@ -417,14 +426,16 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
 
     return f_, rhs_
 
+
 scale_sol = 1e-5
 f, rhs = create_source(plot=True, fig_filename="source.pdf", scale=1.0, scale1=scale_sol)
 
-#************************************************************
+
+# ************************************************************
 # Create Helmholtz matrix
 def create_helmholtz():
     """
-    :return: mat, f_
+    :return: mat_, f_
     """
 
     a1_ = xmax - xmin + 2 * pml_cells * hx
@@ -449,7 +460,7 @@ def create_helmholtz():
     total_vel_pad[pml_cells + nz: 2 * pml_cells + nz, :] = total_vel_pad[pml_cells + nz - 1, :]
 
     # Create Helmholtz matrix
-    mat = HelmholtzOperators.create_helmholtz2d_matrix(
+    mat_ = HelmholtzOperators.create_helmholtz2d_matrix(
         a1=a1_,
         a2=a2_,
         pad1=pml_cells,
@@ -467,11 +478,13 @@ def create_helmholtz():
     f_[pml_cells: pml_cells + nz, pml_cells: pml_cells + n] = f
     f_ = np.reshape(f_, newshape=((nz + 2 * pml_cells) * (n + 2 * pml_cells), 1))
 
-    return mat, f_
+    return mat_, f_
+
 
 mat, f_helmholtz = create_helmholtz()
 
-#************************************************************
+
+# ************************************************************
 # Define linear operator objects
 def func_matvec(v):
     u1 = np.reshape(mat.dot(v), newshape=(nz + 2 * pml_cells, n + 2 * pml_cells))
@@ -481,13 +494,15 @@ def func_matvec(v):
     u1[pml_cells: pml_cells + nz, pml_cells: pml_cells + n] = u3
     return np.reshape(u1, newshape=((nz + 2 * pml_cells) * (n + 2 * pml_cells), 1))
 
+
 linop_left_precond_helmholtz = LinearOperator(
     shape=((nz + 2 * pml_cells) * (n + 2 * pml_cells), (nz + 2 * pml_cells) * (n + 2 * pml_cells)),
     matvec=func_matvec,
     dtype=precision
 )
 
-#************************************************************
+
+# ************************************************************
 # Callback generator
 def make_callback():
     closure_variables = dict(counter=0, residuals=[])
@@ -496,16 +511,17 @@ def make_callback():
         closure_variables["counter"] += 1
         closure_variables["residuals"].append(residuals)
         print(closure_variables["counter"], residuals)
+
     return callback
 
 
-#************************************************************
+# ************************************************************
 # Run GMRES for Helmholtz
 tol = 1e-3
 print("\n************************************************************")
 print("\nRunning GMRES for Helmholtz...\n\n")
 start_t = time.time()
-x1, exitcode = gmres(
+sol1, exitcode = gmres(
     mat,
     f_helmholtz,
     maxiter=2000,
@@ -514,14 +530,14 @@ x1, exitcode = gmres(
     tol=tol,
     callback=make_callback()
 )
-x1 = np.reshape(
-    x1, newshape=(nz + 2 * pml_cells, n + 2 * pml_cells)
+sol1 = np.reshape(
+    sol1, newshape=(nz + 2 * pml_cells, n + 2 * pml_cells)
 )[pml_cells: pml_cells + nz, pml_cells: pml_cells + n]
 print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-#************************************************************
+# ************************************************************
 # Run GMRES with blocked preconditioner
 print("\n************************************************************")
 print("\nRunning GMRES for left preconditioned Helmholtz...\n\n")
@@ -533,7 +549,7 @@ f_left_precond_helmholtz = np.reshape(
 )
 
 start_t = time.time()
-x2, exitcode = gmres(
+sol2, exitcode = gmres(
     linop_left_precond_helmholtz,
     f_left_precond_helmholtz,
     maxiter=5000,
@@ -542,25 +558,25 @@ x2, exitcode = gmres(
     tol=tol,
     callback=make_callback()
 )
-x2 = np.reshape(
-    x2, newshape=(nz + 2 * pml_cells, n + 2 * pml_cells)
+sol2 = np.reshape(
+    sol2, newshape=(nz + 2 * pml_cells, n + 2 * pml_cells)
 )[pml_cells: pml_cells + nz, pml_cells: pml_cells + n]
 print(exitcode)
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-
-#************************************************************
+# ************************************************************
 # Plot results
-scale_sol = np.max(np.abs(np.real(x1))) / 2
-def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
+scale_sol = np.max(np.abs(np.real(sol1))) / 2
 
+
+def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
     xticks = np.arange(0, n + 1, int(n / 3))
     xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
     yticks = np.arange(0, nz + 1, int(nz / 3))
     yticklabels = ["{:4.1f}".format(item) for item in (yticks * hz)]
 
-    f = int(np.floor(np.log10(scale)))
+    f_ = int(np.floor(np.log10(scale)))
 
     fig, ax = plt.subplots(1, 1)
     im = ax.imshow(np.real(sol), cmap="Greys", vmin=-scale, vmax=scale)
@@ -575,22 +591,23 @@ def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
 
     cbar = plt.colorbar(im)
     cbar_yticks = np.linspace(-scale, scale, 5, endpoint=True)
-    if f != 0:
+    if f_ != 0:
         cbar.ax.text(
             0,
             1.05 * scale,
-            r"$\times$ 1e" + str(f),
+            r"$\times$ 1e" + str(f_),
             fontname="Times New Roman",
             fontsize=10
         )
     cbar.set_ticks(cbar_yticks)
     cbar.set_ticklabels(
-        ["{:4.1f}".format(item / (10 ** f)) for item in cbar_yticks],
+        ["{:4.1f}".format(item / (10 ** f_)) for item in cbar_yticks],
         fontname="Times New Roman",
         fontsize=10
     )
     plt.show()
     fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
 
-plot_sol(x1, "sol_helmholtz.pdf", "Helmholtz Solution (real)", scale=scale_sol)
-plot_sol(x2, "sol_helmholtz_left_precond.pdf", "Left Precond Helmholtz Solution (real)", scale=scale_sol)
+
+plot_sol(sol1, "sol_helmholtz.pdf", "Helmholtz Solution (real)", scale=scale_sol)
+plot_sol(sol2, "sol_helmholtz_left_precond.pdf", "Left Precond Helmholtz Solution (real)", scale=scale_sol)

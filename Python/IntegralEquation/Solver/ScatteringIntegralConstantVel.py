@@ -1,11 +1,13 @@
+import sys
+import time
+
+import matplotlib.pyplot as plt
+import numba
 import numpy as np
 import scipy.fft as scfft
-import numba
 import scipy.special as sp
-import time
-import sys
+
 from . import TypeChecker
-import matplotlib.pyplot as plt
 
 
 class TruncatedKernelConstantVel3d:
@@ -55,9 +57,9 @@ class TruncatedKernelConstantVel3d:
         # Copy u into self._temparray
         temparray = np.zeros(shape=(self._num_bins, self._num_bins, self._num_bins), dtype=self._precision)
         temparray[
-        self._start_index:(self._end_index + 1),
-        self._start_index:(self._end_index + 1),
-        self._start_index:(self._end_index + 1),
+            self._start_index:(self._end_index + 1),
+            self._start_index:(self._end_index + 1),
+            self._start_index:(self._end_index + 1),
         ] = u
 
         # Do the following
@@ -76,10 +78,10 @@ class TruncatedKernelConstantVel3d:
             output *= 0
 
         output += temparray[
-                  self._start_index:(self._end_index + 1),
-                  self._start_index:(self._end_index + 1),
-                  self._start_index:(self._end_index + 1)
-                  ]
+            self._start_index:(self._end_index + 1),
+            self._start_index:(self._end_index + 1),
+            self._start_index:(self._end_index + 1)
+        ]
 
     @property
     def greens_func(self):
@@ -288,9 +290,9 @@ class TruncatedKernelConstantVel2d:
             output *= 0
 
         output += temparray[
-                  self._start_index:(self._end_index + 1),
-                  self._start_index:(self._end_index + 1)
-                  ]
+            self._start_index:(self._end_index + 1),
+            self._start_index:(self._end_index + 1)
+        ]
 
     @property
     def greens_func(self):

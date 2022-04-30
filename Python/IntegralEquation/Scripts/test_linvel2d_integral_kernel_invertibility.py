@@ -1,7 +1,9 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from scipy.sparse.linalg import LinearOperator, gmres
-import time, sys, os
+import time
+import sys
+import os
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
@@ -29,7 +31,7 @@ k = omega / alpha
 m = 1000
 precision = np.complex128
 
-#************************************************************
+# ************************************************************
 # Create directories if they don't exist
 # Write input arguments to text file
 _file = os.path.basename(__file__)[:-3]
@@ -55,14 +57,16 @@ with open(_textfile, 'w') as textfile:
     textfile.write("\n")
 
 
-#************************************************************
+# ************************************************************
 # Create linearly varying background
 vel = np.zeros(shape=(nz, n), dtype=np.float64)
 for i in range(nz):
     vel[i, :] = alpha * (a + i * hz)
 
-#************************************************************
+# ************************************************************
 # Create perturbation fields
+
+
 def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
     :param mode: int
@@ -75,6 +79,8 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     :param fig_filename: str (figure file name)
     :return: total_vel_, pert_, psi_
     """
+    pert_ = np.zeros(shape=(nz, n), dtype=np.float64)
+
     if mode == -1:
         pert_ = np.zeros(shape=(nz, n), dtype=np.float64)
 
@@ -221,14 +227,17 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
 
     return total_vel_, pert_, psi_
 
+
 total_vel, pert, psi = create_pert_fields(mode=model_mode, plot=True, fig_filename="vels.pdf")
 
-#************************************************************
+# ************************************************************
 # Initialize operator
+
+
 def init_op(green_func_filepath):
     """
-    :param green_func_filepath: path of green's function file
-    :return: op_ (Lipp2d operator)
+    @param green_func_filepath: path of green's function file
+    @return: op_ (Lipp2d operator)
     """
 
     if os.path.exists(green_func_filepath):
@@ -272,12 +281,15 @@ def init_op(green_func_filepath):
 
     return op_
 
+
 green_func_filename = "green_func.npz"
 path = os.path.abspath(_basedir_data + "/" + green_func_filename)
 op = init_op(green_func_filepath=path)
 
-#************************************************************
+# ************************************************************
 # Create sources and plot
+
+
 def create_sources():
     """
     :param
@@ -312,7 +324,9 @@ def create_sources():
 
     return f_, rhs_, rhs1_
 
+
 f, rhs, rhs1 = create_sources()
+
 
 def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
     """
@@ -359,6 +373,7 @@ def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
     plt.show()
     fig.savefig(os.path.abspath(_basedir_fig + "/" + fig_filename), bbox_inches='tight', pad_inches=0)
 
+
 scale_f = np.max(np.abs(np.real(f))) / 2
 scale_sol = np.max(np.abs(np.real(rhs))) / 2
 scale_sol1 = np.max(np.abs(np.real(rhs1))) / 2
@@ -367,15 +382,19 @@ plot_sol(sol=f, fig_filename="source.pdf", title=r"$f$", scale=scale_f)
 plot_sol(sol=rhs, fig_filename="lse_source.pdf", title=r"$A_{\omega} f$" + " (Real)", scale=scale_sol)
 plot_sol(sol=rhs1, fig_filename="lse_modified_source.pdf", title=r"$A_{\omega}^2 f$" + " (Real)", scale=scale_sol1)
 
-#************************************************************
+# ************************************************************
 # Define linear operator objects
+
+
 def func_matvec(v):
     v = np.reshape(v, newshape=(nz, n))
     u = v * 0
     op.apply_kernel(u=v*psi, output=u, adj=False, add=False)
     return np.reshape(v - (k ** 2) * u, newshape=(nz * n, 1))
 
+
 linop_lse = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec, dtype=precision)
+
 
 def func_matvec1(v):
     v = np.reshape(v, newshape=(nz, n))
@@ -386,10 +405,13 @@ def func_matvec1(v):
     op.apply_kernel(u=u, output=w, adj=False, add=False)
     return np.reshape(w, newshape=(nz * n, 1))
 
+
 linop_lse_modified = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec1, dtype=precision)
 
-#************************************************************
+# ************************************************************
 # Callback generator
+
+
 def make_callback():
     closure_variables = dict(counter=0, residuals=[])
 
@@ -399,7 +421,8 @@ def make_callback():
         print(closure_variables["counter"], residuals)
     return callback
 
-#************************************************************
+
+# ************************************************************
 # Run GMRES for LSE
 tol = 1e-5
 print("\n************************************************************")
@@ -418,7 +441,7 @@ sol1 = np.reshape(sol1 * norm_rhs, newshape=(nz, n))
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-#************************************************************
+# ************************************************************
 # Run GMRES for LSE modified
 print("\n************************************************************")
 print("\nRunning GMRES for LSE modified...\n\n")
@@ -436,7 +459,7 @@ sol2 = np.reshape(sol2 * norm_rhs1, newshape=(nz, n))
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-#************************************************************
+# ************************************************************
 # Plot solutions
 plot_sol(sol=sol1, fig_filename="sol_lse.pdf", title="Solution LSE (Real)", scale=scale_sol)
 plot_sol(sol=sol2, fig_filename="sol_lse_modified.pdf", title="Solution LSE Modified (Real)", scale=scale_sol)
