@@ -1,11 +1,13 @@
+import os
+import sys
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
 from scipy.sparse.linalg import LinearOperator, gmres
-import time
-import sys
-import os
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 if len(sys.argv) < 4:
@@ -14,7 +16,6 @@ if len(sys.argv) < 4:
 run_number = sys.argv[1]
 model_mode = int(sys.argv[2])
 freq = float(sys.argv[3])
-
 
 n = 201
 nz = 201
@@ -56,17 +57,15 @@ with open(_textfile, 'w') as textfile:
     textfile.write("freq = " + str(freq))
     textfile.write("\n")
 
-
 # ************************************************************
 # Create linearly varying background
 vel = np.zeros(shape=(nz, n), dtype=np.float64)
 for i in range(nz):
     vel[i, :] = alpha * (a + i * hz)
 
+
 # ************************************************************
 # Create perturbation fields
-
-
 def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     """
     :param mode: int
@@ -144,7 +143,6 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
 
     # Plotting
     if plot:
-
         xticks = np.arange(0, n + 1, int(n / 3))
         xticklabels = ["{:4.1f}".format(item) for item in (xmin + xticks * hx)]
         yticks = np.arange(0, nz + 1, int(nz / 3))
@@ -230,10 +228,9 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
 
 total_vel, pert, psi = create_pert_fields(mode=model_mode, plot=True, fig_filename="vels.pdf")
 
+
 # ************************************************************
 # Initialize operator
-
-
 def init_op(green_func_filepath):
     """
     @param green_func_filepath: path of green's function file
@@ -286,10 +283,9 @@ green_func_filename = "green_func.npz"
 path = os.path.abspath(_basedir_data + "/" + green_func_filename)
 op = init_op(green_func_filepath=path)
 
+
 # ************************************************************
 # Create sources and plot
-
-
 def create_sources():
     """
     :param
@@ -382,14 +378,13 @@ plot_sol(sol=f, fig_filename="source.pdf", title=r"$f$", scale=scale_f)
 plot_sol(sol=rhs, fig_filename="lse_source.pdf", title=r"$A_{\omega} f$" + " (Real)", scale=scale_sol)
 plot_sol(sol=rhs1, fig_filename="lse_modified_source.pdf", title=r"$A_{\omega}^2 f$" + " (Real)", scale=scale_sol1)
 
+
 # ************************************************************
 # Define linear operator objects
-
-
 def func_matvec(v):
     v = np.reshape(v, newshape=(nz, n))
     u = v * 0
-    op.apply_kernel(u=v*psi, output=u, adj=False, add=False)
+    op.apply_kernel(u=v * psi, output=u, adj=False, add=False)
     return np.reshape(v - (k ** 2) * u, newshape=(nz * n, 1))
 
 
@@ -399,7 +394,7 @@ linop_lse = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec, dtype=pre
 def func_matvec1(v):
     v = np.reshape(v, newshape=(nz, n))
     u = v * 0
-    op.apply_kernel(u=v*psi, output=u, adj=False, add=False)
+    op.apply_kernel(u=v * psi, output=u, adj=False, add=False)
     u = v - (k ** 2) * u
     w = u * 0
     op.apply_kernel(u=u, output=w, adj=False, add=False)
@@ -408,10 +403,9 @@ def func_matvec1(v):
 
 linop_lse_modified = LinearOperator(shape=(nz * n, nz * n), matvec=func_matvec1, dtype=precision)
 
+
 # ************************************************************
 # Callback generator
-
-
 def make_callback():
     closure_variables = dict(counter=0, residuals=[])
 
@@ -419,6 +413,7 @@ def make_callback():
         closure_variables["counter"] += 1
         closure_variables["residuals"].append(residuals)
         print(closure_variables["counter"], residuals)
+
     return callback
 
 
