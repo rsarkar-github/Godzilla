@@ -651,7 +651,7 @@ if solver_mode == 2:
     print("istop = ", istop, ", itn = ", itn, ", rnorm = ", r1norm)
 
     print("\n************************************************************")
-    print("\nRunning LSMR for LSE without initial solution...\n\n")
+    print("\nRunning LSMR for LSE with initial solution...\n\n")
     start_t = time.time()
     sol2, istop, itn, r1norm = lsmr(
         linop_lse,
