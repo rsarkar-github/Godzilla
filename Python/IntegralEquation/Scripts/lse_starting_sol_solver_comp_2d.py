@@ -8,16 +8,16 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
 from scipy.sparse.linalg import LinearOperator, gmres, lsqr, lsmr
 
-from ..Solver import HelmholtzOperators
 from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
-if len(sys.argv) < 5:
+if len(sys.argv) < 6:
     ValueError("Input parameters to program not provided. Run program as\n"
-               "python -m program run_number(str) model_mode(int) solver_mode(int) freq(float)")
+               "python -m program run_number(str) model_mode(int) solver_mode(int) freq(float) scaling(float)")
 run_number = sys.argv[1]
 model_mode = int(sys.argv[2])
 solver_mode = int(sys.argv[3])
 freq = float(sys.argv[4])
+scaling = float(sys.argv[5])
 
 n = 201
 nz = 201
@@ -62,6 +62,8 @@ with open(_textfile, 'w') as textfile:
     textfile.write("solver_mode = " + str(solver_mode))
     textfile.write("\n")
     textfile.write("freq = " + str(freq))
+    textfile.write("\n")
+    textfile.write("scaling = " + str(scaling))
     textfile.write("\n")
 
 # ************************************************************
@@ -233,7 +235,7 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
     return total_vel_, pert_, psi_
 
 
-total_vel, pert, psi = create_pert_fields(mode=model_mode, plot=True, fig_filename="vels.pdf")
+_, pert, psi = create_pert_fields(mode=model_mode, plot=True, fig_filename="vels.pdf")
 
 
 # ************************************************************
@@ -433,21 +435,6 @@ def create_source(plot=False, fig_filename="fig.pdf", scale=1.0, scale1=1e-5):
 scale_sol = 1e-5
 f, rhs = create_source(plot=True, fig_filename="source.pdf", scale=1.0, scale1=scale_sol)
 
-# ************************************************************
-# Create Helmholtz matrix
-mat = HelmholtzOperators.create_helmholtz2d_matrix(
-    a1=xmax - xmin,
-    a2=b - a,
-    pad1=pml_cells,
-    pad2=pml_cells,
-    omega=omega,
-    precision=precision,
-    vel=total_vel,
-    pml_damping=pml_damping,
-    adj=False,
-    warnings=True
-)
-
 
 # ************************************************************
 # Define linear operator objects
@@ -524,18 +511,55 @@ def plot_sol(sol, fig_filename, title="Solution", scale=1.0):
 
 
 # ************************************************************
+# Compute starting solution
+# ************************************************************
+# Run GMRES for LSE
+tol = 1e-3
+print("\n************************************************************")
+print("\nRunning GMRES for LSE to compute starting solution...\n\n")
+start_t = time.time()
+sol_starting, exitcode = gmres(
+    linop_lse,
+    np.reshape(rhs, newshape=(nz * n, 1)),
+    maxiter=5000,
+    restart=5000,
+    atol=0,
+    tol=tol,
+    callback=make_callback()
+)
+print(exitcode)
+end_t = time.time()
+print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+
+
+# ************************************************************
+# Compute new perturbation, new rhs, and new tol
+# ************************************************************
+
+pert *= scaling
+total_vel = vel + pert
+psi *= 0
+psi += (alpha ** 2) * (1.0 / (vel ** 2) - 1.0 / (total_vel ** 2))
+psi = psi.astype(precision)
+
+rhs1 = np.zeros((nz, n), dtype=precision)
+op.apply_kernel(u=psi*np.reshape(sol_starting, newshape=(nz, n)), output=rhs1)
+rhs1 = rhs - np.reshape(sol_starting, newshape=(nz, n)) + (k ** 2) * rhs1
+
+tol1 = tol * np.linalg.norm(rhs) / np.linalg.norm(rhs1)
+
+
+# ************************************************************
 # Run GMRES iterations
 # solver_mode = 0 : GMRES
 # solver_mode = 1 : LSQR
 # solver_mode = 2 : LSMR
 
-tol = 1e-3
-
 if solver_mode == 0:
     # ************************************************************
-    # Run GMRES for LSE
+    # Run GMRES for LSE for new perturbation
     print("\n************************************************************")
-    print("\nRunning GMRES for LSE...\n\n")
+    print("\nRunning GMRES for LSE without initial solution...\n\n")
     start_t = time.time()
     sol1, exitcode = gmres(
         linop_lse,
@@ -551,35 +575,33 @@ if solver_mode == 0:
     end_t = time.time()
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-    # ************************************************************
-    # Run GMRES for Helmholtz
     print("\n************************************************************")
-    print("\nRunning GMRES for Helmholtz...\n\n")
+    print("\nRunning GMRES for LSE with initial solution...\n\n")
     start_t = time.time()
     sol2, exitcode = gmres(
-        mat,
-        np.reshape(f, newshape=(nz * n, 1)),
+        linop_lse,
+        np.reshape(rhs1, newshape=(nz * n, 1)),
         maxiter=5000,
         restart=5000,
         atol=0,
-        tol=tol,
+        tol=tol1,
         callback=make_callback()
     )
-    sol2 = np.reshape(sol2, newshape=(nz, n))
+    sol2 = np.reshape(sol2 + sol_starting, newshape=(nz, n))
     print(exitcode)
     end_t = time.time()
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
     scale_sol = np.max(np.abs(np.real(sol1))) / 2
     plot_sol(sol1, "sol_lse.pdf", "", scale=scale_sol)
-    plot_sol(sol2, "sol_helmholtz.pdf", "", scale=scale_sol)
+    plot_sol(sol2, "sol_lse_init.pdf", "", scale=scale_sol)
     plot_sol(sol1 - sol2, "sol_diff.pdf", "", scale=scale_sol)
 
 if solver_mode == 1:
     # ************************************************************
     # Run LSQR for LSE
     print("\n************************************************************")
-    print("\nRunning LSQR for LSE...\n\n")
+    print("\nRunning LSQR for LSE without initial solution...\n\n")
     start_t = time.time()
     sol1, istop, itn, r1norm = lsqr(
         linop_lse,
@@ -592,32 +614,30 @@ if solver_mode == 1:
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
     print("istop = ", istop, ", itn = ", itn, ", rnorm = ", r1norm)
 
-    # ************************************************************
-    # Run LSQR for Helmholtz
     print("\n************************************************************")
-    print("\nRunning LSQR for Helmholtz...\n\n")
+    print("\nRunning LSQR for LSE with initial solution...\n\n")
     start_t = time.time()
     sol2, istop, itn, r1norm = lsqr(
-        mat,
-        np.reshape(f, newshape=(nz * n, 1)),
+        linop_lse,
+        np.reshape(rhs1, newshape=(nz * n, 1)),
         atol=0,
-        btol=tol
+        btol=tol1
     )[:4]
-    sol2 = np.reshape(sol2, newshape=(nz, n))
+    sol2 = np.reshape(sol2 + sol_starting, newshape=(nz, n))
     end_t = time.time()
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
     print("istop = ", istop, ", itn = ", itn, ", rnorm = ", r1norm)
 
     scale_sol = np.max(np.abs(np.real(sol1))) / 2
     plot_sol(sol1, "sol_lse.pdf", "", scale=scale_sol)
-    plot_sol(sol2, "sol_helmholtz.pdf", "", scale=scale_sol)
+    plot_sol(sol2, "sol_lse_init.pdf", "", scale=scale_sol)
     plot_sol(sol1 - sol2, "sol_diff.pdf", "", scale=scale_sol)
 
 if solver_mode == 2:
     # ************************************************************
     # Run LSMR for LSE
     print("\n************************************************************")
-    print("\nRunning LSMR for LSE...\n\n")
+    print("\nRunning LSMR for LSE without initial solution...\n\n")
     start_t = time.time()
     sol1, istop, itn, r1norm = lsmr(
         linop_lse,
@@ -630,23 +650,21 @@ if solver_mode == 2:
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
     print("istop = ", istop, ", itn = ", itn, ", rnorm = ", r1norm)
 
-    # ************************************************************
-    # Run LSMR for Helmholtz
     print("\n************************************************************")
-    print("\nRunning LSMR for Helmholtz...\n\n")
+    print("\nRunning LSMR for LSE without initial solution...\n\n")
     start_t = time.time()
     sol2, istop, itn, r1norm = lsmr(
-        mat,
-        np.reshape(f, newshape=(nz * n, 1)),
+        linop_lse,
+        np.reshape(rhs1, newshape=(nz * n, 1)),
         atol=0,
-        btol=tol
+        btol=tol1
     )[:4]
-    sol2 = np.reshape(sol2, newshape=(nz, n))
+    sol2 = np.reshape(sol2 + sol_starting, newshape=(nz, n))
     end_t = time.time()
     print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
     print("istop = ", istop, ", itn = ", itn, ", rnorm = ", r1norm)
 
     scale_sol = np.max(np.abs(np.real(sol1))) / 2
     plot_sol(sol1, "sol_lse.pdf", "", scale=scale_sol)
-    plot_sol(sol2, "sol_helmholtz.pdf", "", scale=scale_sol)
+    plot_sol(sol2, "sol_lse_init.pdf", "", scale=scale_sol)
     plot_sol(sol1 - sol2, "sol_diff.pdf", "", scale=scale_sol)
