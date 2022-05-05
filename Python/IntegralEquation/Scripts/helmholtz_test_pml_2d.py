@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from ..Solver import HelmholtzOperators
 
 
-n = 201
-nz = 201
+n = 2001
+nz = 2001
 a = 4
 b = 5
 xmin = -0.5
@@ -101,28 +101,28 @@ x1 = mat_lu.solve(np.reshape(f, newshape=(nz * n, 1)))
 end_t = time.time()
 print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
-mat = HelmholtzOperators.create_helmholtz2d_matrix(
-    a1=xmax-xmin,
-    a2=b-a,
-    pad1=20,
-    pad2=20,
-    omega=omega,
-    precision=precision,
-    vel=total_vel,
-    pml_damping=50.0,
-    adj=False,
-    warnings=True
-)
-
-start_t = time.time()
-mat_lu = splu(mat)
-end_t = time.time()
-print("\nTotal time to LU factorize: ", "{:4.2f}".format(end_t - start_t), " s \n")
-
-start_t = time.time()
-x2 = mat_lu.solve(np.reshape(f, newshape=(nz * n, 1)))
-end_t = time.time()
-print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
+# mat = HelmholtzOperators.create_helmholtz2d_matrix(
+#     a1=xmax-xmin,
+#     a2=b-a,
+#     pad1=20,
+#     pad2=20,
+#     omega=omega,
+#     precision=precision,
+#     vel=total_vel,
+#     pml_damping=50.0,
+#     adj=False,
+#     warnings=True
+# )
+#
+# start_t = time.time()
+# mat_lu = splu(mat)
+# end_t = time.time()
+# print("\nTotal time to LU factorize: ", "{:4.2f}".format(end_t - start_t), " s \n")
+#
+# start_t = time.time()
+# x2 = mat_lu.solve(np.reshape(f, newshape=(nz * n, 1)))
+# end_t = time.time()
+# print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 
 # scale = 1e-5
 # x = np.reshape(x1-x2, newshape=(nz, n))
@@ -133,11 +133,11 @@ print("Total time to solve: ", "{:4.2f}".format(end_t - start_t), " s \n")
 # plt.colorbar()
 # plt.show()
 
-scale = 1e-4
-x = np.reshape(x2, newshape=(nz, n))
-plt.figure()
-plt.imshow(np.real(x), extent=[xmin, xmax, b, a], cmap="Greys", vmin=-scale, vmax=scale)
-plt.grid(True)
-plt.title("Real (Solution)")
-plt.colorbar()
-plt.show()
+# scale = 1e-4
+# x = np.reshape(x2, newshape=(nz, n))
+# plt.figure()
+# plt.imshow(np.real(x), extent=[xmin, xmax, b, a], cmap="Greys", vmin=-scale, vmax=scale)
+# plt.grid(True)
+# plt.title("Real (Solution)")
+# plt.colorbar()
+# plt.show()
