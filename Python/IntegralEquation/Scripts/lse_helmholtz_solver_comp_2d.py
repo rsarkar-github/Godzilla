@@ -235,7 +235,6 @@ def create_pert_fields(mode, plot=False, fig_filename="fig.pdf"):
 
 total_vel, pert, psi = create_pert_fields(mode=model_mode, plot=True, fig_filename="vels.pdf")
 
-
 # ************************************************************
 # Initialize operator
 def init_op(green_func_filepath):
