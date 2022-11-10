@@ -1,12 +1,15 @@
+import os
+import sys
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.ndimage import gaussian_filter
 from scipy.sparse.linalg import LinearOperator, gmres
-import time, os, sys
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
+from ..Solver.ScatteringIntegralLinearIncreasingVel import TruncatedKernelLinearIncreasingVel2d as Lipp2d
 
 n = 201
 nz = 201
